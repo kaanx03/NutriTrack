@@ -24,6 +24,10 @@ import ForgotPasswordScreen3 from "../screens/auth/forgotPassword/ForgotPassword
 
 // Main
 import HomeScreen from "../screens/main/HomeScreen";
+import FoodSelectionScreen from "../screens/main/FoodSelectionScreen";
+import MealDetailsScreen from "../screens/main/MealDetailsScreen";
+import FoodDetailsScreen from "../screens/main/FoodDetailsScreen";
+import CreateFoodScreen from "../screens/main/CreateFoodScreen"; // Yeni eklendi
 
 const Stack = createNativeStackNavigator();
 
@@ -36,7 +40,6 @@ const AppNavigator = () => (
     <Stack.Screen name="Onboarding1" component={Onboarding1Screen} />
     <Stack.Screen name="Onboarding2" component={Onboarding2Screen} />
     <Stack.Screen name="Onboarding3" component={Onboarding3Screen} />
-
     {/* Auth */}
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="SignUp1" component={SignUpScreen1} />
@@ -52,9 +55,13 @@ const AppNavigator = () => (
     <Stack.Screen name="ForgotPassword1" component={ForgotPasswordScreen1} />
     <Stack.Screen name="ForgotPassword2" component={ForgotPasswordScreen2} />
     <Stack.Screen name="ForgotPassword3" component={ForgotPasswordScreen3} />
-
     {/* Main */}
     <Stack.Screen name="Home" component={HomeScreen} />
+    <Stack.Screen name="FoodSelection" component={FoodSelectionScreen} />
+    <Stack.Screen name="MealDetails" component={MealDetailsScreen} />
+    <Stack.Screen name="FoodDetails" component={FoodDetailsScreen} />
+    <Stack.Screen name="CreateFood" component={CreateFoodScreen} />
+    {/* Yeni eklendi */}
   </Stack.Navigator>
 );
 

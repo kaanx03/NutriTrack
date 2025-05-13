@@ -2,7 +2,8 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import * as Font from "expo-font";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { SignUpProvider } from "./src/context/SignUpContext"; // ← Burayı ekledik
+import { SignUpProvider } from "./src/context/SignUpContext";
+import { MealsProvider } from "./src/context/MealsContext"; // ← Yeni eklendi
 
 export default function App() {
   const [fontsLoaded] = Font.useFonts({
@@ -16,10 +17,13 @@ export default function App() {
 
   return (
     <SignUpProvider>
-      {/* ← Tüm uygulamayı saran context */}
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
+      <MealsProvider>
+        {/* ← Yeni eklendi */}
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </MealsProvider>
+      {/* ← Yeni eklendi */}
     </SignUpProvider>
   );
 }
