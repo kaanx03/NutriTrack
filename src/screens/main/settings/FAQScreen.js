@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import BottomNavigation from "../../../components/BottomNavigation";
 
 const FAQScreen = () => {
   const navigation = useNavigation();
@@ -243,45 +244,8 @@ const FAQScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Ionicons name="home-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Tracker")}
-        >
-          <Ionicons name="grid-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Tracker</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Insights")}
-        >
-          <Ionicons name="stats-chart-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Insights</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Articles")}
-        >
-          <Ionicons name="newspaper-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Articles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-          <Ionicons name="person" size={24} color="#63A4F4" />
-          <Text style={[styles.navText, styles.activeNavText]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Navigation - Updated to use component */}
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -422,32 +386,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     textAlign: "center",
-  },
-  bottomNav: {
-    flexDirection: "row",
-    height: 80,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-    paddingBottom: 20,
-  },
-  navItem: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  activeNavItem: {
-    borderTopWidth: 2,
-    borderTopColor: "#63A4F4",
-  },
-  navText: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  activeNavText: {
-    color: "#63A4F4",
   },
 });
 

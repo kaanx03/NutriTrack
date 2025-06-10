@@ -12,6 +12,9 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
 import BottomNavigation from "../../components/BottomNavigation";
+import { useWater } from "../../context/WaterContext";
+import { useWeight } from "../../context/WeightContext";
+import { useMeals } from "../../context/MealsContext";
 
 const { width } = Dimensions.get("window");
 const chartWidth = width - 40;
@@ -20,11 +23,23 @@ const InsightsScreen = () => {
   const navigation = useNavigation();
   const [selectedPeriod, setSelectedPeriod] = useState("Weekly");
 
+  // Context'lerden veri al
+  const { waterGoal } = useWater();
+  const {
+    currentWeight,
+    goalWeight,
+    bmi,
+    bmiCategory,
+    getBMIColor,
+    getWeightDataForInsights,
+  } = useWeight();
+  const { calorieData } = useMeals();
+
   // Tarih state'ini Date objesi olarak tutuyoruz
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Sample data for charts
-  const calorieData = [2300, 2100, 2400, 1900, 2200, 2500, 1800];
+  // Sample data for charts - context'lerden gelecek
+  const calorieDataArray = [2300, 2100, 2400, 1900, 2200, 2500, 1800];
   const nutritionData = [
     { carbs: 45, protein: 30, fat: 25 },
     { carbs: 50, protein: 25, fat: 25 },
@@ -35,7 +50,9 @@ const InsightsScreen = () => {
     { carbs: 50, protein: 30, fat: 20 },
   ];
   const waterData = [2000, 1800, 2200, 1500, 2000, 2500, 1200];
-  const weightData = [72, 71.8, 71.5, 71.3, 71.2, 71.0, 70.8];
+
+  // Weight data'yı context'ten al
+  const weightData = getWeightDataForInsights();
 
   const days = ["16", "17", "18", "19", "20", "21", "22"];
 
@@ -45,9 +62,7 @@ const InsightsScreen = () => {
   const [selectedWeightDay, setSelectedWeightDay] = useState(1);
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(null);
 
-  const calorieGoal = 2200;
-  const waterGoal = 2000;
-  const weightGoal = 70;
+  const calorieGoal = calorieData.calories;
 
   // Tarih formatını döndüren yardımcı fonksiyon
   const formatDateRange = (date, period) => {
@@ -476,8 +491,8 @@ const InsightsScreen = () => {
     );
   };
 
-  // BMI Gauge Component - Tam daire tasarım
-  const BMIGauge = ({ bmi = 22.9 }) => {
+  // BMI Gauge Component - Context'ten gelen değerlerle
+  const BMIGauge = ({ bmiValue = bmi || 22.9 }) => {
     const size = 200;
     const strokeWidth = 16;
     const radius = (size - strokeWidth) / 2;
@@ -497,22 +512,22 @@ const InsightsScreen = () => {
 
     // Calculate BMI needle position
     let needleAngle = 0;
-    if (bmi < 16) {
-      needleAngle = (bmi / 16) * 40;
-    } else if (bmi < 17) {
-      needleAngle = 40 + ((bmi - 16) / 1) * 15;
-    } else if (bmi < 18.5) {
-      needleAngle = 55 + ((bmi - 17) / 1.5) * 20;
-    } else if (bmi < 25) {
-      needleAngle = 75 + ((bmi - 18.5) / 6.5) * 75;
-    } else if (bmi < 30) {
-      needleAngle = 150 + ((bmi - 25) / 5) * 60;
-    } else if (bmi < 35) {
-      needleAngle = 210 + ((bmi - 30) / 5) * 60;
-    } else if (bmi < 40) {
-      needleAngle = 270 + ((bmi - 35) / 5) * 60;
+    if (bmiValue < 16) {
+      needleAngle = (bmiValue / 16) * 40;
+    } else if (bmiValue < 17) {
+      needleAngle = 40 + ((bmiValue - 16) / 1) * 15;
+    } else if (bmiValue < 18.5) {
+      needleAngle = 55 + ((bmiValue - 17) / 1.5) * 20;
+    } else if (bmiValue < 25) {
+      needleAngle = 75 + ((bmiValue - 18.5) / 6.5) * 75;
+    } else if (bmiValue < 30) {
+      needleAngle = 150 + ((bmiValue - 25) / 5) * 60;
+    } else if (bmiValue < 35) {
+      needleAngle = 210 + ((bmiValue - 30) / 5) * 60;
+    } else if (bmiValue < 40) {
+      needleAngle = 270 + ((bmiValue - 35) / 5) * 60;
     } else {
-      needleAngle = 330 + ((bmi - 40) / 10) * 30;
+      needleAngle = 330 + ((bmiValue - 40) / 10) * 30;
     }
 
     // Limit needle angle
@@ -579,7 +594,7 @@ const InsightsScreen = () => {
               cx={center}
               cy={center}
               r="8"
-              fill="#4CAF50"
+              fill={getBMIColor ? getBMIColor(bmiValue) : "#4CAF50"}
               stroke="white"
               strokeWidth="3"
             />
@@ -587,7 +602,7 @@ const InsightsScreen = () => {
             {/* Needle */}
             <Path
               d={`M ${center} ${center} L ${needleX} ${needleY}`}
-              stroke="#4CAF50"
+              stroke={getBMIColor ? getBMIColor(bmiValue) : "#4CAF50"}
               strokeWidth="3"
               strokeLinecap="round"
             />
@@ -601,7 +616,7 @@ const InsightsScreen = () => {
               fill="#333"
               textAnchor="middle"
             >
-              {bmi}
+              {bmiValue?.toFixed(1) || "0.0"}
             </SvgText>
           </Svg>
         </View>
@@ -612,7 +627,7 @@ const InsightsScreen = () => {
             {
               color: "#2196F3",
               label: "Very Severely Underweight",
-              range: "BMI > 16.0",
+              range: "BMI < 16.0",
             },
             {
               color: "#03A9F4",
@@ -636,7 +651,7 @@ const InsightsScreen = () => {
               label: "Obese Class II",
               range: "BMI 35.0 - 39.9",
             },
-            { color: "#F44336", label: "Obese Class III", range: "BMI > 40" },
+            { color: "#F44336", label: "Obese Class III", range: "BMI ≥ 40" },
           ].map((item, index) => (
             <View key={index} style={styles.bmiLegendItem}>
               <View
@@ -718,64 +733,6 @@ const InsightsScreen = () => {
                 <View
                   style={[styles.legendLine, { backgroundColor: "#ccc" }]}
                 />
-                <Text style={styles.legendText}>Calorie Intake Goal</Text>
-              </View>
-            </View>
-          </View>
-          <BarChart
-            data={calorieData}
-            goal={calorieGoal}
-            primaryColor="#A1CE50"
-            secondaryColor="#D2E7AB"
-            unit="kcal"
-            selectedDay={selectedCalorieDay}
-            onDaySelect={setSelectedCalorieDay}
-          />
-        </View>
-
-        {/* Nutrition Chart */}
-        <View style={styles.chartSection}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>Nutrition (%)</Text>
-            <View style={styles.legendContainer}>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#F54336" }]}
-                />
-                <Text style={styles.legendText}>Carbs</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#63A4F4" }]}
-                />
-                <Text style={styles.legendText}>Protein</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#FE9820" }]}
-                />
-                <Text style={styles.legendText}>Fat</Text>
-              </View>
-            </View>
-          </View>
-          <NutritionChart data={nutritionData} />
-        </View>
-
-        {/* Water Chart */}
-        <View style={styles.chartSection}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>Water</Text>
-            <View style={styles.legendContainer}>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendDot, { backgroundColor: "#63A4F4" }]}
-                />
-                <Text style={styles.legendText}>Selected</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View
-                  style={[styles.legendLine, { backgroundColor: "#ccc" }]}
-                />
                 <Text style={styles.legendText}>Water Goal</Text>
               </View>
             </View>
@@ -806,13 +763,13 @@ const InsightsScreen = () => {
                 <View
                   style={[styles.legendLine, { backgroundColor: "#ccc" }]}
                 />
-                <Text style={styles.legendText}>Weight Loss Goal</Text>
+                <Text style={styles.legendText}>Weight Goal</Text>
               </View>
             </View>
           </View>
           <BarChart
             data={weightData}
-            goal={weightGoal}
+            goal={goalWeight}
             primaryColor="#FF5726"
             secondaryColor="#FFAE97"
             unit="kg"
@@ -824,16 +781,18 @@ const InsightsScreen = () => {
         {/* BMI Section */}
         <View style={styles.chartSection}>
           <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>BMI (kg/m2)</Text>
+            <Text style={styles.chartTitle}>BMI (kg/m²)</Text>
             <View style={styles.normalBadge}>
-              <Text style={styles.normalBadgeText}>Normal</Text>
+              <Text style={styles.normalBadgeText}>
+                {bmiCategory ? bmiCategory.split(" ")[0] : "Normal"}
+              </Text>
             </View>
           </View>
-          <BMIGauge bmi={22.9} />
+          <BMIGauge bmiValue={bmi} />
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation - Updated to use component */}
+      {/* Bottom Navigation */}
       <BottomNavigation activeTab="Insights" />
     </View>
   );

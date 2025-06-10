@@ -12,29 +12,38 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
-import { useSignUp } from "../../context/SignUpContext";
-import { useWater } from "../../context/WaterContext"; // Import useWater
+import { useWater } from "../../context/WaterContext";
+import { useWeight } from "../../context/WeightContext";
 import BottomNavigation from "../../components/BottomNavigation";
 
 const TrackerScreen = () => {
   const navigation = useNavigation();
-  const { formData, updateFormData } = useSignUp();
-  // Destructure water-related states and functions from useWater hook
+
+  // Water context
   const {
     waterIntake,
-    setWaterIntake,
-    increaseWater: contextIncreaseWater, // Rename to avoid conflict with local function
-    decreaseWater: contextDecreaseWater, // Rename to avoid conflict with local function
+    increaseWater: contextIncreaseWater,
+    decreaseWater: contextDecreaseWater,
     waterGoal,
   } = useWater();
 
+  // Weight context
+  const {
+    currentWeight,
+    goalWeight,
+    height,
+    bmi,
+    bmiCategory,
+    initialWeight,
+    updateWeight,
+    getBMIColor,
+    getWeightChange,
+    getGoalProgress,
+  } = useWeight();
+
   const [waterIncrement, setWaterIncrement] = useState(100);
-  const [currentWeight, setCurrentWeight] = useState(80);
-  const [initialWeight, setInitialWeight] = useState(80);
-  const [bmi, setBmi] = useState(null);
-  const [bmiCategory, setBmiCategory] = useState("");
   const [isWeightModalVisible, setIsWeightModalVisible] = useState(false);
-  const [newWeight, setNewWeight] = useState("");
+  const [newWeight, setNewWeight] = useState(currentWeight.toString());
   const [showCelebration, setShowCelebration] = useState(false);
 
   // Su animasyon referansları
@@ -56,45 +65,10 @@ const TrackerScreen = () => {
     new Animated.Value(0),
   ]).current;
 
-  // Kullanıcının başlangıç kilosunu ve BMI'sını hesapla
+  // Weight değiştiğinde newWeight'i güncelle
   useEffect(() => {
-    // Default değerler
-    let weight = currentWeight || 80;
-    let height = 175;
-
-    // Form data'dan gelirse onları kullan
-    if (formData.weight && formData.height) {
-      weight = parseFloat(formData.weight);
-      height = parseFloat(formData.height);
-      setCurrentWeight(weight);
-      setNewWeight(weight.toString());
-
-      if (initialWeight === null) {
-        setInitialWeight(weight);
-      }
-    } else {
-      // Default değerleri ayarla
-      setNewWeight(weight.toString());
-    }
-
-    // BMI hesapla
-    const heightInMeters = height / 100;
-    const bmiValue = weight / (heightInMeters * heightInMeters);
-    setBmi(Math.round(bmiValue * 10) / 10);
-
-    // BMI kategorisini belirle
-    if (bmiValue < 16.0) setBmiCategory("Very Severly Underweight");
-    else if (bmiValue >= 16.0 && bmiValue < 17.0)
-      setBmiCategory("Severly Underweight");
-    else if (bmiValue >= 17.0 && bmiValue < 18.5) setBmiCategory("Underweight");
-    else if (bmiValue >= 18.5 && bmiValue < 25.0) setBmiCategory("Normal");
-    else if (bmiValue >= 25.0 && bmiValue < 30.0) setBmiCategory("Overweight");
-    else if (bmiValue >= 30.0 && bmiValue < 35.0)
-      setBmiCategory("Obese Class I");
-    else if (bmiValue >= 35.0 && bmiValue < 40.0)
-      setBmiCategory("Obese Class II");
-    else setBmiCategory("Obese Class III");
-  }, [formData, currentWeight, initialWeight]); // Added initialWeight to dependencies
+    setNewWeight(currentWeight.toString());
+  }, [currentWeight]);
 
   // Su seviyesi animasyonu
   useEffect(() => {
@@ -103,7 +77,7 @@ const TrackerScreen = () => {
       duration: 1000,
       useNativeDriver: false,
     }).start();
-  }, [waterIntake, waterGoal]); // Added waterGoal to dependencies
+  }, [waterIntake, waterGoal]);
 
   // Bubble animasyonları
   useEffect(() => {
@@ -136,12 +110,12 @@ const TrackerScreen = () => {
 
   // Su içme fonksiyonları
   const decreaseWater = () => {
-    contextDecreaseWater(waterIncrement); // Use context function
+    contextDecreaseWater(waterIncrement);
   };
 
   const increaseWater = () => {
     const newIntake = waterIntake + waterIncrement;
-    contextIncreaseWater(waterIncrement); // Use context function
+    contextIncreaseWater(waterIncrement);
 
     // Hedef ulaşıldığında kutlama animasyonu
     if (waterIntake < waterGoal && newIntake >= waterGoal) {
@@ -169,42 +143,18 @@ const TrackerScreen = () => {
   };
 
   // Kilo güncelleme
-  const updateWeight = () => {
+  const updateWeightHandler = () => {
     setIsWeightModalVisible(true);
   };
 
   const saveWeight = () => {
     const weight = parseFloat(newWeight);
-    if (!isNaN(weight) && weight > 0) {
-      updateFormData("weight", newWeight);
-      setCurrentWeight(weight);
-
-      // BMI'yi yeniden hesapla
-      let height = 175; // Default
-      if (formData.height) {
-        height = parseFloat(formData.height);
-      }
-
-      const heightInMeters = height / 100;
-      const bmiValue = weight / (heightInMeters * heightInMeters);
-      setBmi(Math.round(bmiValue * 10) / 10);
-
-      // BMI kategorisini güncelle
-      if (bmiValue < 16.0) setBmiCategory("Very Severly Underweight");
-      else if (bmiValue >= 16.0 && bmiValue < 17.0)
-        setBmiCategory("Severly Underweight");
-      else if (bmiValue >= 17.0 && bmiValue < 18.5)
-        setBmiCategory("Underweight");
-      else if (bmiValue >= 18.5 && bmiValue < 25.0) setBmiCategory("Normal");
-      else if (bmiValue >= 25.0 && bmiValue < 30.0)
-        setBmiCategory("Overweight");
-      else if (bmiValue >= 30.0 && bmiValue < 35.0)
-        setBmiCategory("Obese Class I");
-      else if (bmiValue >= 35.0 && bmiValue < 40.0)
-        setBmiCategory("Obese Class II");
-      else setBmiCategory("Obese Class III");
+    if (!isNaN(weight) && weight > 0 && weight <= 500) {
+      updateWeight(weight);
+      setIsWeightModalVisible(false);
+    } else {
+      alert("Please enter a valid weight between 1 and 500 kg");
     }
-    setIsWeightModalVisible(false);
   };
 
   // Su yüzdesi hesapla
@@ -224,31 +174,6 @@ const TrackerScreen = () => {
       { color: "#FF5726", flex: 1 },
       { color: "#F54336", flex: 1 },
     ];
-  };
-
-  // Kilo değişimi hesapla
-  const getWeightChange = () => {
-    if (initialWeight && currentWeight) {
-      const change = currentWeight - initialWeight;
-      return {
-        value: Math.abs(change).toFixed(1),
-        isPositive: change > 0,
-        isNegative: change < 0,
-      };
-    }
-    return { value: "0.0", isPositive: false, isNegative: false };
-  };
-
-  // BMI renk kategorisi
-  const getBmiColor = () => {
-    if (bmi < 16.0) return "#3F51B2";
-    if (bmi >= 16.0 && bmi < 17.0) return "#1A96F0";
-    if (bmi >= 17.0 && bmi < 18.5) return "#00A9F1";
-    if (bmi >= 18.5 && bmi < 25.0) return "#4AAF57";
-    if (bmi >= 25.0 && bmi < 30.0) return "#FFC02D";
-    if (bmi >= 30.0 && bmi < 35.0) return "#FF981F";
-    if (bmi >= 35.0 && bmi < 40.0) return "#FF5726";
-    return "#F54336";
   };
 
   // BMI pozisyon hesapla
@@ -275,6 +200,9 @@ const TrackerScreen = () => {
     currentPosition += segments[segmentIndex].flex / 2;
     return (currentPosition / totalFlex) * 100;
   };
+
+  const weightChange = getWeightChange();
+  const goalProgress = getGoalProgress();
 
   return (
     <View style={styles.container}>
@@ -457,23 +385,23 @@ const TrackerScreen = () => {
             <Text style={styles.sectionTitle}>Weight</Text>
             <TouchableOpacity
               style={styles.updateButton}
-              onPress={updateWeight}
+              onPress={updateWeightHandler}
             >
               <Text style={styles.updateButtonText}>Update</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.weightDisplay}>
-            <Text style={styles.weightValue}>{currentWeight}</Text>
+            <Text style={styles.weightValue}>{currentWeight.toFixed(1)}</Text>
             <Text style={styles.weightUnit}>kg</Text>
             <View style={styles.weightChange}>
               <View
                 style={[
                   styles.weightDot,
                   {
-                    backgroundColor: getWeightChange().isNegative
+                    backgroundColor: weightChange.isNegative
                       ? "#10B981"
-                      : getWeightChange().isPositive
+                      : weightChange.isPositive
                       ? "#EF4444"
                       : "#9CA3AF",
                   },
@@ -483,20 +411,20 @@ const TrackerScreen = () => {
                 style={[
                   styles.weightChangeText,
                   {
-                    color: getWeightChange().isNegative
+                    color: weightChange.isNegative
                       ? "#10B981"
-                      : getWeightChange().isPositive
+                      : weightChange.isPositive
                       ? "#EF4444"
                       : "#666",
                   },
                 ]}
               >
-                {getWeightChange().isNegative
+                {weightChange.isNegative
                   ? "-"
-                  : getWeightChange().isPositive
+                  : weightChange.isPositive
                   ? "+"
                   : ""}
-                {getWeightChange().value} kg
+                {weightChange.value} kg
               </Text>
             </View>
           </View>
@@ -504,28 +432,31 @@ const TrackerScreen = () => {
           {/* Progress Bar */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              {/* This progress bar currently uses a fixed width.
-                  If you want it to reflect weight progress dynamically,
-                  you'll need to implement logic based on target weight. */}
-              <View style={[styles.progressFill, { width: "45%" }]} />
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(goalProgress.percentage, 100)}%` },
+                ]}
+              />
             </View>
             <View style={styles.progressLabels}>
               <Text style={styles.progressLabel}>
                 Starting {initialWeight.toFixed(1)} kg
               </Text>
-              {/* You might want a target weight from formData or context here */}
-              <Text style={styles.progressLabel}>Ending 75.0 kg</Text>
+              <Text style={styles.progressLabel}>
+                Goal {goalWeight.toFixed(1)} kg
+              </Text>
             </View>
           </View>
         </View>
 
         {/* BMI Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>BMI (kg/m2)</Text>
+          <Text style={styles.sectionTitle}>BMI (kg/m²)</Text>
 
           <View style={styles.bmiDisplay}>
-            <Text style={styles.bmiValue}>{bmi}</Text>
-            <Text style={[styles.bmiCategory, { color: getBmiColor() }]}>
+            <Text style={styles.bmiValue}>{bmi?.toFixed(1) || "0.0"}</Text>
+            <Text style={[styles.bmiCategory, { color: getBMIColor(bmi) }]}>
               {bmiCategory}
             </Text>
           </View>
@@ -599,7 +530,7 @@ const TrackerScreen = () => {
         </View>
       </Modal>
 
-      {/* Bottom Navigation - Updated to use component */}
+      {/* Bottom Navigation */}
       <BottomNavigation activeTab="Tracker" />
     </View>
   );

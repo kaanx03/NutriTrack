@@ -9,17 +9,31 @@ import {
   SafeAreaView,
   Switch,
   Alert,
+  TextInput,
+  Modal,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import BottomNavigation from "../../../components/BottomNavigation";
+import { useWeight } from "../../../context/WeightContext";
 
 const WeightTrackerScreen = () => {
   const navigation = useNavigation();
+  const {
+    currentWeight,
+    goalWeight,
+    height,
+    bmi,
+    bmiCategory,
+    updateWeight,
+    updateHeight,
+    updateGoalWeight,
+    getBMIColor,
+    getWeightChange,
+    getGoalProgress,
+  } = useWeight();
 
   const [settings, setSettings] = useState({
-    currentWeight: "80.0 kg",
-    goalWeight: "75.0",
-    height: "175.0 cm",
     weightUnits: "kg",
     heightUnits: "cm",
     bmiEnabled: true,
@@ -32,6 +46,15 @@ const WeightTrackerScreen = () => {
     stopWhenGoalAchieved: false,
   });
 
+  // Modal states
+  const [weightModalVisible, setWeightModalVisible] = useState(false);
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [heightModalVisible, setHeightModalVisible] = useState(false);
+
+  const [tempWeight, setTempWeight] = useState(currentWeight.toString());
+  const [tempGoal, setTempGoal] = useState(goalWeight.toString());
+  const [tempHeight, setTempHeight] = useState(height.toString());
+
   const handleSettingChange = (key, value) => {
     setSettings((prev) => ({
       ...prev,
@@ -39,42 +62,67 @@ const WeightTrackerScreen = () => {
     }));
   };
 
-  const showWeightPicker = (type) => {
-    Alert.alert(
-      type === "current" ? "Current Weight" : "Goal Weight",
-      "Enter your weight",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Set Weight",
-          onPress: () => {
-            const newWeight = type === "current" ? "78.5 kg" : "73.0";
-            handleSettingChange(
-              type === "current" ? "currentWeight" : "goalWeight",
-              newWeight
-            );
-          },
-        },
-      ]
-    );
+  // Weight modal handlers
+  const showWeightPicker = () => {
+    setTempWeight(currentWeight.toString());
+    setWeightModalVisible(true);
   };
 
+  const saveWeight = () => {
+    const weight = parseFloat(tempWeight);
+    if (isNaN(weight) || weight <= 0 || weight > 500) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter a valid weight between 1 and 500 kg"
+      );
+      return;
+    }
+
+    updateWeight(weight);
+    setWeightModalVisible(false);
+    Alert.alert("Success", `Weight updated to ${weight} kg`);
+  };
+
+  // Goal weight modal handlers
+  const showGoalPicker = () => {
+    setTempGoal(goalWeight.toString());
+    setGoalModalVisible(true);
+  };
+
+  const saveGoal = () => {
+    const goal = parseFloat(tempGoal);
+    if (isNaN(goal) || goal <= 0 || goal > 500) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter a valid goal weight between 1 and 500 kg"
+      );
+      return;
+    }
+
+    updateGoalWeight(goal);
+    setGoalModalVisible(false);
+    Alert.alert("Success", `Goal weight updated to ${goal} kg`);
+  };
+
+  // Height modal handlers
   const showHeightPicker = () => {
-    Alert.alert("Height", "Enter your height", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Set Height",
-        onPress: () => {
-          handleSettingChange("height", "180.0 cm");
-        },
-      },
-    ]);
+    setTempHeight(height.toString());
+    setHeightModalVisible(true);
+  };
+
+  const saveHeight = () => {
+    const heightValue = parseFloat(tempHeight);
+    if (isNaN(heightValue) || heightValue <= 0 || heightValue > 300) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter a valid height between 1 and 300 cm"
+      );
+      return;
+    }
+
+    updateHeight(heightValue);
+    setHeightModalVisible(false);
+    Alert.alert("Success", `Height updated to ${heightValue} cm`);
   };
 
   const showWeightUnitsPicker = () => {
@@ -227,6 +275,69 @@ const WeightTrackerScreen = () => {
     </View>
   );
 
+  // Modal component
+  const renderModal = (
+    visible,
+    onClose,
+    title,
+    value,
+    setValue,
+    onSave,
+    unit
+  ) => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <Text style={styles.inputLabel}>{title}</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.textInput}
+                value={value}
+                onChangeText={setValue}
+                placeholder={`Enter ${title.toLowerCase()}`}
+                keyboardType="numeric"
+                maxLength={6}
+              />
+              <Text style={styles.inputUnit}>{unit}</Text>
+            </View>
+          </View>
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={onClose}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.saveButton]}
+              onPress={onSave}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const weightChange = getWeightChange();
+  const goalProgress = getGoalProgress();
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -249,13 +360,21 @@ const WeightTrackerScreen = () => {
       >
         {/* Weight & Goal Settings */}
         <View style={styles.section}>
-          {renderSettingItem("Current Weight", settings.currentWeight, () =>
-            showWeightPicker("current")
+          {renderSettingItem(
+            "Current Weight",
+            `${currentWeight.toFixed(1)} kg`,
+            showWeightPicker
           )}
-          {renderSettingItem("Goal Weight", settings.goalWeight, () =>
-            showWeightPicker("goal")
+          {renderSettingItem(
+            "Goal Weight",
+            `${goalWeight.toFixed(1)} kg`,
+            showGoalPicker
           )}
-          {renderSettingItem("Height", settings.height, showHeightPicker)}
+          {renderSettingItem(
+            "Height",
+            `${height.toFixed(1)} cm`,
+            showHeightPicker
+          )}
           {renderSettingItem(
             "Weight Units",
             settings.weightUnits,
@@ -326,61 +445,103 @@ const WeightTrackerScreen = () => {
           <View style={styles.progressStats}>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>To Goal</Text>
-              <Text style={styles.statValue}>5.0 kg</Text>
+              <Text style={styles.statValue}>{goalProgress.remaining} kg</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>BMI</Text>
-              <Text style={styles.statValue}>26.1</Text>
+              <Text style={[styles.statValue, { color: getBMIColor(bmi) }]}>
+                {bmi?.toFixed(1) || "0.0"}
+              </Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Category</Text>
-              <Text style={styles.statValue}>Overweight</Text>
+              <Text style={[styles.statValue, { color: getBMIColor(bmi) }]}>
+                {bmiCategory.split(" ")[0]}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.progressStats}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Change</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  {
+                    color: weightChange.isNegative
+                      ? "#10B981"
+                      : weightChange.isPositive
+                      ? "#EF4444"
+                      : "#666",
+                  },
+                ]}
+              >
+                {weightChange.isNegative
+                  ? "-"
+                  : weightChange.isPositive
+                  ? "+"
+                  : ""}
+                {weightChange.value} kg
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Progress</Text>
+              <Text style={styles.statValue}>
+                {goalProgress.percentage.toFixed(0)}%
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Status</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  { color: goalProgress.isAchieved ? "#10B981" : "#FF6B6B" },
+                ]}
+              >
+                {goalProgress.isAchieved ? "Achieved!" : "In Progress"}
+              </Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
+      {/* Modals */}
+      {renderModal(
+        weightModalVisible,
+        () => setWeightModalVisible(false),
+        "Current Weight",
+        tempWeight,
+        setTempWeight,
+        saveWeight,
+        "kg"
+      )}
+
+      {renderModal(
+        goalModalVisible,
+        () => setGoalModalVisible(false),
+        "Goal Weight",
+        tempGoal,
+        setTempGoal,
+        saveGoal,
+        "kg"
+      )}
+
+      {renderModal(
+        heightModalVisible,
+        () => setHeightModalVisible(false),
+        "Height",
+        tempHeight,
+        setTempHeight,
+        saveHeight,
+        "cm"
+      )}
+
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Ionicons name="home-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Tracker")}
-        >
-          <Ionicons name="grid-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Tracker</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Insights")}
-        >
-          <Ionicons name="stats-chart-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Insights</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Articles")}
-        >
-          <Ionicons name="newspaper-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Articles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-          <Ionicons name="person" size={24} color="#63A4F4" />
-          <Text style={[styles.navText, styles.activeNavText]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -504,6 +665,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
   },
   statItem: {
     flex: 1,
@@ -525,31 +687,102 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E5E5",
     marginHorizontal: 16,
   },
-  bottomNav: {
-    flexDirection: "row",
-    height: 80,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-    paddingBottom: 20,
-  },
-  navItem: {
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
-  activeNavItem: {
-    borderTopWidth: 2,
-    borderTopColor: "#63A4F4",
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    margin: 20,
+    width: "85%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  navText: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 4,
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
     fontWeight: "500",
+    color: "#333",
+    marginBottom: 10,
   },
-  activeNavText: {
-    color: "#63A4F4",
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FF6B6B",
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    paddingVertical: 12,
+  },
+  inputUnit: {
+    fontSize: 16,
+    color: "#666",
+    marginLeft: 10,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+  },
+  saveButton: {
+    backgroundColor: "#FF6B6B",
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#666",
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
 

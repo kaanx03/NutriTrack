@@ -9,15 +9,20 @@ import {
   SafeAreaView,
   Switch,
   Alert,
+  TextInput,
+  Modal,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import BottomNavigation from "../../../components/BottomNavigation";
+import { useMeals } from "../../../context/MealsContext";
 
 const CalorieCounterScreen = () => {
   const navigation = useNavigation();
+  const { calorieData, updateCalorieGoal } = useMeals();
 
   const [settings, setSettings] = useState({
-    calorieIntakeGoal: "2.560 kcal",
+    calorieIntakeGoal: calorieData.calories.toString(),
     units: "kcal",
     mealLoggingReminder: true,
     repeat: "Everyday",
@@ -28,6 +33,11 @@ const CalorieCounterScreen = () => {
     stopWhenComplete: false,
   });
 
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [tempGoalValue, setTempGoalValue] = useState(
+    calorieData.calories.toString()
+  );
+
   const handleSettingChange = (key, value) => {
     setSettings((prev) => ({
       ...prev,
@@ -36,19 +46,35 @@ const CalorieCounterScreen = () => {
   };
 
   const showGoalPicker = () => {
-    Alert.alert("Calorie Intake Goal", "Enter your daily calorie goal", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Set Goal",
-        onPress: () => {
-          // In a real app, this would open a number picker
-          handleSettingChange("calorieIntakeGoal", "2.800 kcal");
-        },
-      },
-    ]);
+    setTempGoalValue(settings.calorieIntakeGoal);
+    setGoalModalVisible(true);
+  };
+
+  const handleGoalSave = () => {
+    const numericValue = parseInt(tempGoalValue);
+
+    // Geçerli bir sayı olup olmadığını kontrol et
+    if (isNaN(numericValue) || numericValue < 800 || numericValue > 5000) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter a valid calorie goal between 800 and 5000 kcal"
+      );
+      return;
+    }
+
+    // Ayarları güncelle
+    const formattedValue = numericValue.toLocaleString() + " kcal";
+    handleSettingChange("calorieIntakeGoal", formattedValue);
+
+    // MealsContext'i güncelle
+    updateCalorieGoal(numericValue);
+
+    setGoalModalVisible(false);
+
+    Alert.alert(
+      "Goal Updated",
+      `Your daily calorie goal has been set to ${numericValue} kcal`
+    );
   };
 
   const showUnitsPicker = () => {
@@ -246,45 +272,65 @@ const CalorieCounterScreen = () => {
         </View>
       </ScrollView>
 
+      {/* Calorie Goal Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={goalModalVisible}
+        onRequestClose={() => setGoalModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Set Calorie Goal</Text>
+              <TouchableOpacity
+                onPress={() => setGoalModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <Text style={styles.inputLabel}>Daily Calorie Goal</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  value={tempGoalValue}
+                  onChangeText={setTempGoalValue}
+                  placeholder="Enter calories"
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+                <Text style={styles.inputUnit}>kcal</Text>
+              </View>
+
+              <Text style={styles.helperText}>
+                Recommended range: 800 - 5000 kcal per day
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setGoalModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleGoalSave}
+              >
+                <Text style={styles.saveButtonText}>Save Goal</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Ionicons name="home-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Tracker")}
-        >
-          <Ionicons name="grid-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Tracker</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Insights")}
-        >
-          <Ionicons name="stats-chart-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Insights</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate("Articles")}
-        >
-          <Ionicons name="newspaper-outline" size={24} color="#999" />
-          <Text style={styles.navText}>Articles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-          <Ionicons name="person" size={24} color="#63A4F4" />
-          <Text style={[styles.navText, styles.activeNavText]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
 };
@@ -386,31 +432,107 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  bottomNav: {
-    flexDirection: "row",
-    height: 80,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-    paddingBottom: 20,
-  },
-  navItem: {
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
-  activeNavItem: {
-    borderTopWidth: 2,
-    borderTopColor: "#63A4F4",
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    margin: 20,
+    width: "85%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  navText: {
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginBottom: 10,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#A1CE50",
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    paddingVertical: 12,
+  },
+  inputUnit: {
+    fontSize: 16,
+    color: "#666",
+    marginLeft: 10,
+  },
+  helperText: {
     fontSize: 12,
     color: "#999",
-    marginTop: 4,
-    fontWeight: "500",
+    fontStyle: "italic",
   },
-  activeNavText: {
-    color: "#63A4F4",
+  modalButtons: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+  },
+  saveButton: {
+    backgroundColor: "#A1CE50",
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#666",
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
 

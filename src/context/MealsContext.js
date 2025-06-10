@@ -1,4 +1,4 @@
-// src/context/MealsContext.js - Güncellenmiş sürüm
+// src/context/MealsContext.js - Tamamen Yeni Sürüm
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useSignUp } from "./SignUpContext";
 
@@ -30,10 +30,9 @@ const initialState = {
     protein: 175, // 2800 kalorideki yaklaşık protein (gram)
     fat: 78, // 2800 kalorideki yaklaşık yağ (gram)
   },
-  // Yeni state'ler
-  favoriteFoods: [], // Favori yemekleri sakla
-  recentFoods: [], // Son görüntülenen yemekleri sakla
-  personalFoods: [], // Kullanıcının eklediği yemekleri sakla
+  favoriteFoods: [],
+  recentFoods: [],
+  personalFoods: [],
 };
 
 const MealsContext = createContext(initialState);
@@ -71,6 +70,58 @@ export const MealsProvider = ({ children }) => {
     }
   }, [formData]);
 
+  // Kalori hedefi güncelleme fonksiyonu
+  const updateCalorieGoal = (newCalories) => {
+    setState((prevState) => {
+      // Makro besin hedeflerini yeni kalori miktarına göre hesapla
+      const carbsGrams = Math.round((newCalories * 0.5) / 4); // 1g carbs = 4 kcal
+      const proteinGrams = Math.round((newCalories * 0.25) / 4); // 1g protein = 4 kcal
+      const fatGrams = Math.round((newCalories * 0.25) / 9); // 1g fat = 9 kcal
+
+      // Öğün kalori dağılımını güncelle
+      const breakfast = Math.round(newCalories * 0.3);
+      const lunch = Math.round(newCalories * 0.3);
+      const dinner = Math.round(newCalories * 0.3);
+      const snack = Math.round(newCalories * 0.1);
+
+      // Kalan kaloriyi yeniden hesapla
+      const newCaloriesLeft = newCalories - prevState.consumedCalories;
+
+      return {
+        ...prevState,
+        calorieData: {
+          calories: newCalories,
+          carbs: carbsGrams,
+          protein: proteinGrams,
+          fat: fatGrams,
+        },
+        caloriesLeft: Math.max(0, newCaloriesLeft),
+        meals: [
+          {
+            type: "Breakfast",
+            consumed: prevState.meals[0].consumed,
+            total: breakfast,
+          },
+          {
+            type: "Lunch",
+            consumed: prevState.meals[1].consumed,
+            total: lunch,
+          },
+          {
+            type: "Dinner",
+            consumed: prevState.meals[2].consumed,
+            total: dinner,
+          },
+          {
+            type: "Snack",
+            consumed: prevState.meals[3].consumed,
+            total: snack,
+          },
+        ],
+      };
+    });
+  };
+
   // Yemek ekleme fonksiyonu
   const addFood = (selectedFood) => {
     const {
@@ -86,30 +137,23 @@ export const MealsProvider = ({ children }) => {
       portionUnit,
     } = selectedFood;
 
-    // Benzersiz ID oluştur
     const foodId = id || Date.now().toString();
 
     setState((prevState) => {
-      // İlgili öğünü bul
       const mealIndex = prevState.meals.findIndex(
         (meal) => meal.type === mealType
       );
       if (mealIndex === -1) return prevState;
 
-      // Öğünleri güncelle
       const updatedMeals = [...prevState.meals];
       updatedMeals[mealIndex].consumed += calories;
 
-      // Toplam tüketilen kalori
       const newConsumedCalories = prevState.consumedCalories + calories;
-
-      // Kalan kalori
       const newCaloriesLeft = Math.max(
         0,
         prevState.calorieData.calories - newConsumedCalories
       );
 
-      // Tüketilen besin değerlerini güncelle - sayıları yuvarla
       const newConsumedNutrients = {
         carbs:
           Math.round((prevState.consumedNutrients.carbs + carbs) * 10) / 10,
@@ -118,7 +162,6 @@ export const MealsProvider = ({ children }) => {
         fat: Math.round((prevState.consumedNutrients.fat + fat) * 10) / 10,
       };
 
-      // Yeni yiyeceği ekle
       const newFood = {
         id: foodId,
         name,
@@ -126,13 +169,12 @@ export const MealsProvider = ({ children }) => {
         carbs,
         protein,
         fat,
-        weight: portionSize || weight, // Porsiyon varsa onu kullan, yoksa weight'i kullan
+        weight: portionSize || weight,
         portionSize: portionSize || weight,
         portionUnit: portionUnit || "gram (g)",
-        mealType, // Öğün bilgisini ekle
+        mealType,
       };
 
-      // Mevcut öğün yiyeceklerini güncelle
       const updatedMealFoods = {
         ...prevState.mealFoods,
         [mealType]: [...prevState.mealFoods[mealType], newFood],
@@ -149,7 +191,7 @@ export const MealsProvider = ({ children }) => {
     });
   };
 
-  // YENİ: Porsiyon güncelleme fonksiyonu
+  // Porsiyon güncelleme fonksiyonu
   const updateFoodPortion = (
     foodId,
     mealType,
@@ -161,27 +203,22 @@ export const MealsProvider = ({ children }) => {
     newFat
   ) => {
     setState((prevState) => {
-      // Yemeği mevcut öğünde bul
       const mealFoods = prevState.mealFoods[mealType] || [];
       const foodIndex = mealFoods.findIndex((food) => food.id === foodId);
 
-      // Yemek bulunamadıysa state'i değiştirme
       if (foodIndex === -1) return prevState;
 
-      // Eski yemek bilgisini al
       const oldFood = mealFoods[foodIndex];
       const oldCalories = oldFood.calories;
       const oldCarbs = oldFood.carbs || 0;
       const oldProtein = oldFood.protein || 0;
       const oldFat = oldFood.fat || 0;
 
-      // Yeni ve eski kalori/makro farkları (ekleme/çıkarma değerleri)
       const caloriesDiff = newCalories - oldCalories;
       const carbsDiff = newCarbs - oldCarbs;
       const proteinDiff = newProtein - oldProtein;
       const fatDiff = newFat - oldFat;
 
-      // Güncellenmiş yemek
       const updatedFood = {
         ...oldFood,
         calories: newCalories,
@@ -190,32 +227,27 @@ export const MealsProvider = ({ children }) => {
         fat: newFat,
         portionSize: newPortionSize,
         portionUnit: newPortionUnit,
-        weight: newPortionSize, // weight alanını da güncelle
+        weight: newPortionSize,
       };
 
-      // Güncellenmiş yemek listesi
       const updatedMealFoods = [...mealFoods];
       updatedMealFoods[foodIndex] = updatedFood;
 
-      // Öğün indeksini bul
       const mealIndex = prevState.meals.findIndex(
         (meal) => meal.type === mealType
       );
 
-      // Öğün toplam kalorisini güncelle
       const updatedMeals = [...prevState.meals];
       if (mealIndex !== -1) {
         updatedMeals[mealIndex].consumed += caloriesDiff;
       }
 
-      // Toplam tüketilen ve kalan kaloriyi güncelle
       const newConsumedCalories = prevState.consumedCalories + caloriesDiff;
       const newCaloriesLeft = Math.max(
         0,
         prevState.calorieData.calories - newConsumedCalories
       );
 
-      // Toplam besin maddelerini güncelle - sayıları yuvarla
       const newConsumedNutrients = {
         carbs:
           Math.round((prevState.consumedNutrients.carbs + carbsDiff) * 10) / 10,
@@ -242,31 +274,24 @@ export const MealsProvider = ({ children }) => {
   // Yemek silme fonksiyonu
   const deleteFood = (foodId, mealType) => {
     setState((prevState) => {
-      // Silinecek yemeği bul
       const deletedFood = prevState.mealFoods[mealType].find(
         (food) => food.id === foodId
       );
       if (!deletedFood) return prevState;
 
-      // Öğün indeksini bul
       const mealIndex = prevState.meals.findIndex(
         (meal) => meal.type === mealType
       );
       if (mealIndex === -1) return prevState;
 
-      // Öğünleri güncelle
       const updatedMeals = [...prevState.meals];
       updatedMeals[mealIndex].consumed -= deletedFood.calories;
 
-      // Tüketilen kaloriyi güncelle
       const newConsumedCalories =
         prevState.consumedCalories - deletedFood.calories;
-
-      // Kalan kaloriyi güncelle
       const newCaloriesLeft =
         prevState.calorieData.calories - newConsumedCalories;
 
-      // Tüketilen besin değerlerini güncelle - sayıları yuvarla
       const newConsumedNutrients = {
         carbs:
           Math.round(
@@ -283,7 +308,6 @@ export const MealsProvider = ({ children }) => {
           ) / 10,
       };
 
-      // Yiyeceği öğün listesinden kaldır
       const updatedMealFoods = {
         ...prevState.mealFoods,
         [mealType]: prevState.mealFoods[mealType].filter(
@@ -310,16 +334,14 @@ export const MealsProvider = ({ children }) => {
     }));
   };
 
-  // Favori yemek ekleme/çıkarma fonksiyonu
+  // Favori yemek ekleme/çıkarma
   const toggleFavorite = (food) => {
     setState((prevState) => {
-      // Yemek zaten favorilerde mi kontrol et
       const isFavorite = prevState.favoriteFoods.some(
         (item) => item.id === food.id
       );
 
       if (isFavorite) {
-        // Favorilerden çıkar
         return {
           ...prevState,
           favoriteFoods: prevState.favoriteFoods.filter(
@@ -327,7 +349,6 @@ export const MealsProvider = ({ children }) => {
           ),
         };
       } else {
-        // Favorilere ekle
         return {
           ...prevState,
           favoriteFoods: [...prevState.favoriteFoods, food],
@@ -336,15 +357,13 @@ export const MealsProvider = ({ children }) => {
     });
   };
 
-  // Son görüntülenen yemek ekleme fonksiyonu
+  // Son görüntülenen yemek ekleme
   const addToRecent = (food) => {
     setState((prevState) => {
-      // Eğer yemek zaten varsa listeden çıkar (sonra başa eklemek için)
       const filteredRecents = prevState.recentFoods.filter(
         (item) => item.id !== food.id
       );
 
-      // Yemeği listenin başına ekle ve en fazla 10 yemek tut
       const updatedRecents = [food, ...filteredRecents].slice(0, 10);
 
       return {
@@ -354,10 +373,9 @@ export const MealsProvider = ({ children }) => {
     });
   };
 
-  // Kişisel yemek ekleme fonksiyonu - YENİ
+  // Kişisel yemek ekleme
   const addPersonalFood = (food) => {
     setState((prevState) => {
-      // Eğer aynı ID'ye sahip bir yemek varsa güncelle, yoksa ekle
       const existingIndex = prevState.personalFoods.findIndex(
         (item) => item.id === food.id
       );
@@ -377,7 +395,7 @@ export const MealsProvider = ({ children }) => {
     });
   };
 
-  // Kişisel yemek silme fonksiyonu - YENİ
+  // Kişisel yemek silme
   const deletePersonalFood = (foodId) => {
     setState((prevState) => ({
       ...prevState,
@@ -398,7 +416,8 @@ export const MealsProvider = ({ children }) => {
         addToRecent,
         addPersonalFood,
         deletePersonalFood,
-        updateFoodPortion, // YENİ: updateFoodPortion fonksiyonunu context'e ekle
+        updateFoodPortion,
+        updateCalorieGoal,
       }}
     >
       {children}
