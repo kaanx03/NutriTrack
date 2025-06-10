@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useMeals } from "../../context/MealsContext";
+import { useMeals } from "../../../context/MealsContext";
 
 const FoodDetailsScreen = () => {
   const navigation = useNavigation();

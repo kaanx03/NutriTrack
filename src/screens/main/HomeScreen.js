@@ -1,4 +1,4 @@
-// Updated HomeScreen.js to fix floating point display issues
+// src/screens/main/HomeScreen.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -12,7 +12,10 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
 import { useMeals } from "../../context/MealsContext";
+import { useActivity } from "../../context/ActivityContext"; // ActivityContext'i import ediyoruz
 import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
+import DatePickerModal from "../../components/DatePickerModal";
+import BottomNavigation from "../../components/BottomNavigation";
 import Svg, { Circle } from "react-native-svg";
 
 const HomeScreen = () => {
@@ -20,6 +23,7 @@ const HomeScreen = () => {
   const route = useRoute();
   const { formData } = useSignUp();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
 
   // MealsContext'ten state ve fonksiyonları al
   const {
@@ -27,12 +31,13 @@ const HomeScreen = () => {
     mealFoods,
     consumedCalories,
     caloriesLeft,
-    burnedCalories,
     consumedNutrients,
     calorieData,
     addFood,
-    addActivity,
   } = useMeals();
+
+  // ActivityContext'ten burnedCalories değerini al
+  const { burnedCalories } = useActivity();
 
   // Format numbers to fix floating point issues
   const formatMacroValue = (value) => {
@@ -61,7 +66,21 @@ const HomeScreen = () => {
   }, [route.params?.deletedFood]);
 
   const formatDate = () => {
-    return "Today, Jan 10"; // Using the date shown in the mockup
+    const today = new Date();
+    const isToday =
+      today.getDate() === currentDate.getDate() &&
+      today.getMonth() === currentDate.getMonth() &&
+      today.getFullYear() === currentDate.getFullYear();
+
+    const options = { month: "short", day: "numeric" };
+    const formattedDate = currentDate.toLocaleDateString(undefined, options);
+
+    return isToday ? `Today, ${formattedDate}` : formattedDate;
+  };
+
+  const handleDateSelect = (date) => {
+    setCurrentDate(date);
+    setDatePickerVisible(false);
   };
 
   const goToPreviousDay = () => {
@@ -92,9 +111,9 @@ const HomeScreen = () => {
     });
   };
 
+  // ActivitySelectionScreen'e yönlendir
   const handleAddActivity = () => {
-    // Context üzerinden aktivite ekle
-    addActivity(50);
+    navigation.navigate("ActivitySelection");
   };
 
   // Calculate calories progress percentage (consumed/total * 100)
@@ -169,7 +188,10 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerPlaceholder}></View>
         <Text style={styles.title}>NutriTrack</Text>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate("Notifications")}
+        >
           <Ionicons name="notifications-outline" size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -183,7 +205,10 @@ const HomeScreen = () => {
               <Text style={styles.navArrow}>‹</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.dateContainer}>
+            <TouchableOpacity
+              style={styles.dateContainer}
+              onPress={() => setDatePickerVisible(true)}
+            >
               <Text style={styles.dateText}>{formatDate()}</Text>
               <Image
                 source={require("../../../assets/icons/calendar.png")}
@@ -310,7 +335,11 @@ const HomeScreen = () => {
 
             <View style={styles.burnedContainer}>
               {/* Activity - using meal item layout */}
-              <View style={styles.mealLeftContent}>
+              <TouchableOpacity
+                style={styles.mealLeftContent}
+                onPress={() => navigation.navigate("ActivityLog")}
+                activeOpacity={0.7}
+              >
                 <Image
                   source={require("../../../assets/icons/activity.png")}
                   style={styles.activityIcon}
@@ -321,7 +350,7 @@ const HomeScreen = () => {
                     {Math.round(burnedCalories)} kcal
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Add Exercise Button */}
               <TouchableOpacity
@@ -379,58 +408,16 @@ const HomeScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-          <Ionicons
-            name="home"
-            size={24}
-            color="#63A4F4"
-            style={styles.navIcon}
-          />
-          <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
-        </TouchableOpacity>
+      {/* Bottom Navigation - Updated to use component */}
+      <BottomNavigation activeTab="Home" />
 
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons
-            name="grid-outline"
-            size={24}
-            color="#999"
-            style={styles.navIcon}
-          />
-          <Text style={styles.navText}>Tracker</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons
-            name="stats-chart-outline"
-            size={24}
-            color="#999"
-            style={styles.navIcon}
-          />
-          <Text style={styles.navText}>Insights</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons
-            name="newspaper-outline"
-            size={24}
-            color="#999"
-            style={styles.navIcon}
-          />
-          <Text style={styles.navText}>Articles</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons
-            name="person-outline"
-            size={24}
-            color="#999"
-            style={styles.navIcon}
-          />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Date Picker Modal */}
+      <DatePickerModal
+        visible={isDatePickerVisible}
+        onClose={() => setDatePickerVisible(false)}
+        selectedDate={currentDate}
+        onDateSelect={handleDateSelect}
+      />
     </View>
   );
 };
@@ -706,32 +693,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#A1CE50",
     justifyContent: "center",
     alignItems: "center",
-  },
-  bottomNav: {
-    flexDirection: "row",
-    height: 64,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  navItem: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  activeNavItem: {
-    borderTopWidth: 2,
-    borderTopColor: "#63A4F4",
-  },
-  navIcon: {
-    marginBottom: 2,
-  },
-  navText: {
-    fontSize: 12,
-    color: "#999",
-  },
-  activeNavText: {
-    color: "#63A4F4",
   },
 });
 

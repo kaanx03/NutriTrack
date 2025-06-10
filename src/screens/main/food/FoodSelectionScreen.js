@@ -1,5 +1,5 @@
-// src/screens/main/FoodSelectionScreen.js - Updated to prevent duplicate food selection
-import React, { useState, useEffect, useCallback } from "react";
+// src/screens/main/food/FoodSelectionScreen.js
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Keyboard,
   SafeAreaView,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import {
@@ -18,8 +19,16 @@ import {
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
-import { useMeals } from "../../context/MealsContext";
-import sampleFoods from "../../data/sampleFoods";
+import { useMeals } from "../../../context/MealsContext";
+import usdaFoodApiService from "../../../services/UsdaFoodApiService";
+
+// Popüler yemek önerileri
+const popularFoodSuggestions = {
+  breakfast: ["eggs", "cereal", "toast", "yogurt", "oatmeal"],
+  lunch: ["sandwich", "salad", "soup", "wrap", "pizza"],
+  dinner: ["chicken", "rice", "pasta", "fish", "beef"],
+  snack: ["fruit", "nuts", "chips", "yogurt", "cheese"],
+};
 
 const FoodSelectionScreen = () => {
   const navigation = useNavigation();
@@ -44,7 +53,14 @@ const FoodSelectionScreen = () => {
   const [totalCalories, setTotalCalories] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Yeni: Mevcut öğünde bulunan yemekleri tut
+  // API ile ilgili state'ler
+  const [foodItems, setFoodItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreItems, setHasMoreItems] = useState(true);
+  const searchTimeout = useRef(null);
+
+  // Mevcut öğünde bulunan yemekleri tut
   const [existingMealFoods, setExistingMealFoods] = useState([]);
 
   // FoodDetailsScreen'den gelen porsiyon bilgisi
@@ -55,9 +71,6 @@ const FoodSelectionScreen = () => {
   const [quickLogName, setQuickLogName] = useState("");
   const [quickLogCalories, setQuickLogCalories] = useState("");
   const [quickLogMealType, setQuickLogMealType] = useState(mealType);
-
-  // Sample food items from our imported data
-  const [foodItems, setFoodItems] = useState(sampleFoods);
 
   // Mevcut öğündeki yiyecekleri al
   useEffect(() => {
@@ -76,6 +89,77 @@ const FoodSelectionScreen = () => {
 
     return () => clearTimeout(timeoutId);
   }, [showMealTypeMenu]);
+
+  // API'den yemekleri yükle
+  const loadFoods = async (refresh = false) => {
+    if (isLoading || (!hasMoreItems && !refresh)) return;
+
+    try {
+      setIsLoading(true);
+
+      // Reset page if refreshing
+      const page = refresh ? 0 : currentPage;
+      let results = [];
+
+      // Eğer arama yapılıyorsa
+      if (isSearching && searchQuery.length > 0) {
+        results = await usdaFoodApiService.searchFoods(
+          searchQuery,
+          20,
+          page + 1
+        );
+      }
+      // Arama yapılmıyorsa, sekme ve öğün tipine göre yükle
+      else {
+        switch (localActiveTab) {
+          case "Recent":
+            // Context'te son kullanılan yemekler varsa onları kullan
+            if (recentFoods.length > 0) {
+              results = recentFoods;
+            }
+            // Yoksa API'den öğün tipine göre yükle
+            else {
+              results = await usdaFoodApiService.getFoodsByMealType(
+                mealType,
+                20,
+                page + 1
+              );
+            }
+            break;
+          case "Favorites":
+            // Favori yemekleri context'ten al
+            results = favoriteFoods;
+            break;
+          case "Personal":
+            // Kişisel yemekleri context'ten al
+            results = personalFoods;
+            break;
+          default:
+            results = [];
+        }
+      }
+
+      // Sonuçları state'e ekle
+      if (refresh) {
+        setFoodItems(results);
+      } else {
+        setFoodItems((prev) => [...prev, ...results]);
+      }
+
+      // Sayfalama durumunu güncelle
+      setCurrentPage(page + 1);
+      setHasMoreItems(results.length === 20); // Eğer istenen sayıdan az sonuç geldiyse, sona gelmişiz demektir
+    } catch (error) {
+      console.error("Yemekleri yüklerken hata:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Tab veya öğün tipi değiştiğinde yemekleri yükle
+  useEffect(() => {
+    loadFoods(true);
+  }, [localActiveTab, mealType]);
 
   // Seçilen porsiyon için orijinal yemeği bulma fonksiyonu
   const findOriginalFood = (foodId) => {
@@ -214,53 +298,44 @@ const FoodSelectionScreen = () => {
     navigation.navigate("CreateFood");
   };
 
-  // Yeni: Arama yapıldığında durumu güncelle
+  // Arama yapıldığında durumu güncelle
   const handleSearch = (text) => {
     setSearchQuery(text);
-    setIsSearching(text.length > 0);
-  };
 
-  // Görüntülenecek yemekleri belirle (sekmeye ve arama durumuna göre)
-  const getDisplayedFoodItems = () => {
-    // Arama yapılıyorsa tüm yemekleri filtrele
-    if (isSearching && searchQuery.length > 0) {
-      // Tüm yemek kaynaklarını birleştir ve filtreleme yap
-      const allFoods = [
-        ...foodItems,
-        ...recentFoods,
-        ...favoriteFoods,
-        ...personalFoods,
-      ];
+    // Text boş değilse veya minimum karakter sayısını geçtiyse, arama yap
+    setIsSearching(text.length >= 2);
 
-      // Tekrarlayan yemekleri önlemek için unique ID'lere göre filtrele
-      const uniqueFoods = Array.from(
-        new Map(allFoods.map((item) => [item.id, item])).values()
-      );
+    // Arama yapıldığında sayfalama bilgilerini sıfırla
+    setCurrentPage(0);
+    setHasMoreItems(true);
 
-      return uniqueFoods.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Arama yapılmıyorsa seçilen sekmeye göre göster
-    switch (localActiveTab) {
-      case "Recent":
-        return recentFoods.length > 0
-          ? recentFoods
-          : foodItems.filter((item) => item.mealType === mealType);
-      case "Favorites":
-        return favoriteFoods.length > 0 ? favoriteFoods : [];
-      case "Personal":
-        return personalFoods.length > 0 ? personalFoods : [];
-      default:
-        return [];
+    // Çok fazla API çağrısı olmaması için arama sorgusu debounce edilir
+    if (text.length >= 2) {
+      clearTimeout(searchTimeout.current);
+      searchTimeout.current = setTimeout(() => {
+        console.log("Searching for:", text);
+        loadFoods(true);
+      }, 500);
+    } else if (text.length === 0) {
+      // Arama kutusu boşalınca, son görüntülenen yemekleri göster
+      setIsSearching(false);
+      setFoodItems(recentFoods);
     }
   };
 
-  // Görüntülenecek yemekleri hesapla
-  const filteredFoodItems = getDisplayedFoodItems();
+  // Liste sonuna gelindiğinde daha fazla yemek yükle
+  const handleEndReached = () => {
+    if (!isLoading && hasMoreItems) {
+      loadFoods();
+    }
+  };
 
-  // Yeni: Yemeğin zaten öğünde olup olmadığını kontrol et
+  // Yenile fonksiyonu
+  const handleRefresh = () => {
+    loadFoods(true);
+  };
+
+  // Yemek zaten öğünde var mı kontrol et
   const isFoodAlreadyInMeal = (foodId) => {
     return existingMealFoods.some((food) => food.id === foodId);
   };
@@ -306,7 +381,7 @@ const FoodSelectionScreen = () => {
         setSelectedPortion({
           foodId: food.id,
           portionSize: food.weight,
-          portionUnit: food.unit || "gram (g)",
+          portionUnit: food.portionUnit || "gram (g)",
           calculatedCalories: food.calories,
           baseCalories: food.calories,
           baseWeight: food.weight,
@@ -451,9 +526,28 @@ const FoodSelectionScreen = () => {
   const EmptyListComponent = () => (
     <View style={styles.emptyListContainer}>
       {isSearching ? (
-        <Text style={styles.emptyListText}>
-          No results found for "{searchQuery}"
-        </Text>
+        <View>
+          <Text style={styles.emptyListText}>
+            No results found for "{searchQuery}"
+          </Text>
+          <Text style={styles.suggestionsTitle}>Try searching for:</Text>
+          <View style={styles.suggestionsContainer}>
+            {popularFoodSuggestions[mealType.toLowerCase()]?.map(
+              (suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionButton}
+                  onPress={() => {
+                    setSearchQuery(suggestion);
+                    handleSearch(suggestion);
+                  }}
+                >
+                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                </TouchableOpacity>
+              )
+            )}
+          </View>
+        </View>
       ) : (
         <Text style={styles.emptyListText}>
           {localActiveTab === "Recent"
@@ -623,16 +717,29 @@ const FoodSelectionScreen = () => {
           {/* Food List */}
           <FlatList
             style={styles.foodList}
-            data={filteredFoodItems}
+            data={foodItems}
             renderItem={renderFoodItem}
-            keyExtractor={(item) => item.id?.toString()}
+            keyExtractor={(item, index) =>
+              item.id ? `${item.id}_${index}` : `item_${index}`
+            }
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.foodListContent,
-              filteredFoodItems.length === 0 &&
-                styles.emptyListContentContainer,
+              foodItems.length === 0 && styles.emptyListContentContainer,
             ]}
             ListEmptyComponent={EmptyListComponent}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            refreshing={isLoading}
+            onRefresh={handleRefresh}
+            ListFooterComponent={
+              isLoading && foodItems.length > 0 ? (
+                <View style={styles.loadingFooter}>
+                  <ActivityIndicator size="small" color="#A1CE50" />
+                  <Text style={styles.loadingText}>Loading more...</Text>
+                </View>
+              ) : null
+            }
             extraData={[selectedFoods, selectedPortion, existingMealFoods]} // Değişkenler eklendi
           />
 
@@ -691,7 +798,7 @@ const FoodSelectionScreen = () => {
 
                     {/* Meal Type Selector */}
                     <Text style={styles.mealSelectorLabel}>Meal</Text>
-                    <View style={styles.mealTypeSelector}>
+                    <View style={styles.mealTypeSelectorContainer}>
                       {["Breakfast", "Lunch", "Dinner", "Snack"].map((type) => (
                         <TouchableOpacity
                           key={type}
@@ -1016,7 +1123,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
-  // Yeni eklenen stiller
+  // Boş liste ve arama önerileri stilleri
   emptyListContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1032,6 +1139,54 @@ const styles = StyleSheet.create({
   emptyListContentContainer: {
     flexGrow: 1,
     justifyContent: "center",
+  },
+  loadingFooter: {
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#666",
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  suggestionsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  suggestionButton: {
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    margin: 4,
+  },
+  suggestionText: {
+    color: "#333",
+    fontSize: 14,
+  },
+  tryAgainButton: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 5,
+    alignSelf: "center",
+  },
+  tryAgainText: {
+    color: "#666",
+    fontSize: 14,
   },
 
   // Quick Log Modal Styles
@@ -1073,7 +1228,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: "#333",
   },
-  mealTypeSelector: {
+  mealTypeSelectorContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",

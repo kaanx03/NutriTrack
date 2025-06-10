@@ -2,8 +2,12 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import * as Font from "expo-font";
 import AppNavigator from "./src/navigation/AppNavigator";
+
 import { SignUpProvider } from "./src/context/SignUpContext";
-import { MealsProvider } from "./src/context/MealsContext"; // ← Yeni eklendi
+import { MealsProvider } from "./src/context/MealsContext";
+import { ActivityProvider } from "./src/context/ActivityContext";
+import { WaterProvider } from "./src/context/WaterContext";
+import { BookmarkProvider } from "./src/context/BookmarkContext"; // YENİ EKLENDİ
 
 export default function App() {
   const [fontsLoaded] = Font.useFonts({
@@ -18,12 +22,16 @@ export default function App() {
   return (
     <SignUpProvider>
       <MealsProvider>
-        {/* ← Yeni eklendi */}
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
+        <ActivityProvider>
+          <WaterProvider>
+            <BookmarkProvider>
+              <NavigationContainer>
+                <AppNavigator />
+              </NavigationContainer>
+            </BookmarkProvider>
+          </WaterProvider>
+        </ActivityProvider>
       </MealsProvider>
-      {/* ← Yeni eklendi */}
     </SignUpProvider>
   );
 }
