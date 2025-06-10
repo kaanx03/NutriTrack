@@ -1,5 +1,5 @@
-// src/screens/main/settings/CalorieCounterScreen.js
-import React, { useState } from "react";
+// src/screens/main/settings/CalorieCounterScreen.js - Updated with SignUp Data
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,13 +16,15 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
 import { useMeals } from "../../../context/MealsContext";
+import { useSignUp } from "../../../context/SignUpContext";
 
 const CalorieCounterScreen = () => {
   const navigation = useNavigation();
   const { calorieData, updateCalorieGoal } = useMeals();
+  const { formData } = useSignUp();
 
   const [settings, setSettings] = useState({
-    calorieIntakeGoal: calorieData.calories.toString(),
+    calorieIntakeGoal: "2000 kcal", // Default value
     units: "kcal",
     mealLoggingReminder: true,
     repeat: "Everyday",
@@ -34,9 +36,34 @@ const CalorieCounterScreen = () => {
   });
 
   const [goalModalVisible, setGoalModalVisible] = useState(false);
-  const [tempGoalValue, setTempGoalValue] = useState(
-    calorieData.calories.toString()
-  );
+  const [tempGoalValue, setTempGoalValue] = useState("2000");
+
+  // SignUp verilerinden kalori hedefini yükle
+  useEffect(() => {
+    let initialCalories = 2000; // Default
+
+    // Önce SignUp'dan hesaplanan değeri kontrol et
+    if (
+      formData &&
+      formData.calculatedPlan &&
+      formData.calculatedPlan.dailyCalories
+    ) {
+      initialCalories = formData.calculatedPlan.dailyCalories;
+    }
+    // Sonra MealsContext'ten güncel değeri kontrol et
+    else if (calorieData && calorieData.calories) {
+      initialCalories = calorieData.calories;
+    }
+
+    const formattedGoal = `${initialCalories.toLocaleString()} kcal`;
+
+    setSettings((prev) => ({
+      ...prev,
+      calorieIntakeGoal: formattedGoal,
+    }));
+
+    setTempGoalValue(initialCalories.toString());
+  }, [formData, calorieData]);
 
   const handleSettingChange = (key, value) => {
     setSettings((prev) => ({
@@ -46,7 +73,9 @@ const CalorieCounterScreen = () => {
   };
 
   const showGoalPicker = () => {
-    setTempGoalValue(settings.calorieIntakeGoal);
+    // Modal açılırken mevcut değeri ayarla
+    const currentCalories = calorieData?.calories || 2000;
+    setTempGoalValue(currentCalories.toString());
     setGoalModalVisible(true);
   };
 
@@ -63,7 +92,7 @@ const CalorieCounterScreen = () => {
     }
 
     // Ayarları güncelle
-    const formattedValue = numericValue.toLocaleString() + " kcal";
+    const formattedValue = `${numericValue.toLocaleString()} kcal`;
     handleSettingChange("calorieIntakeGoal", formattedValue);
 
     // MealsContext'i güncelle
@@ -73,8 +102,48 @@ const CalorieCounterScreen = () => {
 
     Alert.alert(
       "Goal Updated",
-      `Your daily calorie goal has been set to ${numericValue} kcal`
+      `Your daily calorie goal has been set to ${numericValue.toLocaleString()} kcal`
     );
+  };
+
+  const resetToCalculated = () => {
+    if (
+      formData &&
+      formData.calculatedPlan &&
+      formData.calculatedPlan.dailyCalories
+    ) {
+      const calculatedCalories = formData.calculatedPlan.dailyCalories;
+
+      Alert.alert(
+        "Reset to Calculated Goal",
+        `Reset your calorie goal to the calculated value of ${calculatedCalories.toLocaleString()} kcal?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Reset",
+            onPress: () => {
+              const formattedValue = `${calculatedCalories.toLocaleString()} kcal`;
+              handleSettingChange("calorieIntakeGoal", formattedValue);
+              updateCalorieGoal(calculatedCalories);
+              setTempGoalValue(calculatedCalories.toString());
+
+              Alert.alert(
+                "Goal Reset",
+                `Your calorie goal has been reset to ${calculatedCalories.toLocaleString()} kcal`
+              );
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        "No Calculated Goal",
+        "No calculated calorie goal found. Please complete your profile setup first."
+      );
+    }
   };
 
   const showUnitsPicker = () => {
@@ -202,6 +271,14 @@ const CalorieCounterScreen = () => {
     </View>
   );
 
+  const getCurrentCalories = () => {
+    return calorieData?.calories || 2000;
+  };
+
+  const getCalculatedCalories = () => {
+    return formData?.calculatedPlan?.dailyCalories || null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -230,7 +307,47 @@ const CalorieCounterScreen = () => {
             showGoalPicker
           )}
           {renderSettingItem("Units", settings.units, showUnitsPicker)}
+
+          {/* Reset to Calculated Button */}
+          {getCalculatedCalories() &&
+            getCalculatedCalories() !== getCurrentCalories() && (
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={resetToCalculated}
+              >
+                <Ionicons name="refresh-outline" size={20} color="#A1CE50" />
+                <Text style={styles.resetButtonText}>
+                  Reset to Calculated Goal (
+                  {getCalculatedCalories().toLocaleString()} kcal)
+                </Text>
+              </TouchableOpacity>
+            )}
         </View>
+
+        {/* Current vs Calculated Info */}
+        {getCalculatedCalories() && (
+          <View style={styles.infoSection}>
+            <Text style={styles.infoTitle}>Calorie Goal Information</Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Current Goal:</Text>
+              <Text style={styles.infoValue}>
+                {getCurrentCalories().toLocaleString()} kcal
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Calculated Goal:</Text>
+              <Text style={[styles.infoValue, { color: "#A1CE50" }]}>
+                {getCalculatedCalories().toLocaleString()} kcal
+              </Text>
+            </View>
+            {getCurrentCalories() !== getCalculatedCalories() && (
+              <Text style={styles.infoNote}>
+                Your current goal differs from your calculated goal based on
+                your profile.
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Reminder Settings */}
         <View style={styles.section}>
@@ -304,6 +421,24 @@ const CalorieCounterScreen = () => {
                 />
                 <Text style={styles.inputUnit}>kcal</Text>
               </View>
+
+              {getCalculatedCalories() && (
+                <View style={styles.suggestionContainer}>
+                  <Text style={styles.suggestionLabel}>
+                    Suggested (calculated):
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.suggestionButton}
+                    onPress={() =>
+                      setTempGoalValue(getCalculatedCalories().toString())
+                    }
+                  >
+                    <Text style={styles.suggestionButtonText}>
+                      {getCalculatedCalories().toLocaleString()} kcal
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <Text style={styles.helperText}>
                 Recommended range: 800 - 5000 kcal per day
@@ -390,6 +525,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     marginRight: 8,
+  },
+  resetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#A1CE50",
+  },
+  resetButtonText: {
+    fontSize: 14,
+    color: "#A1CE50",
+    fontWeight: "500",
+    marginLeft: 8,
+  },
+  infoSection: {
+    backgroundColor: "#FFFFFF",
+    margin: 20,
+    marginTop: 0,
+    borderRadius: 16,
+    padding: 16,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: "#666",
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  infoNote: {
+    fontSize: 12,
+    color: "#999",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 8,
   },
   volumeContainer: {
     flexDirection: "row",
@@ -487,7 +676,7 @@ const styles = StyleSheet.create({
     borderColor: "#A1CE50",
     borderRadius: 10,
     paddingHorizontal: 15,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   textInput: {
     flex: 1,
@@ -500,6 +689,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     marginLeft: 10,
+  },
+  suggestionContainer: {
+    marginBottom: 15,
+  },
+  suggestionLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 8,
+  },
+  suggestionButton: {
+    backgroundColor: "#f0f8ff",
+    borderWidth: 1,
+    borderColor: "#A1CE50",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    alignItems: "center",
+  },
+  suggestionButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#A1CE50",
   },
   helperText: {
     fontSize: 12,

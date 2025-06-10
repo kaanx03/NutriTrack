@@ -1,5 +1,5 @@
-// src/screens/main/settings/PersonalInfoScreen.js
-import React, { useState } from "react";
+// src/screens/main/settings/PersonalInfoScreen.js - Fixed
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,17 +13,22 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { useSignUp } from "../../../context/SignUpContext";
 import BottomNavigation from "../../../components/BottomNavigation";
 
 const PersonalInfoScreen = () => {
   const navigation = useNavigation();
+  const { formData, updateFormData } = useSignUp();
 
   const [userInfo, setUserInfo] = useState({
-    fullName: "Andrew Ainsley",
-    email: "andrew.ainsley@yourdomain.com",
+    fullName: "",
+    email: "",
     phoneNumber: "+90 (530) 399-32-46",
     gender: "Male",
-    dateOfBirth: "19-12-1999",
+    dateOfBirth: "",
+    height: "",
+    weight: "",
+    activityLevel: "",
   });
 
   const [isEditing, setIsEditing] = useState({
@@ -32,9 +37,67 @@ const PersonalInfoScreen = () => {
     phoneNumber: false,
     gender: false,
     dateOfBirth: false,
+    height: false,
+    weight: false,
+    activityLevel: false,
   });
 
+  // SignUp verilerini yükle
+  useEffect(() => {
+    if (formData) {
+      setUserInfo({
+        fullName: `${formData.firstName || ""} ${
+          formData.lastName || ""
+        }`.trim(),
+        email: formData.email || "",
+        phoneNumber: "+90 (530) 399-32-46",
+        gender: formData.gender
+          ? formData.gender.charAt(0).toUpperCase() + formData.gender.slice(1)
+          : "Male",
+        dateOfBirth: formatBirthDate(formData),
+        height: formData.height ? `${formData.height} cm` : "",
+        weight: formData.weight ? `${formData.weight} kg` : "",
+        activityLevel: getActivityLevelText(formData.activityLevel),
+      });
+    }
+  }, [formData]);
+
+  const formatBirthDate = (data) => {
+    if (data.day && data.month && data.year) {
+      return `${data.day.padStart(2, "0")}-${data.month.padStart(2, "0")}-${
+        data.year
+      }`;
+    } else if (data.birthDate) {
+      const date = new Date(data.birthDate);
+      if (!isNaN(date.getTime())) {
+        const day = date.getDate().toString().padStart(2, "0");
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      }
+    }
+    return "";
+  };
+
+  const getActivityLevelText = (level) => {
+    const activityLevels = {
+      1: "Sedentary (Little/no exercise)",
+      2: "Light (Light exercise 1-3 days/week)",
+      3: "Moderate (Moderate exercise 3-5 days/week)",
+      4: "Active (Hard exercise 6-7 days/week)",
+      5: "Very Active (Very hard exercise & physical job)",
+    };
+    return activityLevels[level] || "Moderate";
+  };
+
   const genderOptions = ["Male", "Female", "Other"];
+  const activityOptions = [
+    "Sedentary (Little/no exercise)",
+    "Light (Light exercise 1-3 days/week)",
+    "Moderate (Moderate exercise 3-5 days/week)",
+    "Active (Hard exercise 6-7 days/week)",
+    "Very Active (Very hard exercise & physical job)",
+  ];
 
   const handleEdit = (field) => {
     setIsEditing((prev) => ({
@@ -48,6 +111,24 @@ const PersonalInfoScreen = () => {
       ...prev,
       [field]: value,
     }));
+
+    // SignUp context'ini de güncelle
+    if (field === "fullName") {
+      const names = value.split(" ");
+      updateFormData("firstName", names[0] || "");
+      updateFormData("lastName", names.slice(1).join(" ") || "");
+    } else if (field === "email") {
+      updateFormData("email", value);
+    } else if (field === "gender") {
+      updateFormData("gender", value.toLowerCase());
+    } else if (field === "height") {
+      const heightValue = value.replace(/[^0-9]/g, "");
+      updateFormData("height", heightValue);
+    } else if (field === "weight") {
+      const weightValue = value.replace(/[^0-9]/g, "");
+      updateFormData("weight", weightValue);
+    }
+
     setIsEditing((prev) => ({
       ...prev,
       [field]: false,
@@ -72,8 +153,28 @@ const PersonalInfoScreen = () => {
     );
   };
 
+  const showActivityPicker = () => {
+    Alert.alert(
+      "Select Activity Level",
+      "",
+      activityOptions
+        .map((option, index) => ({
+          text: option,
+          onPress: () => {
+            updateFormData("activityLevel", (index + 1).toString());
+            handleSave("activityLevel", option);
+          },
+        }))
+        .concat([
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+        ])
+    );
+  };
+
   const showDatePicker = () => {
-    // In a real app, you would use a proper date picker
     Alert.alert(
       "Date Picker",
       "In a real app, this would open a date picker component",
@@ -86,7 +187,7 @@ const PersonalInfoScreen = () => {
     );
   };
 
-  const renderInfoField = (label, field, value, editable = true) => {
+  const renderInfoField = (label, field, value, editable = true, unit = "") => {
     const isCurrentlyEditing = isEditing[field];
 
     return (
@@ -97,12 +198,16 @@ const PersonalInfoScreen = () => {
           <View style={styles.editContainer}>
             <TextInput
               style={styles.editInput}
-              value={value}
-              onChangeText={(text) =>
-                setUserInfo((prev) => ({ ...prev, [field]: text }))
-              }
+              value={value.replace(unit, "")}
+              onChangeText={(text) => {
+                const newValue = unit ? `${text}${unit}` : text;
+                setUserInfo((prev) => ({ ...prev, [field]: newValue }));
+              }}
               onBlur={() => handleEdit(field)}
               autoFocus
+              keyboardType={
+                field === "height" || field === "weight" ? "numeric" : "default"
+              }
             />
           </View>
         ) : (
@@ -113,6 +218,8 @@ const PersonalInfoScreen = () => {
                 showGenderPicker();
               } else if (field === "dateOfBirth") {
                 showDatePicker();
+              } else if (field === "activityLevel") {
+                showActivityPicker();
               } else if (editable) {
                 handleEdit(field);
               }
@@ -134,10 +241,34 @@ const PersonalInfoScreen = () => {
                 </View>
               </View>
             )}
+            {field === "height" && (
+              <Ionicons
+                name="resize-outline"
+                size={20}
+                color="#666"
+                style={styles.fieldIcon}
+              />
+            )}
+            {field === "weight" && (
+              <Ionicons
+                name="barbell-outline"
+                size={20}
+                color="#666"
+                style={styles.fieldIcon}
+              />
+            )}
+            {field === "activityLevel" && (
+              <Ionicons
+                name="fitness-outline"
+                size={20}
+                color="#666"
+                style={styles.fieldIcon}
+              />
+            )}
 
             <Text style={styles.fieldValue}>{value}</Text>
 
-            {editable && field === "gender" && (
+            {editable && (field === "gender" || field === "activityLevel") && (
               <Ionicons name="chevron-down" size={20} color="#C7C7CC" />
             )}
             {editable && field === "dateOfBirth" && (
@@ -195,10 +326,48 @@ const PersonalInfoScreen = () => {
             "dateOfBirth",
             userInfo.dateOfBirth
           )}
+          {renderInfoField("Height", "height", userInfo.height, true, " cm")}
+          {renderInfoField("Weight", "weight", userInfo.weight, true, " kg")}
+          {renderInfoField(
+            "Activity Level",
+            "activityLevel",
+            userInfo.activityLevel
+          )}
         </View>
+
+        {/* Calculated Data Section */}
+        {formData && formData.calculatedPlan && (
+          <View style={styles.calculatedSection}>
+            <Text style={styles.sectionTitle}>Your Calculated Plan</Text>
+            <View style={styles.calculatedItem}>
+              <Text style={styles.calculatedLabel}>Daily Calories</Text>
+              <Text style={styles.calculatedValue}>
+                {formData.calculatedPlan.dailyCalories} kcal
+              </Text>
+            </View>
+            <View style={styles.calculatedItem}>
+              <Text style={styles.calculatedLabel}>Carbs</Text>
+              <Text style={styles.calculatedValue}>
+                {formData.calculatedPlan.macros.carbs}g
+              </Text>
+            </View>
+            <View style={styles.calculatedItem}>
+              <Text style={styles.calculatedLabel}>Protein</Text>
+              <Text style={styles.calculatedValue}>
+                {formData.calculatedPlan.macros.protein}g
+              </Text>
+            </View>
+            <View style={styles.calculatedItem}>
+              <Text style={styles.calculatedLabel}>Fat</Text>
+              <Text style={styles.calculatedValue}>
+                {formData.calculatedPlan.macros.fat}g
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Bottom Navigation - Updated to use component */}
+      {/* Bottom Navigation */}
       <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
@@ -317,6 +486,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: "#333",
+  },
+  calculatedSection: {
+    backgroundColor: "#FFFFFF",
+    margin: 20,
+    marginTop: 0,
+    borderRadius: 16,
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  calculatedItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  calculatedLabel: {
+    fontSize: 16,
+    color: "#666",
+  },
+  calculatedValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#A1CE50",
   },
 });
 

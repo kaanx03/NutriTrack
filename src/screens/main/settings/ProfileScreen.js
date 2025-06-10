@@ -1,4 +1,4 @@
-// src/screens/main/settings/ProfileScreen.js
+// src/screens/main/settings/ProfileScreen.js - Updated with SignUp Data
 import React from "react";
 import {
   View,
@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import { useSignUp } from "../../../context/SignUpContext";
 import BottomNavigation from "../../../components/BottomNavigation";
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
+  const { formData } = useSignUp();
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -55,10 +57,22 @@ const ProfileScreen = () => {
     );
   };
 
+  // SignUp verilerinden kullanıcı bilgilerini oluştur
+  const getUserName = () => {
+    if (formData && (formData.firstName || formData.lastName)) {
+      return `${formData.firstName || ""} ${formData.lastName || ""}`.trim();
+    }
+    return "User Name"; // Default fallback
+  };
+
+  const getUserEmail = () => {
+    return formData?.email || "user@example.com"; // Default fallback
+  };
+
   const profileOption = {
     id: "personal-info",
-    title: "Andrew Ainsley",
-    subtitle: "andrew.ainsley@yourdomain.com",
+    title: getUserName(),
+    subtitle: getUserEmail(),
     hasProfileImage: true,
     route: "PersonalInfo",
   };
@@ -130,11 +144,7 @@ const ProfileScreen = () => {
             </View>
           ) : option.hasCustomIcon ? (
             <View style={styles.iconContainer}>
-              <Image
-                source={require("../../../../assets/images/logout.png")}
-                style={styles.customIcon}
-                resizeMode="contain"
-              />
+              <Ionicons name="log-out-outline" size={24} color="#E74C3C" />
             </View>
           ) : (
             <View style={styles.iconContainer}>
@@ -178,6 +188,39 @@ const ProfileScreen = () => {
         {/* Profile Section - Ayrı blok */}
         <View style={styles.profileSection}>{renderOption(profileOption)}</View>
 
+        {/* User Stats Section - Yeni eklenen */}
+        {formData && formData.calculatedPlan && (
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>Your Plan</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formData.calculatedPlan.dailyCalories}
+                </Text>
+                <Text style={styles.statLabel}>Daily Calories</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formData.calculatedPlan.macros.carbs}g
+                </Text>
+                <Text style={styles.statLabel}>Carbs</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formData.calculatedPlan.macros.protein}g
+                </Text>
+                <Text style={styles.statLabel}>Protein</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formData.calculatedPlan.macros.fat}g
+                </Text>
+                <Text style={styles.statLabel}>Fat</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Settings Section - Ayrı blok */}
         <View style={styles.settingsSection}>
           {settingsOptions.map((option, index) => (
@@ -191,7 +234,7 @@ const ProfileScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation - Updated to use component */}
+      {/* Bottom Navigation */}
       <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
   );
@@ -231,6 +274,49 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+  },
+  statsSection: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  statItem: {
+    width: "48%",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#A1CE50",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
   },
   settingsSection: {
     backgroundColor: "#FFFFFF",
@@ -272,11 +358,6 @@ const styles = StyleSheet.create({
   },
   iconEmoji: {
     fontSize: 24,
-  },
-  customIcon: {
-    width: 24,
-    height: 24,
-    tintColor: "#E74C3C",
   },
   optionContent: {
     flex: 1,

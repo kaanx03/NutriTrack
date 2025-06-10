@@ -1,4 +1,4 @@
-// src/screens/main/HomeScreen.js
+// src/screens/main/HomeScreen.js - Updated
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -12,7 +12,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
 import { useMeals } from "../../context/MealsContext";
-import { useActivity } from "../../context/ActivityContext"; // ActivityContext'i import ediyoruz
+import { useActivity } from "../../context/ActivityContext";
 import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
 import BottomNavigation from "../../components/BottomNavigation";
@@ -21,7 +21,7 @@ import Svg, { Circle } from "react-native-svg";
 const HomeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { formData } = useSignUp();
+  const { formData } = useSignUp(); // SignUp context'ini de kullan
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
 
@@ -39,28 +39,29 @@ const HomeScreen = () => {
   // ActivityContext'ten burnedCalories değerini al
   const { burnedCalories } = useActivity();
 
+  // Debug için - SignUp verilerini konsola yazdır
+  useEffect(() => {
+    if (formData && formData.calculatedPlan) {
+      console.log("SignUp Calorie Data:", formData.calculatedPlan);
+      console.log("Current MealsContext Calorie Data:", calorieData);
+    }
+  }, [formData, calorieData]);
+
   // Format numbers to fix floating point issues
   const formatMacroValue = (value) => {
-    // Round to 1 decimal place and remove trailing zeros
     return Math.round(value * 10) / 10;
   };
 
   // Seçilen yemekleri işlemek için FoodSelectionScreen'den dönüşte
   useEffect(() => {
     if (route.params?.selectedFood) {
-      // Context'teki addFood metodunu çağır
       addFood(route.params.selectedFood);
-
-      // Route params'ı temizle
       navigation.setParams({ selectedFood: undefined });
     }
   }, [route.params?.selectedFood]);
 
-  // Silinen yemeği işlemek için MealDetailsScreen'den dönüşte (artık context tarafından yönetiliyor)
   useEffect(() => {
     if (route.params?.deletedFood) {
-      // Silme işlemi artık context tarafından MealDetailsScreen'de yapılıyor
-      // Sadece params'ı temizliyoruz
       navigation.setParams({ deletedFood: undefined });
     }
   }, [route.params?.deletedFood]);
@@ -95,15 +96,12 @@ const HomeScreen = () => {
     setCurrentDate(nextDay);
   };
 
-  // Navigate to FoodSelectionScreen when + button is clicked
   const handleAddFood = (mealType) => {
-    // Navigate to FoodSelectionScreen with current meal type
     navigation.navigate("FoodSelection", {
       mealType,
     });
   };
 
-  // Navigate to MealDetailsScreen when meal item is clicked
   const viewMealDetails = (mealType) => {
     navigation.navigate("MealDetails", {
       mealType: mealType,
@@ -111,7 +109,6 @@ const HomeScreen = () => {
     });
   };
 
-  // ActivitySelectionScreen'e yönlendir
   const handleAddActivity = () => {
     navigation.navigate("ActivitySelection");
   };
@@ -334,7 +331,6 @@ const HomeScreen = () => {
             <Text style={styles.sectionTitle}>Burned</Text>
 
             <View style={styles.burnedContainer}>
-              {/* Activity - using meal item layout */}
               <TouchableOpacity
                 style={styles.mealLeftContent}
                 onPress={() => navigation.navigate("ActivityLog")}
@@ -352,7 +348,6 @@ const HomeScreen = () => {
                 </View>
               </TouchableOpacity>
 
-              {/* Add Exercise Button */}
               <TouchableOpacity
                 style={[styles.addFoodButton, { backgroundColor: "#FDCD55" }]}
                 onPress={handleAddActivity}
@@ -397,7 +392,7 @@ const HomeScreen = () => {
                 style={styles.addFoodButton}
                 activeOpacity={0.7}
                 onPress={(e) => {
-                  e.stopPropagation(); // Prevent triggering the parent TouchableOpacity
+                  e.stopPropagation();
                   handleAddFood(meal.type);
                 }}
               >
@@ -408,10 +403,8 @@ const HomeScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation - Updated to use component */}
       <BottomNavigation activeTab="Home" />
 
-      {/* Date Picker Modal */}
       <DatePickerModal
         visible={isDatePickerVisible}
         onClose={() => setDatePickerVisible(false)}
@@ -422,6 +415,7 @@ const HomeScreen = () => {
   );
 };
 
+// Styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -591,52 +585,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  activityItem: {
-    width: "70%",
-    gap: 20,
-  },
-  activityHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  activityEmoji: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  activityLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  activityValueContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  activityValue: {
-    fontSize: 22,
-    fontWeight: "600",
-    color: "#333",
-  },
-  activityUnitInline: {
-    fontSize: 12,
-    color: "#999",
-    marginLeft: 4,
-    marginTop: 2,
-  },
-  addActivityButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#FDCD55",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  addButtonText: {
-    fontSize: 24,
-    color: "#FFFFFF",
-    fontWeight: "300",
-    lineHeight: 28,
-  },
   mealsCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
@@ -693,6 +641,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#A1CE50",
     justifyContent: "center",
     alignItems: "center",
+  },
+  addButtonText: {
+    fontSize: 24,
+    color: "#FFFFFF",
+    fontWeight: "300",
+    lineHeight: 28,
   },
 });
 
