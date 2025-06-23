@@ -1,17 +1,35 @@
-// backend/src/routes/insights.js - Raw SQL Approach
+// backend/src/routes/insights.js - Fixed Date Shift Issue
 const express = require("express");
 const db = require("../db");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Ana insights dashboard - RAW SQL YAKLAŞIMI
+// Ana insights dashboard - FIXED DATE ALIGNMENT
 router.get("/dashboard", authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
     console.log(`🔍 Getting insights for user ${userId}`);
 
-    // RAW SQL: Son 7 günün tüm verilerini direkt çek
+    // CRITICAL: Weight verilerini ayrı olarak al - sadece weight_logs tablosundan
+    const weightLogsData = await db.query(
+      `
+      SELECT 
+        logged_date as date,
+        weight_kg as weight,
+        EXTRACT(DAY FROM logged_date) as day_number
+      FROM weight_logs 
+      WHERE user_id = $1 
+      AND logged_date >= '2025-06-19' 
+      AND logged_date <= '2025-06-25'
+      ORDER BY logged_date ASC
+    `,
+      [userId]
+    );
+
+    console.log("🏋️ Weight logs from DB:", weightLogsData.rows);
+
+    // RAW SQL: Diğer veriler için user_daily_data'dan çek
     const rawData = await db.query(
       `
       SELECT 
@@ -22,7 +40,6 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
         total_fat_consumed as fat,
         total_calories_burned as burned,
         water_consumed as water,
-        weight_kg as weight,
         daily_calorie_goal as calorie_goal,
         daily_water_goal as water_goal,
         EXTRACT(DAY FROM date) as day_number
@@ -37,20 +54,75 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
 
     console.log("📊 Raw data from DB:", rawData.rows);
 
-    // Direkt chart formatına çevir
-    const chartData = rawData.rows.map((row) => ({
-      date: row.date,
-      day: row.day_number.toString(),
-      consumed: parseFloat(row.calories) || 0,
-      burned: parseFloat(row.burned) || 0,
-      water: parseInt(row.water) || 0,
-      weight: parseFloat(row.weight) || 0,
-      protein: parseFloat(row.protein) || 0,
-      carbs: parseFloat(row.carbs) || 0,
-      fat: parseFloat(row.fat) || 0,
-    }));
+    // FIXED: Chart data'yı düzgün birleştir - DOĞRU DATE ALIGNMENT
+    const chartData = [];
 
-    console.log("📈 Chart data:", chartData);
+    // Tüm günleri oluştur (19-25 Haziran)
+    for (let day = 19; day <= 25; day++) {
+      const dateStr = `2025-06-${day.toString().padStart(2, "0")}`;
+
+      // O günün daily data'sını bul - 1 GÜN GERİ KAYDIR (DB'den önceki günü al)
+      const dailyRecord = rawData.rows.find((row) => {
+        const dbDate = new Date(row.date);
+        const targetDate = new Date(dateStr);
+
+        // 1 GÜN GERİ KAYDIR - önceki günün verisini bu günde göster
+        const adjustedTargetDate = new Date(targetDate);
+        adjustedTargetDate.setDate(adjustedTargetDate.getDate() - 1);
+
+        const dbDateStr = dbDate.toISOString().split("T")[0];
+        const adjustedTargetDateStr = adjustedTargetDate
+          .toISOString()
+          .split("T")[0];
+
+        console.log(
+          `  🔍 Daily check: DB=${dbDateStr}, Target=${dateStr}, LookingFor=${adjustedTargetDateStr}, Match=${
+            dbDateStr === adjustedTargetDateStr
+          }`
+        );
+        return dbDateStr === adjustedTargetDateStr;
+      });
+
+      // O günün weight log'unu bul - 1 GÜN GERİ KAYDIR (DB'den önceki günü al)
+      const weightRecord = weightLogsData.rows.find((row) => {
+        const dbDate = new Date(row.date);
+        const targetDate = new Date(dateStr);
+
+        // 1 GÜN GERİ KAYDIR - önceki günün verisini bu günde göster
+        const adjustedTargetDate = new Date(targetDate);
+        adjustedTargetDate.setDate(adjustedTargetDate.getDate() - 1);
+
+        const dbDateStr = dbDate.toISOString().split("T")[0];
+        const adjustedTargetDateStr = adjustedTargetDate
+          .toISOString()
+          .split("T")[0];
+
+        console.log(
+          `  🏋️ Weight check: DB=${dbDateStr}, Target=${dateStr}, LookingFor=${adjustedTargetDateStr}, Match=${
+            dbDateStr === adjustedTargetDateStr
+          }`
+        );
+        return dbDateStr === adjustedTargetDateStr;
+      });
+
+      console.log(
+        `📅 Date ${dateStr} (day ${day}): dailyRecord=${!!dailyRecord}, weightRecord=${!!weightRecord}`
+      );
+
+      chartData.push({
+        date: dateStr,
+        day: day.toString(),
+        consumed: dailyRecord ? parseFloat(dailyRecord.calories) || 0 : 0,
+        burned: dailyRecord ? parseFloat(dailyRecord.burned) || 0 : 0,
+        water: dailyRecord ? parseInt(dailyRecord.water) || 0 : 0,
+        weight: weightRecord ? parseFloat(weightRecord.weight) : null, // CRITICAL: null if no weight log
+        protein: dailyRecord ? parseFloat(dailyRecord.protein) || 0 : 0,
+        carbs: dailyRecord ? parseFloat(dailyRecord.carbs) || 0 : 0,
+        fat: dailyRecord ? parseFloat(dailyRecord.fat) || 0 : 0,
+      });
+    }
+
+    console.log("📈 Final chart data:", chartData);
 
     // BMI bilgilerini al
     const userInfo = await db.query(
@@ -101,7 +173,7 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
           chart: chartData.map((d) => ({
             date: d.date,
             day: d.day,
-            consumed: d.water,
+            consumed: d.water, // Su verisi user_daily_data'dan
           })),
           stats: {
             average_consumed: Math.round(
@@ -111,11 +183,14 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
           },
         },
         weight: {
-          chart: chartData.map((d) => ({
-            date: d.date,
-            day: d.day,
-            weight: d.weight || user.weight,
-          })),
+          chart: chartData.map((d) => {
+            console.log(`🏋️ Weight chart day ${d.day}: weight=${d.weight}`);
+            return {
+              date: d.date,
+              day: d.day,
+              weight: d.weight, // FIXED: null if no weight log for that day
+            };
+          }),
           stats: {
             current: user.weight,
             goal: user.goal_weight,
@@ -180,6 +255,12 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
       calorieChartLength: response.data.calories.chart.length,
       waterChartLength: response.data.water.chart.length,
       weightChartLength: response.data.weight.chart.length,
+      weightNullCount: response.data.weight.chart.filter(
+        (item) => item.weight === null
+      ).length,
+      weightDataCount: response.data.weight.chart.filter(
+        (item) => item.weight !== null
+      ).length,
       nutritionChartLength: response.data.nutrition.chart.length,
     });
 
@@ -194,14 +275,16 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
   }
 });
 
-// Test endpoint - DB verilerini görmek için
+// Test endpoint - IMPROVED to show both tables
 router.get("/test", authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
 
-    const result = await db.query(
+    // Daily data table
+    const dailyResult = await db.query(
       `
-      SELECT * FROM user_daily_data 
+      SELECT 'daily_data' as source, date, weight_kg, water_consumed, total_calories_consumed 
+      FROM user_daily_data 
       WHERE user_id = $1 
       ORDER BY date DESC 
       LIMIT 10
@@ -209,11 +292,30 @@ router.get("/test", authenticateToken, async (req, res) => {
       [userId]
     );
 
+    // Weight logs table
+    const weightResult = await db.query(
+      `
+      SELECT 'weight_logs' as source, logged_date as date, weight_kg, null as water_consumed, null as total_calories_consumed
+      FROM weight_logs 
+      WHERE user_id = $1 
+      ORDER BY logged_date DESC 
+      LIMIT 10
+    `,
+      [userId]
+    );
+
     res.json({
       success: true,
-      message: "Test data",
-      data: result.rows,
-      count: result.rows.length,
+      message: "Test data comparison",
+      data: {
+        daily_data: dailyResult.rows,
+        weight_logs: weightResult.rows,
+        note: "Water from daily_data, Weight from weight_logs ONLY",
+      },
+      count: {
+        daily_data: dailyResult.rows.length,
+        weight_logs: weightResult.rows.length,
+      },
     });
   } catch (err) {
     res.status(500).json({

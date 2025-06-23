@@ -1,4 +1,4 @@
-// src/screens/main/InsightsScreen.js - Improved UI and Date Logic
+// src/screens/main/InsightsScreen.js - Fixed based on your current working code
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -47,10 +47,13 @@ const InsightsScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // IMPROVED: Bugünün indeksini bul ve onu selected yap
+  // FIXED: Bugünün indeksini düzgün hesapla - timezone fix
   const today = new Date().getDate();
   const days = getChartDays();
+  console.log("🔍 Today:", today, "Days array:", days);
+
   const todayIndex = days.findIndex((day) => parseInt(day) === today);
+  console.log("🔍 Today index:", todayIndex);
 
   const [selectedCalorieDay, setSelectedCalorieDay] = useState(
     todayIndex >= 0 ? todayIndex : 0
@@ -63,7 +66,7 @@ const InsightsScreen = () => {
   );
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(null);
 
-  // Chart data
+  // Chart data - KEEPING ORIGINAL LOGIC FOR CALORIES AND WATER
   const calorieChartData = React.useMemo(() => {
     if (!calorieData?.chart) return [];
     return calorieData.chart.map((item) => parseFloat(item.consumed) || 0);
@@ -74,9 +77,48 @@ const InsightsScreen = () => {
     return waterData.chart.map((item) => parseFloat(item.consumed) || 0);
   }, [waterData]);
 
+  // FIXED: Weight chart data - NULL handling for empty days
   const weightChartData = React.useMemo(() => {
-    if (!weightData?.chart) return [];
-    return weightData.chart.map((item) => parseFloat(item.weight) || 0);
+    if (!weightData?.chart) {
+      console.log("❌ No weight data available");
+      return [];
+    }
+
+    console.log("🏋️ Weight data from backend:", weightData.chart);
+
+    return weightData.chart.map((item, index) => {
+      const weight = item.weight;
+      console.log(
+        `📊 Day ${
+          item.day || item.date
+        }: weight = ${weight} (type: ${typeof weight})`
+      );
+
+      // CRITICAL: Backend'den null/undefined geliyorsa null döndür
+      if (weight === null || weight === undefined) {
+        console.log(`❌ No weight data for day ${item.day} - returning null`);
+        return null;
+      }
+
+      // CRITICAL: String olarak "null" gelirse de null döndür
+      if (weight === "null" || weight === "") {
+        console.log(
+          `❌ String null/empty for day ${item.day} - returning null`
+        );
+        return null;
+      }
+
+      const parsedWeight = parseFloat(weight);
+      if (isNaN(parsedWeight) || parsedWeight <= 0) {
+        console.log(
+          `❌ Invalid weight value for day ${item.day}: ${weight} - returning null`
+        );
+        return null;
+      }
+
+      console.log(`✅ Valid weight for day ${item.day}: ${parsedWeight}kg`);
+      return parsedWeight;
+    });
   }, [weightData]);
 
   const nutritionChartData = React.useMemo(() => {
@@ -98,6 +140,13 @@ const InsightsScreen = () => {
     setRefreshing(true);
     try {
       await refreshData();
+      // DEBUG: Weight chart data'yı kontrol et
+      console.log(
+        "🔍 DEBUG: Weight chart data after refresh:",
+        weightChartData
+      );
+      console.log("🔍 DEBUG: Days:", days);
+      console.log("🔍 DEBUG: Today:", today, "Today index:", todayIndex);
     } finally {
       setRefreshing(false);
     }
@@ -132,7 +181,7 @@ const InsightsScreen = () => {
     );
   }
 
-  // IMPROVED: Bar Chart Component with better styling
+  // IMPROVED: Bar Chart Component with NULL HANDLING for weight
   const BarChart = ({
     data,
     goal,
@@ -150,7 +199,15 @@ const InsightsScreen = () => {
       );
     }
 
-    const maxValue = Math.max(...data, goal || 0);
+    console.log(`📊 Chart data for ${unit}:`, data);
+
+    // FIXED: null değerleri filtrele maxValue hesaplanırken
+    const validData = data.filter(
+      (value) =>
+        value !== null && value !== undefined && !isNaN(value) && value > 0
+    );
+    const maxValue =
+      validData.length > 0 ? Math.max(...validData, goal || 0) : goal || 100;
     const barWidth = (chartWidth - 60) / data.length;
 
     return (
@@ -170,13 +227,25 @@ const InsightsScreen = () => {
 
           {/* Bars */}
           {data.map((value, index) => {
-            const barHeight = maxValue > 0 ? (value / maxValue) * 120 : 0;
+            // CRITICAL: null kontrolü - strict checking
+            const hasData =
+              value !== null &&
+              value !== undefined &&
+              !isNaN(value) &&
+              value > 0;
+            const displayValue = hasData ? value : 0;
+
+            const barHeight =
+              maxValue > 0 && hasData ? (displayValue / maxValue) * 120 : 0;
             const x = 30 + index * barWidth + barWidth * 0.2;
             const y = 170 - barHeight;
             const isSelected = index === selectedDay;
             const isToday = parseInt(days[index]) === today;
-            const hasData = value > 0;
             const barWidthActual = barWidth * 0.6;
+
+            console.log(
+              `📊 Bar ${index}: hasData=${hasData}, value=${value}, displayValue=${displayValue}`
+            );
 
             // IMPROVED: Renk mantığı - bugün + seçili + veri varlığı
             let barColor;
@@ -192,19 +261,32 @@ const InsightsScreen = () => {
 
             return (
               <React.Fragment key={index}>
-                <Rect
-                  x={x}
-                  y={y + barWidthActual / 2}
-                  width={barWidthActual}
-                  height={Math.max(2, barHeight - barWidthActual / 2)} // Min 2px yükseklik
-                  fill={barColor}
-                />
-                <Circle
-                  cx={x + barWidthActual / 2}
-                  cy={y + barWidthActual / 2}
-                  r={barWidthActual / 2}
-                  fill={barColor}
-                />
+                {/* FIXED: Sadece veri varsa bar çiz */}
+                {hasData ? (
+                  <>
+                    <Rect
+                      x={x}
+                      y={y + barWidthActual / 2}
+                      width={barWidthActual}
+                      height={Math.max(2, barHeight - barWidthActual / 2)} // Min 2px yükseklik
+                      fill={barColor}
+                    />
+                    <Circle
+                      cx={x + barWidthActual / 2}
+                      cy={y + barWidthActual / 2}
+                      r={barWidthActual / 2}
+                      fill={barColor}
+                    />
+                  </>
+                ) : (
+                  // Veri yoksa sadece küçük bir placeholder göster
+                  <Circle
+                    cx={x + barWidthActual / 2}
+                    cy={165}
+                    r="2"
+                    fill="#E0E0E0"
+                  />
+                )}
 
                 {/* IMPROVED: Selected indicator - sadece veri varsa göster */}
                 {isSelected && hasData && (
@@ -231,7 +313,7 @@ const InsightsScreen = () => {
                       textAnchor="middle"
                       fontWeight="bold"
                     >
-                      {Math.round(value)}
+                      {Math.round(displayValue)}
                     </SvgText>
                     <SvgText
                       x={x + barWidthActual / 2}
@@ -304,16 +386,18 @@ const InsightsScreen = () => {
           )}
         </Svg>
 
-        {/* Touchable overlay */}
+        {/* Touchable overlay - sadece veri varsa tıklanabilir */}
         {data.map((value, index) => {
           const x = 30 + index * barWidth + barWidth * 0.2;
           const barWidthActual = barWidth * 0.6;
+          const hasData =
+            value !== null && value !== undefined && !isNaN(value) && value > 0;
 
           return (
             <TouchableOpacity
               key={`touch-${index}`}
               style={[styles.barTouchArea, { left: x, width: barWidthActual }]}
-              onPress={() => value > 0 && onDaySelect(index)} // Sadece veri varsa seçilebilir
+              onPress={() => hasData && onDaySelect(index)} // Sadece veri varsa seçilebilir
             />
           );
         })}
@@ -472,7 +556,7 @@ const InsightsScreen = () => {
           />
         </View>
 
-        {/* Weight Chart */}
+        {/* Weight Chart - FIXED FOR NULL HANDLING */}
         <View style={styles.chartSection}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Weight (kg)</Text>
