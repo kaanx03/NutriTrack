@@ -1,5 +1,8 @@
+// App.js - Fixed with Provider Debug and Error Handling
+import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import * as Font from "expo-font";
+
 import AppNavigator from "./src/navigation/AppNavigator";
 
 import { SignUpProvider } from "./src/context/SignUpContext";
@@ -11,6 +14,9 @@ import { BookmarkProvider } from "./src/context/BookmarkContext";
 import { AuthProvider } from "./src/context/AuthContext";
 import { InsightsProvider } from "./src/context/InsightsContext";
 
+// Debug helper import
+import DebugStorage from "./src/utils/debugStorage";
+
 export default function App() {
   const [fontsLoaded] = Font.useFonts({
     "Roboto-Regular": require("./assets/fonts/Roboto/Roboto-Regular.ttf"),
@@ -19,7 +25,32 @@ export default function App() {
     "Roboto-Light": require("./assets/fonts/Roboto/Roboto-Light.ttf"),
   });
 
-  if (!fontsLoaded) return null;
+  // App başlatıldığında debug bilgileri
+  useEffect(() => {
+    console.log("🚀 App: Starting up...");
+
+    // Development modunda debug araçlarını başlat
+    if (__DEV__) {
+      console.log("🛠️ App: Development mode - Debug tools available");
+
+      // Storage durumunu kontrol et
+      setTimeout(async () => {
+        await DebugStorage.checkAuthStorage();
+      }, 2000);
+
+      // Global debug fonksiyonlarını expose et
+      global.debugAuth = DebugStorage.checkAuthStorage;
+      global.debugClearStorage = DebugStorage.clearAllStorage;
+      global.debugAllKeys = DebugStorage.getAllKeys;
+    }
+  }, []);
+
+  if (!fontsLoaded) {
+    console.log("📝 App: Loading fonts...");
+    return null;
+  }
+
+  console.log("✅ App: Fonts loaded, rendering providers...");
 
   return (
     <AuthProvider>
@@ -30,8 +61,19 @@ export default function App() {
               <WaterProvider>
                 <BookmarkProvider>
                   <InsightsProvider>
-                    {/* InsightsProvider can be used to provide insights data across the app */}
-                    <NavigationContainer>
+                    <NavigationContainer
+                      onStateChange={(state) => {
+                        if (__DEV__) {
+                          console.log(
+                            "🧭 Navigation state changed:",
+                            state?.routes?.[state?.index]?.name
+                          );
+                        }
+                      }}
+                      onReady={() => {
+                        console.log("🧭 Navigation ready");
+                      }}
+                    >
                       <AppNavigator />
                     </NavigationContainer>
                   </InsightsProvider>
