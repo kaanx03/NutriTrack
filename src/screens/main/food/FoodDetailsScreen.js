@@ -1,4 +1,4 @@
-// src/screens/main/FoodDetailsScreen.js
+// src/screens/main/FoodDetailsScreen.js - Backend Integration
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -13,10 +13,12 @@ import {
   Alert,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
+import NutritionService from "../../../services/NutritionService";
 
 const FoodDetailsScreen = () => {
   const navigation = useNavigation();
@@ -30,6 +32,7 @@ const FoodDetailsScreen = () => {
     favoriteFoods,
     mealFoods,
     updateFoodPortion,
+    refreshData,
   } = useMeals();
 
   // Check if this food is already in the current meal
@@ -49,6 +52,7 @@ const FoodDetailsScreen = () => {
     fat: food.fat || 0,
     weight: food.weight || 100,
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   // Birim seçenekleri
   const unitOptions = [
@@ -80,7 +84,7 @@ const FoodDetailsScreen = () => {
         // Check by ID (exact match) or by name (similar items)
         item.id === food.id ||
         (item.name === food.name &&
-          Math.abs(item.calories - food.calories) < 10) // Allow small calorie differences
+          Math.abs(item.calories - food.calories) < 10)
     );
 
     if (existingFood) {
@@ -111,7 +115,6 @@ const FoodDetailsScreen = () => {
     let weight = parseFloat(weightInput) || 0;
 
     // Birim gram değil ise, uygun çevirimleri yapabilirsiniz
-    // Örnek bir çevrim mantığı (gerçek çevrim faktörlerini uygulamaya göre ayarlayın)
     let weightInGrams = weight;
     if (selectedUnit === "tablespoon") {
       weightInGrams = weight * 15; // 1 yemek kaşığı yaklaşık 15 gram
@@ -124,7 +127,6 @@ const FoodDetailsScreen = () => {
     } else if (selectedUnit === "milliliter (ml)") {
       weightInGrams = weight; // 1 ml = 1 g (su için)
     }
-    // Diğer birimler için benzer çevrimler eklenebilir
 
     // Orijinal ürün gram başına değerleri
     const caloriesPerGram = caloriesPerUnit / weightPerUnit;
@@ -159,7 +161,6 @@ const FoodDetailsScreen = () => {
   const decreaseWeight = () => {
     const currentWeight = parseFloat(weightInput) || 0;
     if (currentWeight >= 10) {
-      // En az 10 gram olabilir
       setWeightInput((currentWeight - 10).toString());
     }
   };
@@ -170,7 +171,7 @@ const FoodDetailsScreen = () => {
   };
 
   // Save butonuna basınca yemeği FoodSelectionScreen'e gönder veya direkt güncelle
-  const handleSave = () => {
+  const handleSave = async () => {
     // Ağırlık değeri geçerli mi kontrol et
     const weight = parseFloat(weightInput);
     if (isNaN(weight) || weight <= 0) {
@@ -178,56 +179,166 @@ const FoodDetailsScreen = () => {
       return;
     }
 
-    // Calculate new values
-    const newPortionInfo = {
-      foodId: food.id,
-      name: food.name,
-      baseCalories: food.calories,
-      baseWeight: food.weight,
-      portionSize: weight,
-      portionUnit: selectedUnit,
-      calculatedCalories: calculatedValues.calories,
-      carbs: calculatedValues.carbs,
-      protein: calculatedValues.protein,
-      fat: calculatedValues.fat,
-    };
+    try {
+      setIsLoading(true);
 
-    // If the food is already in the current meal, update it directly
-    if (isInCurrentMeal && existingFoodId) {
-      // Update the existing food with new portion size in the context
-      updateFoodPortion(
-        existingFoodId,
-        food.mealType || "Breakfast",
-        weight,
-        selectedUnit,
-        calculatedValues.calories,
-        calculatedValues.carbs,
-        calculatedValues.protein,
-        calculatedValues.fat
-      );
+      // Calculate new values
+      const newPortionInfo = {
+        foodId: food.id,
+        name: food.name,
+        baseCalories: food.calories,
+        baseWeight: food.weight,
+        portionSize: weight,
+        portionUnit: selectedUnit,
+        calculatedCalories: calculatedValues.calories,
+        carbs: calculatedValues.carbs,
+        protein: calculatedValues.protein,
+        fat: calculatedValues.fat,
+      };
 
-      // Show success message
-      Alert.alert("Updated", "Food portion has been updated.", [
-        { text: "OK", onPress: () => navigation.goBack() },
+      // If the food is already in the current meal, update it directly
+      if (isInCurrentMeal && existingFoodId) {
+        console.log("Updating existing food portion in meal");
+
+        // Update the existing food with new portion size in the context
+        await updateFoodPortion(
+          existingFoodId,
+          food.mealType || "Breakfast",
+          weight,
+          selectedUnit,
+          calculatedValues.calories,
+          calculatedValues.carbs,
+          calculatedValues.protein,
+          calculatedValues.fat
+        );
+
+        // Refresh data to ensure backend sync
+        await refreshData();
+
+        // Show success message
+        Alert.alert("Updated", "Food portion has been updated.", [
+          { text: "OK", onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        console.log("Navigating back with new portion info");
+
+        // FoodSelectionScreen'e dön ve bilgileri parametre olarak gönder
+        navigation.navigate("FoodSelection", {
+          selectedPortion: newPortionInfo,
+          mealType: food.mealType || "Breakfast",
+          isExistingFood: isInCurrentMeal,
+          existingFoodId: existingFoodId,
+        });
+      }
+    } catch (error) {
+      console.error("Error saving food portion:", error);
+      Alert.alert("Error", "Failed to save food portion. Please try again.", [
+        { text: "OK" },
       ]);
-    } else {
-      // FoodSelectionScreen'e dön ve bilgileri parametre olarak gönder
-      navigation.navigate("FoodSelection", {
-        selectedPortion: newPortionInfo,
-        mealType: food.mealType || "Breakfast",
-        isExistingFood: isInCurrentMeal, // Flag to indicate if it's already in meal
-        existingFoodId: existingFoodId,
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Favori durumunu değiştirmek için yeni fonksiyon
-  const handleToggleFavorite = () => {
-    toggleFavorite(food);
+  // Favori durumunu değiştirmek için güncellenen fonksiyon - ENHANCED VERSION
+  const handleToggleFavorite = async () => {
+    try {
+      setIsLoading(true);
+      console.log("=== TOGGLE FAVORITE START ===");
+      console.log("Current favorite status:", isFavorite);
+      console.log("Food data:", {
+        id: food.id,
+        name: food.name,
+        calories: food.calories,
+        isCustomFood: food.isCustomFood || food.isPersonal,
+      });
+
+      // Backend entegrasyonu ile favori durumunu değiştir
+      await toggleFavorite(food);
+
+      console.log("Toggle favorite completed successfully");
+
+      // Refresh data to ensure sync - FORCE REFRESH
+      await refreshData();
+
+      // Show success feedback
+      const newStatus = !isFavorite;
+      Alert.alert(
+        "Success",
+        newStatus ? "Added to favorites!" : "Removed from favorites!",
+        [{ text: "OK" }]
+      );
+
+      console.log("=== TOGGLE FAVORITE COMPLETED ===");
+    } catch (error) {
+      console.error("=== TOGGLE FAVORITE ERROR ===", error);
+      Alert.alert(
+        "Error",
+        "Failed to update favorite status. Please try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete food fonksiyonu (custom foods için)
+  const handleDeleteFood = async () => {
+    if (!food.isPersonal && !food.isCustomFood) {
+      Alert.alert("Cannot Delete", "Only custom foods can be deleted.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete Food",
+      "Are you sure you want to delete this custom food?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+
+              // Backend'den custom food'u sil
+              if (food.backendId) {
+                await NutritionService.deleteCustomFood(food.backendId);
+              }
+
+              // Context'ten de sil
+              // Bu fonksiyon MealsContext'te tanımlanmalı
+              // await deletePersonalFood(food.id);
+
+              // Refresh data
+              await refreshData();
+
+              Alert.alert("Deleted", "Custom food has been deleted.", [
+                { text: "OK", onPress: () => navigation.goBack() },
+              ]);
+            } catch (error) {
+              console.error("Error deleting custom food:", error);
+              Alert.alert(
+                "Error",
+                "Failed to delete custom food. Please try again.",
+                [{ text: "OK" }]
+              );
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Yemek tipine göre ikon belirlemek için yardımcı fonksiyon
   const getFoodIcon = () => {
+    // Eğer food'ta icon varsa onu kullan
+    if (food.icon) {
+      return food.icon;
+    }
+
     const name = (food.name || "").toLowerCase();
 
     if (name.includes("shrimp")) return "🍤";
@@ -264,6 +375,7 @@ const FoodDetailsScreen = () => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            disabled={isLoading}
           >
             <Ionicons name="close" size={24} color="#000" />
           </TouchableOpacity>
@@ -278,28 +390,46 @@ const FoodDetailsScreen = () => {
             <TouchableOpacity
               style={styles.favoriteButton}
               onPress={handleToggleFavorite}
+              disabled={isLoading}
             >
-              <Ionicons
-                name={isFavorite ? "heart" : "heart-outline"}
-                size={24}
-                color={isFavorite ? "#ff4d4f" : "#000"}
-              />
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#999" />
+              ) : (
+                <Ionicons
+                  name={isFavorite ? "heart" : "heart-outline"}
+                  size={24}
+                  color={isFavorite ? "#ff4d4f" : "#000"}
+                />
+              )}
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => {
-                // Burada yemeğin silinmesi için gerekli işlemler yapılabilir
-                navigation.goBack();
-              }}
-            >
-              <Ionicons name="trash-outline" size={20} color="#ff4d4f" />
-            </TouchableOpacity>
+
+            {/* Delete button - sadece custom foods için göster */}
+            {(food.isPersonal || food.isCustomFood) && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDeleteFood}
+                disabled={isLoading}
+              >
+                <Ionicons name="trash-outline" size={20} color="#ff4d4f" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
+
         {/* Food Image/Icon */}
         <View style={styles.foodImageContainer}>
           <Text style={styles.foodEmoji}>{getFoodIcon()}</Text>
         </View>
+
+        {/* Custom Food Badge */}
+        {(food.isPersonal || food.isCustomFood) && (
+          <View style={styles.customBadgeContainer}>
+            <View style={styles.customBadge}>
+              <Text style={styles.customBadgeText}>Custom Food</Text>
+            </View>
+          </View>
+        )}
+
         {/* Calories Circle */}
         <View style={styles.caloriesCircleContainer}>
           <View style={styles.caloriesCircle}>
@@ -309,6 +439,7 @@ const FoodDetailsScreen = () => {
             <Text style={styles.caloriesUnit}>kcal</Text>
           </View>
         </View>
+
         {/* Nutrition Breakdown */}
         <View style={styles.nutritionContainer}>
           {/* Carbs */}
@@ -356,36 +487,40 @@ const FoodDetailsScreen = () => {
           <View style={styles.nutritionRow}>
             <Text style={styles.nutritionLabel}>Cholesterol</Text>
             <Text style={styles.nutritionValue}>
-              {(food.cholesterol || 0) *
-                (calculatedValues.weightInGrams / weightPerUnit)}
+              {Math.round(
+                (food.cholesterol || 0) *
+                  (calculatedValues.weightInGrams / weightPerUnit)
+              )}
               mg ({food.cholesterolPercent || 0}%)
             </Text>
           </View>
           <View style={styles.nutritionRow}>
             <Text style={styles.nutritionLabel}>Sodium</Text>
             <Text style={styles.nutritionValue}>
-              {(food.sodium || 0) *
-                (calculatedValues.weightInGrams / weightPerUnit)}
+              {Math.round(
+                (food.sodium || 0) *
+                  (calculatedValues.weightInGrams / weightPerUnit)
+              )}
               mg ({food.sodiumPercent || 0}%)
             </Text>
           </View>
           <View style={styles.nutritionRow}>
-            <Text style={styles.nutritionLabel}>Minerals</Text>
-            <Text style={styles.nutritionValue}></Text>
-          </View>
-          <View style={styles.nutritionRow}>
             <Text style={styles.nutritionLabel}>Calcium</Text>
             <Text style={styles.nutritionValue}>
-              {(food.calcium || 0) *
-                (calculatedValues.weightInGrams / weightPerUnit)}
+              {Math.round(
+                (food.calcium || 0) *
+                  (calculatedValues.weightInGrams / weightPerUnit)
+              )}
               mg ({food.calciumPercent || 0}%)
             </Text>
           </View>
           <View style={styles.nutritionRow}>
             <Text style={styles.nutritionLabel}>Iron</Text>
             <Text style={styles.nutritionValue}>
-              {(food.iron || 0) *
-                (calculatedValues.weightInGrams / weightPerUnit)}
+              {Math.round(
+                (food.iron || 0) *
+                  (calculatedValues.weightInGrams / weightPerUnit)
+              )}
               mg ({food.ironPercent || 0}%)
             </Text>
           </View>
@@ -398,6 +533,7 @@ const FoodDetailsScreen = () => {
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={decreaseWeight}
+              disabled={isLoading}
             >
               <Ionicons name="remove" size={20} color="#666" />
             </TouchableOpacity>
@@ -411,12 +547,14 @@ const FoodDetailsScreen = () => {
                 returnKeyType="done"
                 maxLength={5}
                 onSubmitEditing={Keyboard.dismiss}
+                editable={!isLoading}
               />
             </View>
 
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={increaseWeight}
+              disabled={isLoading}
             >
               <Ionicons name="add" size={20} color="#666" />
             </TouchableOpacity>
@@ -426,6 +564,7 @@ const FoodDetailsScreen = () => {
           <TouchableOpacity
             style={styles.unitSelector}
             onPress={() => setShowUnitDropdown(!showUnitDropdown)}
+            disabled={isLoading}
           >
             <Text style={styles.unitText}>{selectedUnit}</Text>
             <Ionicons
@@ -452,10 +591,18 @@ const FoodDetailsScreen = () => {
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>
-            {isInCurrentMeal ? "Update" : "Save"}
-          </Text>
+        <TouchableOpacity
+          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>
+              {isInCurrentMeal ? "Update" : "Save"}
+            </Text>
+          )}
         </TouchableOpacity>
       </SafeAreaView>
     </TouchableWithoutFeedback>
@@ -508,6 +655,21 @@ const styles = StyleSheet.create({
   },
   foodEmoji: {
     fontSize: 80,
+  },
+  customBadgeContainer: {
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  customBadge: {
+    backgroundColor: "#A1CE50",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  customBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "500",
   },
   caloriesCircleContainer: {
     alignItems: "center",
@@ -633,7 +795,7 @@ const styles = StyleSheet.create({
   },
   unitDropdown: {
     position: "absolute",
-    top: 70, // weightContainer'ın altına yerleştirilir
+    top: 70,
     right: 10,
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -663,6 +825,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 30,
     alignItems: "center",
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#cccccc",
   },
   saveButtonText: {
     color: "#fff",

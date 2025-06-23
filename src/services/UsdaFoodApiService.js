@@ -1,8 +1,8 @@
-// src/services/UsdaFoodApiService.js
+// src/services/UsdaFoodApiService.js - FIXED VERSION FOR DATA CONSISTENCY
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // USDA FoodData Central API
-const API_KEY = "us3UM2r2ieNXFzuDq7UDSEcuzi7mKnKNEb3IgEoK"; // API anahtarınız
+const API_KEY = "us3UM2r2ieNXFzuDq7UDSEcuzi7mKnKNEb3IgEoK";
 const API_URL = "https://api.nal.usda.gov/fdc/v1";
 
 // Cache expiry time (24 hours in milliseconds)
@@ -21,13 +21,11 @@ class UsdaFoodApiService {
       }
 
       // API'nin daha iyi sonuç vermesi için sorguyu iyileştir
-      // Sorgu çok uzunsa kesme (API bazen uzun sorgularda iyi çalışmıyor)
       if (cleanedQuery.length > 30) {
         cleanedQuery = cleanedQuery.substring(0, 30);
       }
 
-      // Sorgunun API'de daha iyi çalışması için hazırlık
-      cleanedQuery = cleanedQuery.replace(/\s+/g, " "); // Fazla boşlukları tek boşlukla değiştir
+      cleanedQuery = cleanedQuery.replace(/\s+/g, " ");
 
       // Check cache first
       const cacheKey = `usda_search_${cleanedQuery}_${pageSize}_${pageNumber}`;
@@ -47,7 +45,6 @@ class UsdaFoodApiService {
         console.log(
           `No results for "${cleanedQuery}", trying alternative query`
         );
-        // Sorguyu tekil kelimeye indirgeme (örn. "ground beef" yerine sadece "beef")
         const mainKeyword = cleanedQuery.split(" ").pop();
         foods = await this.fetchFromApi(mainKeyword, pageSize, pageNumber);
       }
@@ -55,7 +52,6 @@ class UsdaFoodApiService {
       // Hala sonuç yoksa, Deneme 3: Sorguyu başka bir şekilde dene
       if (foods.length === 0) {
         console.log(`Still no results, trying broader query`);
-        // Sorguyu daha geniş yap (sadece ilk kelime)
         const firstWord = cleanedQuery.split(" ")[0];
         foods = await this.fetchFromApi(firstWord, pageSize, pageNumber);
       }
@@ -72,7 +68,7 @@ class UsdaFoodApiService {
     }
   }
 
-  // Yeni API çağrı metodu
+  // API çağrı metodu
   async fetchFromApi(query, pageSize, pageNumber) {
     try {
       const url = `${API_URL}/foods/search?api_key=${API_KEY}&query=${encodeURIComponent(
@@ -133,10 +129,9 @@ class UsdaFoodApiService {
     }
   }
 
-  // Get foods by meal type (using search terms associated with meal types)
+  // Get foods by meal type
   async getFoodsByMealType(mealType, pageSize = 20, pageNumber = 1) {
     try {
-      // Define search terms for each meal type
       let searchTerm;
       switch (mealType.toLowerCase()) {
         case "breakfast":
@@ -155,8 +150,7 @@ class UsdaFoodApiService {
           searchTerm = mealType;
       }
 
-      // Saflaştırılmış arama terimi
-      const cleanSearchTerm = searchTerm.substring(0, 50); // Terimi kısaltabilirsiniz
+      const cleanSearchTerm = searchTerm.substring(0, 50);
 
       return this.searchFoods(cleanSearchTerm, pageSize, pageNumber);
     } catch (error) {
@@ -165,167 +159,333 @@ class UsdaFoodApiService {
     }
   }
 
-  // Transform search results to our app format
+  // FIXED - Transform search results to ensure data consistency
   transformSearchResults(apiData) {
     if (!apiData.foods || !Array.isArray(apiData.foods)) {
       return [];
     }
 
-    // Kullanılmış ID'leri takip etmek için bir set oluştur
     const usedIds = new Set();
 
-    return apiData.foods.map((food, index) => {
-      // Her yemek için besin değerlerini al
-      let calories = this.findNutrientValue(food.foodNutrients, "Energy");
-      let protein = this.findNutrientValue(food.foodNutrients, "Protein");
-      let carbs = this.findNutrientValue(
+    return apiData.foods
+      .map((food, index) => {
+        try {
+          // STANDARDIZED NUTRITION CALCULATION
+          // Always calculate per 100g to maintain consistency
+          const nutritionPer100g = this.calculateNutritionPer100g(food);
+
+          // Ensure minimum values (some foods have 0 calories which is unrealistic)
+          const calories = Math.max(nutritionPer100g.calories, 1);
+          const protein = Math.max(nutritionPer100g.protein, 0);
+          const carbs = Math.max(nutritionPer100g.carbs, 0);
+          const fat = Math.max(nutritionPer100g.fat, 0);
+
+          // STANDARDIZED SERVING SIZE - Always use 100g as base
+          const baseServingSize = 100;
+          const baseUnit = "gram (g)";
+
+          // Generate unique ID
+          let uniqueId = food.fdcId
+            ? food.fdcId.toString()
+            : `food_${Date.now()}_${index}`;
+
+          if (usedIds.has(uniqueId)) {
+            uniqueId = `${uniqueId}_${index}`;
+          }
+          usedIds.add(uniqueId);
+
+          // Store ORIGINAL API data for consistency checking
+          const result = {
+            id: uniqueId,
+            fdcId: food.fdcId, // Keep original FDC ID for reference
+            name: food.description || "Unknown Food",
+
+            // STANDARDIZED VALUES (always per 100g)
+            calories: Math.round(calories),
+            protein: Math.round(protein * 10) / 10,
+            carbs: Math.round(carbs * 10) / 10,
+            fat: Math.round(fat * 10) / 10,
+
+            // CONSISTENT SERVING INFO
+            weight: baseServingSize,
+            portionSize: baseServingSize,
+            portionUnit: baseUnit,
+
+            // METADATA
+            mealType: this.inferMealType(food.description || ""),
+            source: "USDA",
+
+            // STORE ORIGINAL DATA for reference/debugging
+            _originalData: {
+              fdcId: food.fdcId,
+              description: food.description,
+              servingSize: food.servingSize,
+              servingSizeUnit: food.servingSizeUnit,
+              nutrients: food.foodNutrients
+                ? food.foodNutrients.slice(0, 10)
+                : [], // Store first 10 nutrients for debugging
+            },
+          };
+
+          console.log(
+            `Transformed food: ${result.name} - ${result.calories} kcal per ${result.weight}g`
+          );
+
+          return result;
+        } catch (error) {
+          console.error(`Error transforming food at index ${index}:`, error);
+          return null;
+        }
+      })
+      .filter((food) => food !== null); // Remove failed transformations
+  }
+
+  // NEW - Calculate nutrition per 100g consistently
+  calculateNutritionPer100g(food) {
+    try {
+      // Get raw nutrient values from USDA data
+      const rawCalories = this.findNutrientValue(food.foodNutrients, "Energy");
+      const rawProtein = this.findNutrientValue(food.foodNutrients, "Protein");
+      const rawCarbs = this.findNutrientValue(
         food.foodNutrients,
         "Carbohydrate, by difference"
       );
-      let fat = this.findNutrientValue(food.foodNutrients, "Total lipid (fat)");
+      const rawFat = this.findNutrientValue(
+        food.foodNutrients,
+        "Total lipid (fat)"
+      );
 
-      // Eğer kalori 0 ise, API'den gelen diğer alanları dene
-      if (calories <= 0 && food.foodMeasures && food.foodMeasures.length > 0) {
-        const measure = food.foodMeasures[0];
-        calories = measure.calories || 0;
-      }
-
-      // Eğer hala kalori 0 ise ve FDC puanı varsa (bazı USDA öğeleri bu şekilde gelir)
-      if (calories <= 0 && food.fdcScore) {
-        // Yaklaşık değer hesapla:
-        // Protein: 4 kcal/g, Karbonhidrat: 4 kcal/g, Yağ: 9 kcal/g
-        calories = protein * 4 + carbs * 4 + fat * 9;
-      }
-
-      // Minimum bir değer sağla
-      calories = calories <= 0 ? 100 : calories; // 0 kalori olamaz, varsayılan değer koy
-      protein = protein <= 0 ? (calories * 0.05) / 4 : protein; // %5 protein
-      carbs = carbs <= 0 ? (calories * 0.6) / 4 : carbs; // %60 karbonhidrat
-      fat = fat <= 0 ? (calories * 0.35) / 9 : fat; // %35 yağ
-
-      // Determine serving size - standardize to grams where possible
+      // USDA API typically returns values per 100g, but let's verify
+      // If serving size is different than 100g, we need to adjust
       const servingSize = food.servingSize || 100;
-      const servingUnit = food.servingSizeUnit || "g";
+      const adjustmentFactor = 100 / servingSize;
 
-      // Benzersiz ID oluştur
-      let uniqueId = food.fdcId ? food.fdcId.toString() : `food_${index}`;
+      // Calculate per 100g values
+      let caloriesPer100g = rawCalories * adjustmentFactor;
+      let proteinPer100g = rawProtein * adjustmentFactor;
+      let carbsPer100g = rawCarbs * adjustmentFactor;
+      let fatPer100g = rawFat * adjustmentFactor;
 
-      // ID çakışmalarını önle
-      if (usedIds.has(uniqueId)) {
-        uniqueId = `${uniqueId}_${index}`;
+      // Validation: Ensure values are reasonable
+      if (caloriesPer100g <= 0 || caloriesPer100g > 900) {
+        // If calories seem wrong, estimate from macros
+        caloriesPer100g =
+          proteinPer100g * 4 + carbsPer100g * 4 + fatPer100g * 9;
       }
 
-      // ID'yi kullanılmış olarak işaretle
-      usedIds.add(uniqueId);
+      // Final validation and defaults
+      caloriesPer100g = Math.max(caloriesPer100g, 1); // Minimum 1 calorie
+      proteinPer100g = Math.max(proteinPer100g, 0);
+      carbsPer100g = Math.max(carbsPer100g, 0);
+      fatPer100g = Math.max(fatPer100g, 0);
+
+      // If still unreasonable, use food type-based estimates
+      if (caloriesPer100g > 900 || isNaN(caloriesPer100g)) {
+        const estimatedNutrition = this.estimateNutritionByFoodType(
+          food.description || ""
+        );
+        caloriesPer100g = estimatedNutrition.calories;
+        proteinPer100g = estimatedNutrition.protein;
+        carbsPer100g = estimatedNutrition.carbs;
+        fatPer100g = estimatedNutrition.fat;
+      }
 
       return {
-        id: uniqueId,
-        name: food.description,
-        calories: Math.round(calories),
-        protein: Math.round(protein * 10) / 10,
-        carbs: Math.round(carbs * 10) / 10,
-        fat: Math.round(fat * 10) / 10,
-        weight: servingSize,
-        portionSize: servingSize,
-        portionUnit: servingUnit === "g" ? "gram (g)" : servingUnit,
-        mealType: this.inferMealType(food.description),
+        calories: caloriesPer100g,
+        protein: proteinPer100g,
+        carbs: carbsPer100g,
+        fat: fatPer100g,
       };
-    });
+    } catch (error) {
+      console.error("Error calculating nutrition per 100g:", error);
+      // Return default values
+      return {
+        calories: 150,
+        protein: 5,
+        carbs: 20,
+        fat: 5,
+      };
+    }
   }
 
-  // Transform food details to our app format
+  // NEW - Estimate nutrition based on food type when API data is unreliable
+  estimateNutritionByFoodType(description) {
+    const lowerDesc = description.toLowerCase();
+
+    // Meat and protein foods
+    if (
+      lowerDesc.includes("chicken") ||
+      lowerDesc.includes("beef") ||
+      lowerDesc.includes("fish") ||
+      lowerDesc.includes("egg")
+    ) {
+      return { calories: 200, protein: 25, carbs: 2, fat: 10 };
+    }
+
+    // Dairy
+    if (
+      lowerDesc.includes("cheese") ||
+      lowerDesc.includes("milk") ||
+      lowerDesc.includes("yogurt")
+    ) {
+      return { calories: 150, protein: 10, carbs: 8, fat: 8 };
+    }
+
+    // Grains and starches
+    if (
+      lowerDesc.includes("bread") ||
+      lowerDesc.includes("rice") ||
+      lowerDesc.includes("pasta") ||
+      lowerDesc.includes("cereal")
+    ) {
+      return { calories: 250, protein: 8, carbs: 50, fat: 2 };
+    }
+
+    // Fruits
+    if (
+      lowerDesc.includes("fruit") ||
+      lowerDesc.includes("apple") ||
+      lowerDesc.includes("banana") ||
+      lowerDesc.includes("orange")
+    ) {
+      return { calories: 60, protein: 1, carbs: 15, fat: 0.2 };
+    }
+
+    // Vegetables
+    if (
+      lowerDesc.includes("vegetable") ||
+      lowerDesc.includes("carrot") ||
+      lowerDesc.includes("broccoli") ||
+      lowerDesc.includes("spinach")
+    ) {
+      return { calories: 25, protein: 2, carbs: 5, fat: 0.2 };
+    }
+
+    // Nuts and seeds
+    if (
+      lowerDesc.includes("nuts") ||
+      lowerDesc.includes("seeds") ||
+      lowerDesc.includes("almond")
+    ) {
+      return { calories: 600, protein: 20, carbs: 10, fat: 50 };
+    }
+
+    // Default for unknown foods
+    return { calories: 150, protein: 5, carbs: 20, fat: 5 };
+  }
+
+  // FIXED - Transform food details to match search results format
   transformFoodDetails(food) {
     if (!food) {
       return null;
     }
 
-    // Find nutrient values with updated method
-    let calories = this.findNutrientValue(food.foodNutrients, "Energy");
-    let protein = this.findNutrientValue(food.foodNutrients, "Protein");
-    let carbs = this.findNutrientValue(
-      food.foodNutrients,
-      "Carbohydrate, by difference"
-    );
-    let fat = this.findNutrientValue(food.foodNutrients, "Total lipid (fat)");
+    try {
+      // Use the same calculation method as search results
+      const nutritionPer100g = this.calculateNutritionPer100g(food);
 
-    // Fallback values if needed
-    calories = calories <= 0 ? 100 : calories;
-    protein = protein <= 0 ? (calories * 0.05) / 4 : protein;
-    carbs = carbs <= 0 ? (calories * 0.6) / 4 : carbs;
-    fat = fat <= 0 ? (calories * 0.35) / 9 : fat;
+      const calories = Math.max(nutritionPer100g.calories, 1);
+      const protein = Math.max(nutritionPer100g.protein, 0);
+      const carbs = Math.max(nutritionPer100g.carbs, 0);
+      const fat = Math.max(nutritionPer100g.fat, 0);
 
-    // Determine serving size
-    const servingSize = food.servingSize || 100;
-    const servingUnit = food.servingSizeUnit || "g";
+      // CONSISTENT with search results - always 100g base
+      const baseServingSize = 100;
+      const baseUnit = "gram (g)";
 
-    // Benzersiz ID oluştur
-    const uniqueId = food.fdcId
-      ? food.fdcId.toString()
-      : `food_detail_${Date.now()}`;
+      const uniqueId = food.fdcId
+        ? food.fdcId.toString()
+        : `food_detail_${Date.now()}`;
 
-    return {
-      id: uniqueId,
-      name: food.description,
-      calories: Math.round(calories),
-      protein: Math.round(protein * 10) / 10,
-      carbs: Math.round(carbs * 10) / 10,
-      fat: Math.round(fat * 10) / 10,
-      weight: servingSize,
-      portionSize: servingSize,
-      portionUnit: servingUnit === "g" ? "gram (g)" : servingUnit,
-      mealType: this.inferMealType(food.description),
-    };
+      const result = {
+        id: uniqueId,
+        fdcId: food.fdcId,
+        name: food.description || "Unknown Food",
+
+        // SAME VALUES as in search results
+        calories: Math.round(calories),
+        protein: Math.round(protein * 10) / 10,
+        carbs: Math.round(carbs * 10) / 10,
+        fat: Math.round(fat * 10) / 10,
+
+        // CONSISTENT SERVING INFO
+        weight: baseServingSize,
+        portionSize: baseServingSize,
+        portionUnit: baseUnit,
+
+        mealType: this.inferMealType(food.description || ""),
+        source: "USDA",
+
+        // Additional details for food details screen
+        cholesterol:
+          this.findNutrientValue(food.foodNutrients, "Cholesterol") || 0,
+        sodium: this.findNutrientValue(food.foodNutrients, "Sodium, Na") || 0,
+        calcium: this.findNutrientValue(food.foodNutrients, "Calcium, Ca") || 0,
+        iron: this.findNutrientValue(food.foodNutrients, "Iron, Fe") || 0,
+
+        _originalData: {
+          fdcId: food.fdcId,
+          description: food.description,
+          nutrients: food.foodNutrients ? food.foodNutrients.slice(0, 15) : [],
+        },
+      };
+
+      console.log(
+        `Food details: ${result.name} - ${result.calories} kcal per ${result.weight}g (CONSISTENT)`
+      );
+
+      return result;
+    } catch (error) {
+      console.error("Error transforming food details:", error);
+      return null;
+    }
   }
 
-  // Helper method to find nutrient value from foodNutrients array - UPDATED
+  // IMPROVED - Helper method to find nutrient value
   findNutrientValue(foodNutrients, nutrientName) {
     if (!foodNutrients || !Array.isArray(foodNutrients)) {
       return 0;
     }
 
-    // USDA API'nin nutrient ID'lerini biliyoruz
+    // USDA API nutrient ID mapping (more comprehensive)
     const NUTRIENT_IDS = {
-      Energy: [1008, 2047, 2048, 208], // Kalori için birden fazla ID olabilir (kcal)
+      Energy: [1008, 2047, 2048, 208], // kcal
       Protein: [1003, 203],
       "Carbohydrate, by difference": [1005, 205],
       "Total lipid (fat)": [1004, 204],
+      Cholesterol: [1253, 601],
+      "Sodium, Na": [1093, 307],
+      "Calcium, Ca": [1087, 301],
+      "Iron, Fe": [1089, 303],
     };
 
-    // İlgili besin değerinin ID'lerini al
     const nutrientIds = NUTRIENT_IDS[nutrientName] || [];
 
-    // ID'lere göre ara
-    const nutrient = foodNutrients.find(
-      (n) =>
-        (n.nutrientId && nutrientIds.includes(parseInt(n.nutrientId))) ||
-        (n.nutrient &&
-          n.nutrient.id &&
-          nutrientIds.includes(parseInt(n.nutrient.id)))
-    );
+    // Try to find by ID first
+    let nutrient = foodNutrients.find((n) => {
+      const nutrientId = n.nutrientId || (n.nutrient && n.nutrient.id);
+      return nutrientId && nutrientIds.includes(parseInt(nutrientId));
+    });
 
     if (nutrient) {
-      // Değeri birkaç olası yerden alabilir
       const value =
         nutrient.value ||
         nutrient.amount ||
         (nutrient.nutrient && nutrient.nutrient.value) ||
         0;
-
-      return value;
+      return parseFloat(value) || 0;
     }
 
-    // Alternatif: İsme göre ara (eğer ID ile bulunamazsa)
-    const byName = foodNutrients.find(
-      (n) =>
-        (n.nutrientName && n.nutrientName.includes(nutrientName)) ||
-        (n.nutrient &&
-          n.nutrient.name &&
-          n.nutrient.name.includes(nutrientName)) ||
-        (n.name && n.name.includes(nutrientName))
-    );
+    // Try to find by name as fallback
+    nutrient = foodNutrients.find((n) => {
+      const name =
+        n.nutrientName || (n.nutrient && n.nutrient.name) || n.name || "";
+      return name.toLowerCase().includes(nutrientName.toLowerCase());
+    });
 
-    if (byName) {
-      return byName.value || byName.amount || 0;
+    if (nutrient) {
+      const value = nutrient.value || nutrient.amount || 0;
+      return parseFloat(value) || 0;
     }
 
     return 0;
@@ -381,7 +541,6 @@ class UsdaFoodApiService {
       return "Snack";
     }
 
-    // Default to Dinner if we can't infer
     return "Dinner";
   }
 
@@ -403,11 +562,9 @@ class UsdaFoodApiService {
       const cachedItem = await AsyncStorage.getItem(key);
       if (cachedItem) {
         const { data, timestamp } = JSON.parse(cachedItem);
-        // Check if cache is still valid
         if (Date.now() - timestamp < CACHE_EXPIRY) {
           return data;
         }
-        // Cache expired, remove it
         await AsyncStorage.removeItem(key);
       }
       return null;

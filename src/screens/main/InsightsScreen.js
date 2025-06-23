@@ -1,5 +1,5 @@
-// src/screens/main/InsightsScreen.js
-import React, { useState } from "react";
+// src/screens/main/InsightsScreen.js - Original Styling with Database Integration
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,134 +7,138 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
 import BottomNavigation from "../../components/BottomNavigation";
-import { useWater } from "../../context/WaterContext";
-import { useWeight } from "../../context/WeightContext";
-import { useMeals } from "../../context/MealsContext";
+import { useInsights } from "../../context/InsightsContext";
 
 const { width } = Dimensions.get("window");
 const chartWidth = width - 40;
 
 const InsightsScreen = () => {
   const navigation = useNavigation();
-  const [selectedPeriod, setSelectedPeriod] = useState("Weekly");
-
-  // Context'lerden veri al
-  const { waterGoal } = useWater();
   const {
-    currentWeight,
-    goalWeight,
-    bmi,
-    bmiCategory,
-    getBMIColor,
-    getWeightDataForInsights,
-  } = useWeight();
-  const { calorieData } = useMeals();
+    loading,
+    error,
+    selectedPeriod,
+    currentDate,
+    calorieData,
+    weightData,
+    waterData,
+    nutritionData,
+    bmiData,
+    loadInsightsDashboard,
+    changePeriod,
+    changeDate,
+    refreshData,
+    getFormattedDateRange,
+    getSafeValue,
+    getChartDays,
+  } = useInsights();
 
-  // Tarih state'ini Date objesi olarak tutuyoruz
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Sample data for charts - context'lerden gelecek
-  const calorieDataArray = [2300, 2100, 2400, 1900, 2200, 2500, 1800];
-  const nutritionData = [
-    { carbs: 45, protein: 30, fat: 25 },
-    { carbs: 50, protein: 25, fat: 25 },
-    { carbs: 40, protein: 35, fat: 25 },
-    { carbs: 55, protein: 25, fat: 20 },
-    { carbs: 60, protein: 20, fat: 20 },
-    { carbs: 35, protein: 40, fat: 25 },
-    { carbs: 50, protein: 30, fat: 20 },
-  ];
-  const waterData = [2000, 1800, 2200, 1500, 2000, 2500, 1200];
-
-  // Weight data'yı context'ten al
-  const weightData = getWeightDataForInsights();
-
-  const days = ["16", "17", "18", "19", "20", "21", "22"];
-
-  // Her grafik için ayrı state'ler
+  // Chart selection states
   const [selectedCalorieDay, setSelectedCalorieDay] = useState(1);
   const [selectedWaterDay, setSelectedWaterDay] = useState(1);
   const [selectedWeightDay, setSelectedWeightDay] = useState(1);
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const calorieGoal = calorieData.calories;
+  // Component mount olduğunda verileri yükle
+  useEffect(() => {
+    loadInsightsDashboard();
+  }, []);
 
-  // Tarih formatını döndüren yardımcı fonksiyon
-  const formatDateRange = (date, period) => {
-    const options = { month: "short", day: "numeric", year: "numeric" };
+  // Chart data'ları hazırla - gerçek verilerden
+  const calorieChartData = React.useMemo(() => {
+    if (!calorieData?.chart) return [];
+    return calorieData.chart.map((item) => item.consumed || 0);
+  }, [calorieData]);
 
-    if (period === "Weekly") {
-      // Haftanın başlangıç ve bitiş tarihlerini hesapla
-      const startOfWeek = new Date(date);
-      const dayOfWeek = startOfWeek.getDay();
-      const diff =
-        startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Pazartesi başlangıç
-      startOfWeek.setDate(diff);
+  const waterChartData = React.useMemo(() => {
+    if (!waterData?.chart) return [];
+    return waterData.chart.map((item) => item.consumed || 0);
+  }, [waterData]);
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const weightChartData = React.useMemo(() => {
+    if (!weightData?.chart) return [];
+    return weightData.chart.map((item) => item.weight || 0);
+  }, [weightData]);
 
-      return `${startOfWeek.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })} - ${endOfWeek.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })}, ${endOfWeek.getFullYear()}`;
-    } else if (period === "Monthly") {
-      return date.toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
-    } else if (period === "Yearly") {
-      return date.getFullYear().toString();
+  const nutritionChartData = React.useMemo(() => {
+    if (!nutritionData?.chart) return [];
+    return nutritionData.chart.map((item) => ({
+      carbs: item.carbs || 0,
+      protein: item.protein || 0,
+      fat: item.fat || 0,
+    }));
+  }, [nutritionData]);
+
+  // Goals ve değerler
+  const days = getChartDays();
+  const calorieGoal = getSafeValue(
+    "calories.stats.average_goal",
+    calorieData?.goal || 2500
+  );
+  const waterGoal = getSafeValue(
+    "water.stats.average_goal",
+    waterData?.goal || 2500
+  );
+  const goalWeight = getSafeValue(
+    "weight.goalWeight",
+    weightData?.goalWeight || 70
+  );
+  const bmiValue = getSafeValue("bmi.current.bmi", 22.9);
+  const bmiCategory = getSafeValue("bmi.current.category", "Normal");
+
+  // Refresh handler
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+    } catch (err) {
+      Alert.alert("Error", "Failed to refresh data");
+    } finally {
+      setRefreshing(false);
     }
-
-    return date.toLocaleDateString("en-US", options);
   };
 
-  // Navigate to previous period
-  const goToPrevious = () => {
-    const newDate = new Date(currentDate);
-
-    if (selectedPeriod === "Weekly") {
-      newDate.setDate(newDate.getDate() - 7);
-    } else if (selectedPeriod === "Monthly") {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (selectedPeriod === "Yearly") {
-      newDate.setFullYear(newDate.getFullYear() - 1);
-    }
-
-    setCurrentDate(newDate);
-  };
-
-  // Navigate to next period
-  const goToNext = () => {
-    const newDate = new Date(currentDate);
-
-    if (selectedPeriod === "Weekly") {
-      newDate.setDate(newDate.getDate() + 7);
-    } else if (selectedPeriod === "Monthly") {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else if (selectedPeriod === "Yearly") {
-      newDate.setFullYear(newDate.getFullYear() + 1);
-    }
-
-    setCurrentDate(newDate);
-  };
-
-  // Period değiştiğinde tarihi bugüne sıfırla
+  // Period değiştirme handler
   const handlePeriodChange = (period) => {
-    setSelectedPeriod(period);
-    setCurrentDate(new Date()); // Bugünün tarihine sıfırla
+    changePeriod(period);
+    // Reset selected days when period changes
+    setSelectedCalorieDay(1);
+    setSelectedWaterDay(1);
+    setSelectedWeightDay(1);
+    setSelectedNutritionDay(null);
   };
 
-  // Bar Chart Component - Updated with interactive functionality
+  // Tarih navigasyon handlers
+  const goToPrevious = () => {
+    changeDate("previous");
+  };
+
+  const goToNext = () => {
+    changeDate("next");
+  };
+
+  // BMI renk kodları
+  const getBMIColor = (bmiValue) => {
+    if (bmiValue < 16.0) return "#3F51B2";
+    if (bmiValue >= 16.0 && bmiValue < 17.0) return "#1A96F0";
+    if (bmiValue >= 17.0 && bmiValue < 18.5) return "#00A9F1";
+    if (bmiValue >= 18.5 && bmiValue < 25.0) return "#4AAF57";
+    if (bmiValue >= 25.0 && bmiValue < 30.0) return "#FFC02D";
+    if (bmiValue >= 30.0 && bmiValue < 35.0) return "#FF981F";
+    if (bmiValue >= 35.0 && bmiValue < 40.0) return "#FF5726";
+    return "#F54336";
+  };
+
+  // Bar Chart Component - Interactive version
   const BarChart = ({
     data,
     goal,
@@ -144,26 +148,36 @@ const InsightsScreen = () => {
     selectedDay,
     onDaySelect,
   }) => {
-    const maxValue = Math.max(...data, goal);
+    if (!data || data.length === 0) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No data available</Text>
+        </View>
+      );
+    }
+
+    const maxValue = Math.max(...data, goal || 0);
     const barWidth = (chartWidth - 60) / data.length;
 
     return (
       <View style={styles.chartContainer}>
         <View style={styles.chartWrapper}>
           <Svg width={chartWidth} height={220}>
-            {/* Goal line - green dashed */}
-            <Rect
-              x="30"
-              y={170 - (goal / maxValue) * 120}
-              width={chartWidth - 60}
-              height="2"
-              fill={primaryColor}
-              strokeDasharray="8,4"
-            />
+            {/* Goal line */}
+            {goal > 0 && (
+              <Rect
+                x="30"
+                y={170 - (goal / maxValue) * 120}
+                width={chartWidth - 60}
+                height="2"
+                fill={primaryColor}
+                strokeDasharray="8,4"
+              />
+            )}
 
             {/* Bars */}
             {data.map((value, index) => {
-              const barHeight = (value / maxValue) * 120;
+              const barHeight = maxValue > 0 ? (value / maxValue) * 120 : 0;
               const x = 30 + index * barWidth + barWidth * 0.2;
               const y = 170 - barHeight;
               const isSelected = index === selectedDay;
@@ -171,15 +185,15 @@ const InsightsScreen = () => {
 
               return (
                 <React.Fragment key={index}>
-                  {/* Main bar body (rectangular part) */}
+                  {/* Main bar body */}
                   <Rect
                     x={x}
                     y={y + barWidthActual / 2}
                     width={barWidthActual}
-                    height={barHeight - barWidthActual / 2}
+                    height={Math.max(0, barHeight - barWidthActual / 2)}
                     fill={isSelected ? primaryColor : secondaryColor}
                   />
-                  {/* Rounded top (perfect circle) */}
+                  {/* Rounded top */}
                   <Circle
                     cx={x + barWidthActual / 2}
                     cy={y + barWidthActual / 2}
@@ -187,8 +201,8 @@ const InsightsScreen = () => {
                     fill={isSelected ? primaryColor : secondaryColor}
                   />
 
-                  {/* Selected indicator - location pin style */}
-                  {isSelected && (
+                  {/* Selected indicator */}
+                  {isSelected && value > 0 && (
                     <>
                       {/* Pin drop shadow */}
                       <Circle
@@ -249,7 +263,7 @@ const InsightsScreen = () => {
             })}
 
             {/* X-axis labels */}
-            {days.map((day, index) => (
+            {days.slice(0, data.length).map((day, index) => (
               <SvgText
                 key={index}
                 x={30 + index * barWidth + barWidth * 0.5}
@@ -263,15 +277,37 @@ const InsightsScreen = () => {
             ))}
 
             {/* Y-axis labels */}
-            <SvgText x="25" y="55" fontSize="10" fill="#666" textAnchor="end">
-              {Math.round(maxValue)}
-            </SvgText>
-            <SvgText x="25" y="110" fontSize="10" fill="#666" textAnchor="end">
-              {Math.round(maxValue / 2)}
-            </SvgText>
-            <SvgText x="25" y="175" fontSize="10" fill="#666" textAnchor="end">
-              0
-            </SvgText>
+            {maxValue > 0 && (
+              <>
+                <SvgText
+                  x="25"
+                  y="55"
+                  fontSize="10"
+                  fill="#666"
+                  textAnchor="end"
+                >
+                  {Math.round(maxValue)}
+                </SvgText>
+                <SvgText
+                  x="25"
+                  y="110"
+                  fontSize="10"
+                  fill="#666"
+                  textAnchor="end"
+                >
+                  {Math.round(maxValue / 2)}
+                </SvgText>
+                <SvgText
+                  x="25"
+                  y="175"
+                  fontSize="10"
+                  fill="#666"
+                  textAnchor="end"
+                >
+                  0
+                </SvgText>
+              </>
+            )}
           </Svg>
 
           {/* Touchable overlay */}
@@ -300,9 +336,17 @@ const InsightsScreen = () => {
 
   // Stacked Bar Chart for Nutrition
   const NutritionChart = ({ data }) => {
+    if (!data || data.length === 0) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No nutrition data available</Text>
+        </View>
+      );
+    }
+
     const barWidth = (chartWidth - 60) / data.length;
-    const barGap = 4; // Space between bars
-    const segmentGap = 2; // Space between segments
+    const barGap = 4;
+    const segmentGap = 2;
 
     return (
       <View style={styles.chartContainer}>
@@ -317,17 +361,14 @@ const InsightsScreen = () => {
               const proteinHeight = (dayData.protein / 100) * 120;
               const fatHeight = (dayData.fat / 100) * 120;
 
-              const carbsColor = isSelected ? "#F54336" : "#FFCDD2"; // Bottom
-              const proteinColor = isSelected ? "#FF981F" : "#FFDEB7"; // Middle
-              const fatColor = isSelected ? "#2196F3" : "#BBDEFB"; // Top
+              const carbsColor = isSelected ? "#F54336" : "#FFCDD2";
+              const proteinColor = isSelected ? "#FF981F" : "#FFDEB7";
+              const fatColor = isSelected ? "#2196F3" : "#BBDEFB";
 
               const radius = barWidthActual / 2;
 
-              // Bottom (Carbs)
               const carbsY = 170 - carbsHeight;
-              // Middle (Protein)
               const proteinY = carbsY - proteinHeight - segmentGap;
-              // Top (Fat)
               const fatY = proteinY - fatHeight - segmentGap;
 
               return (
@@ -351,7 +392,7 @@ const InsightsScreen = () => {
                     </>
                   )}
 
-                  {/* Protein (middle) - flat rectangle */}
+                  {/* Protein (middle) */}
                   {proteinHeight > 0 && (
                     <Rect
                       x={x}
@@ -385,7 +426,7 @@ const InsightsScreen = () => {
             })}
 
             {/* X-axis labels */}
-            {days.map((day, index) => (
+            {days.slice(0, data.length).map((day, index) => (
               <SvgText
                 key={index}
                 x={30 + index * barWidth + barWidth * 0.5}
@@ -435,7 +476,7 @@ const InsightsScreen = () => {
           })}
 
           {/* Info card */}
-          {selectedNutritionDay !== null && (
+          {selectedNutritionDay !== null && data[selectedNutritionDay] && (
             <View
               style={[
                 styles.nutritionInfoCard,
@@ -459,7 +500,7 @@ const InsightsScreen = () => {
                   ]}
                 />
                 <Text style={styles.nutritionInfoText}>
-                  Carbs {data[selectedNutritionDay].carbs}%
+                  Carbs {Math.round(data[selectedNutritionDay].carbs)}%
                 </Text>
               </View>
               <View style={styles.nutritionInfoRow}>
@@ -470,7 +511,7 @@ const InsightsScreen = () => {
                   ]}
                 />
                 <Text style={styles.nutritionInfoText}>
-                  Protein {data[selectedNutritionDay].protein}%
+                  Protein {Math.round(data[selectedNutritionDay].protein)}%
                 </Text>
               </View>
               <View style={styles.nutritionInfoRow}>
@@ -481,7 +522,7 @@ const InsightsScreen = () => {
                   ]}
                 />
                 <Text style={styles.nutritionInfoText}>
-                  Fat {data[selectedNutritionDay].fat}%
+                  Fat {Math.round(data[selectedNutritionDay].fat)}%
                 </Text>
               </View>
             </View>
@@ -491,23 +532,22 @@ const InsightsScreen = () => {
     );
   };
 
-  // BMI Gauge Component - Context'ten gelen değerlerle
-  const BMIGauge = ({ bmiValue = bmi || 22.9 }) => {
+  // BMI Gauge Component
+  const BMIGauge = ({ bmiValue = 22.9 }) => {
     const size = 200;
     const strokeWidth = 16;
     const radius = (size - strokeWidth) / 2;
     const center = size / 2;
 
-    // BMI ranges and colors - tam daire için
     const ranges = [
-      { min: 0, max: 16, color: "#2196F3", startAngle: 0, endAngle: 40 }, // Very Severely Underweight
-      { min: 16, max: 17, color: "#03A9F4", startAngle: 40, endAngle: 55 }, // Severely Underweight
-      { min: 17, max: 18.5, color: "#00BCD4", startAngle: 55, endAngle: 75 }, // Underweight
-      { min: 18.5, max: 25, color: "#4CAF50", startAngle: 75, endAngle: 150 }, // Normal
-      { min: 25, max: 30, color: "#FFC107", startAngle: 150, endAngle: 210 }, // Overweight
-      { min: 30, max: 35, color: "#FF9800", startAngle: 210, endAngle: 270 }, // Obese Class I
-      { min: 35, max: 40, color: "#FF5722", startAngle: 270, endAngle: 330 }, // Obese Class II
-      { min: 40, max: 50, color: "#F44336", startAngle: 330, endAngle: 360 }, // Obese Class III
+      { min: 0, max: 16, color: "#2196F3", startAngle: 0, endAngle: 40 },
+      { min: 16, max: 17, color: "#03A9F4", startAngle: 40, endAngle: 55 },
+      { min: 17, max: 18.5, color: "#00BCD4", startAngle: 55, endAngle: 75 },
+      { min: 18.5, max: 25, color: "#4CAF50", startAngle: 75, endAngle: 150 },
+      { min: 25, max: 30, color: "#FFC107", startAngle: 150, endAngle: 210 },
+      { min: 30, max: 35, color: "#FF9800", startAngle: 210, endAngle: 270 },
+      { min: 35, max: 40, color: "#FF5722", startAngle: 270, endAngle: 330 },
+      { min: 40, max: 50, color: "#F44336", startAngle: 330, endAngle: 360 },
     ];
 
     // Calculate BMI needle position
@@ -530,10 +570,8 @@ const InsightsScreen = () => {
       needleAngle = 330 + ((bmiValue - 40) / 10) * 30;
     }
 
-    // Limit needle angle
     needleAngle = Math.max(0, Math.min(360, needleAngle));
 
-    // Needle position
     const needleLength = radius - 12;
     const needleX =
       center + needleLength * Math.cos(((needleAngle - 90) * Math.PI) / 180);
@@ -594,7 +632,7 @@ const InsightsScreen = () => {
               cx={center}
               cy={center}
               r="8"
-              fill={getBMIColor ? getBMIColor(bmiValue) : "#4CAF50"}
+              fill={getBMIColor(bmiValue)}
               stroke="white"
               strokeWidth="3"
             />
@@ -602,7 +640,7 @@ const InsightsScreen = () => {
             {/* Needle */}
             <Path
               d={`M ${center} ${center} L ${needleX} ${needleY}`}
-              stroke={getBMIColor ? getBMIColor(bmiValue) : "#4CAF50"}
+              stroke={getBMIColor(bmiValue)}
               strokeWidth="3"
               strokeLinecap="round"
             />
@@ -668,6 +706,16 @@ const InsightsScreen = () => {
     );
   };
 
+  // Loading screen
+  if (loading && !calorieData && !error) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#63A4F4" />
+        <Text style={styles.loadingText}>Loading insights...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -676,15 +724,32 @@ const InsightsScreen = () => {
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Insights</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={24} color="#333" />
+        <TouchableOpacity onPress={refreshData}>
+          <Ionicons name="refresh" size={24} color="#333" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#63A4F4"]}
+          />
+        }
+      >
+        {/* Error Banner */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="warning" size={16} color="#FF6B6B" />
+            <Text style={styles.errorText}>Connection error - {error}</Text>
+          </View>
+        )}
+
         {/* Period Selection */}
         <View style={styles.periodContainer}>
-          {["Weekly", "Monthly", "Yearly"].map((period) => (
+          {["weekly", "monthly", "yearly"].map((period) => (
             <TouchableOpacity
               key={period}
               style={[
@@ -699,7 +764,7 @@ const InsightsScreen = () => {
                   selectedPeriod === period && styles.selectedPeriodText,
                 ]}
               >
-                {period}
+                {period.charAt(0).toUpperCase() + period.slice(1)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -710,9 +775,7 @@ const InsightsScreen = () => {
           <TouchableOpacity onPress={goToPrevious}>
             <Ionicons name="chevron-back" size={20} color="#666" />
           </TouchableOpacity>
-          <Text style={styles.dateText}>
-            {formatDateRange(currentDate, selectedPeriod)}
-          </Text>
+          <Text style={styles.dateText}>{getFormattedDateRange()}</Text>
           <TouchableOpacity onPress={goToNext}>
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
@@ -733,12 +796,42 @@ const InsightsScreen = () => {
                 <View
                   style={[styles.legendLine, { backgroundColor: "#ccc" }]}
                 />
-                <Text style={styles.legendText}>Water Goal</Text>
+                <Text style={styles.legendText}>Goal</Text>
               </View>
             </View>
           </View>
           <BarChart
-            data={waterData}
+            data={calorieChartData}
+            goal={calorieGoal}
+            primaryColor="#A1CE50"
+            secondaryColor="#D4E5A7"
+            unit="kcal"
+            selectedDay={selectedCalorieDay}
+            onDaySelect={setSelectedCalorieDay}
+          />
+        </View>
+
+        {/* Water Chart */}
+        <View style={styles.chartSection}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Water (mL)</Text>
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: "#1A96F0" }]}
+                />
+                <Text style={styles.legendText}>Selected</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendLine, { backgroundColor: "#ccc" }]}
+                />
+                <Text style={styles.legendText}>Goal</Text>
+              </View>
+            </View>
+          </View>
+          <BarChart
+            data={waterChartData}
             goal={waterGoal}
             primaryColor="#1A96F0"
             secondaryColor="#91CDF8"
@@ -763,12 +856,12 @@ const InsightsScreen = () => {
                 <View
                   style={[styles.legendLine, { backgroundColor: "#ccc" }]}
                 />
-                <Text style={styles.legendText}>Weight Goal</Text>
+                <Text style={styles.legendText}>Goal</Text>
               </View>
             </View>
           </View>
           <BarChart
-            data={weightData}
+            data={weightChartData}
             goal={goalWeight}
             primaryColor="#FF5726"
             secondaryColor="#FFAE97"
@@ -776,6 +869,34 @@ const InsightsScreen = () => {
             selectedDay={selectedWeightDay}
             onDaySelect={setSelectedWeightDay}
           />
+        </View>
+
+        {/* Nutrition Chart */}
+        <View style={styles.chartSection}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Nutrition Breakdown (%)</Text>
+            <View style={styles.legendContainer}>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: "#F54336" }]}
+                />
+                <Text style={styles.legendText}>Carbs</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: "#FFC107" }]}
+                />
+                <Text style={styles.legendText}>Protein</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View
+                  style={[styles.legendDot, { backgroundColor: "#2196F3" }]}
+                />
+                <Text style={styles.legendText}>Fat</Text>
+              </View>
+            </View>
+          </View>
+          <NutritionChart data={nutritionChartData} />
         </View>
 
         {/* BMI Section */}
@@ -788,7 +909,7 @@ const InsightsScreen = () => {
               </Text>
             </View>
           </View>
-          <BMIGauge bmiValue={bmi} />
+          <BMIGauge bmiValue={bmiValue} />
         </View>
       </ScrollView>
 
@@ -802,6 +923,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
   },
   header: {
     flexDirection: "row",
@@ -818,6 +948,22 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   scrollView: {
+    flex: 1,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFE6E6",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 8,
+  },
+  errorText: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: "#FF6B6B",
     flex: 1,
   },
   periodContainer: {
@@ -898,6 +1044,15 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: "#666",
+  },
+  noDataContainer: {
+    height: 220,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noDataText: {
+    fontSize: 14,
+    color: "#999",
   },
   chartContainer: {
     alignItems: "center",

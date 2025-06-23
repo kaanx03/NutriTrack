@@ -1,4 +1,4 @@
-// src/screens/main/activity/ActivitySelectionScreen.js
+// src/screens/main/activity/ActivitySelectionScreen.js - Backend Integration Update
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   Modal,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import {
@@ -19,13 +20,14 @@ import {
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
-import { useActivity } from "../../../context/ActivityContext"; // useMeals yerine useActivity kullanılıyor
+import { useActivity } from "../../../context/ActivityContext";
 import sampleActivities from "../../../data/sampleActivities";
 
 const ActivitySelectionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  // Context'ten tüm gerekli state ve fonksiyonları al (ActivityContext'ten)
+
+  // Context'ten tüm gerekli state ve fonksiyonları al
   const {
     addActivity,
     favoriteActivities,
@@ -34,7 +36,11 @@ const ActivitySelectionScreen = () => {
     addToRecentActivity,
     toggleFavoriteActivity,
     addPersonalActivity,
-  } = useActivity(); // useMeals yerine useActivity kullanılıyor
+    isLoading,
+    error,
+    clearError,
+    refreshData,
+  } = useActivity();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [localActiveTab, setLocalActiveTab] = useState(
@@ -53,6 +59,9 @@ const ActivitySelectionScreen = () => {
   // Sample activity items
   const [activityItems, setActivityItems] = useState(sampleActivities);
 
+  // Loading state for operations
+  const [operationLoading, setOperationLoading] = useState(false);
+
   // Close keyboard when tapping outside
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -68,9 +77,27 @@ const ActivitySelectionScreen = () => {
       setLocalActiveTab(route.params?.activeTab || "Recent");
       setSearchQuery("");
       setIsSearching(false);
+
+      // Veriyi yenile
+      if (route.params?.refresh) {
+        refreshData();
+      }
+
       return () => {};
-    }, [route.params?.activeTab])
+    }, [route.params?.activeTab, route.params?.refresh])
   );
+
+  // Error handling
+  useEffect(() => {
+    if (error) {
+      console.log("ActivitySelection - Error:", error);
+      // Error'u belirli bir süre sonra temizle
+      const timeout = setTimeout(() => {
+        clearError();
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [error]);
 
   // Handle Quick Log button press
   const handleQuickLogPress = () => {
@@ -78,7 +105,7 @@ const ActivitySelectionScreen = () => {
   };
 
   // Handle Quick Log submission
-  const handleQuickLogSubmit = () => {
+  const handleQuickLogSubmit = async () => {
     // Validate inputs
     if (
       !quickLogName.trim() ||
@@ -95,31 +122,41 @@ const ActivitySelectionScreen = () => {
       return;
     }
 
-    // Create new activity object
-    const newActivity = {
-      id: Date.now().toString(),
-      name: quickLogName,
-      calories: calories,
-      duration: duration,
-      mins: duration,
-    };
+    try {
+      setOperationLoading(true);
 
-    // Add activity using context function
-    addActivity(newActivity); // Değişti: Artık obje geçiyoruz, sadece kalori değil
+      // Create new activity object
+      const newActivity = {
+        id: `quick_${Date.now()}`,
+        name: quickLogName.trim(),
+        calories: calories,
+        duration: duration,
+        mins: duration,
+        type: "Quick Log",
+        intensity: "Moderate",
+      };
 
-    // Reset form and close modal
-    setQuickLogName("");
-    setQuickLogCalories("");
-    setQuickLogDuration("30");
-    setShowQuickLogModal(false);
+      // Add activity using context function
+      await addActivity(newActivity);
 
-    // Navigate back to home
-    navigation.navigate("Home");
+      // Reset form and close modal
+      setQuickLogName("");
+      setQuickLogCalories("");
+      setQuickLogDuration("30");
+      setShowQuickLogModal(false);
+
+      // Navigate back to home
+      navigation.navigate("Home");
+    } catch (error) {
+      console.error("Quick log error:", error);
+      // Error handling - context zaten error state'i set etti
+    } finally {
+      setOperationLoading(false);
+    }
   };
 
   // Create Activity button handler
   const handleCreateActivityPress = () => {
-    // Create Activity sayfasına yönlendir
     navigation.navigate("CreateActivity");
   };
 
@@ -136,9 +173,9 @@ const ActivitySelectionScreen = () => {
       // Tüm aktivite kaynaklarını birleştir ve filtreleme yap
       const allActivities = [
         ...activityItems,
-        ...recentActivities,
-        ...favoriteActivities,
-        ...personalActivities,
+        ...(recentActivities || []),
+        ...(favoriteActivities || []),
+        ...(personalActivities || []),
       ];
 
       // Tekrarlayan aktiviteleri önlemek için unique ID'lere göre filtrele
@@ -178,24 +215,34 @@ const ActivitySelectionScreen = () => {
   };
 
   // Handle add button press
-  const handleAddButtonPress = () => {
+  const handleAddButtonPress = async () => {
     if (!selectedActivity) return;
 
-    // Aktivitenin süresini kullanarak yakılan kaloriyi hesapla
-    const durationMins = parseInt(duration, 10) || 30;
-    const caloriesPerMinute = selectedActivity.calories / selectedActivity.mins;
-    const totalCalories = Math.round(caloriesPerMinute * durationMins);
+    try {
+      setOperationLoading(true);
 
-    // Context üzerinden aktivite ekle - obje olarak
-    addActivity({
-      ...selectedActivity,
-      calories: totalCalories,
-      duration: durationMins,
-      mins: durationMins,
-    });
+      // Aktivitenin süresini kullanarak yakılan kaloriyi hesapla
+      const durationMins = parseInt(duration, 10) || 30;
+      const caloriesPerMinute =
+        selectedActivity.calories / (selectedActivity.mins || 30);
+      const totalCalories = Math.round(caloriesPerMinute * durationMins);
 
-    // Ana ekrana dön
-    navigation.navigate("Home");
+      // Context üzerinden aktivite ekle
+      await addActivity({
+        ...selectedActivity,
+        calories: totalCalories,
+        duration: durationMins,
+        mins: durationMins,
+      });
+
+      // Ana ekrana dön
+      navigation.navigate("Home");
+    } catch (error) {
+      console.error("Add activity error:", error);
+      // Error handling - context zaten error state'i set etti
+    } finally {
+      setOperationLoading(false);
+    }
   };
 
   const renderActivityItem = ({ item }) => {
@@ -220,13 +267,14 @@ const ActivitySelectionScreen = () => {
       <TouchableOpacity
         style={[styles.activityItem, isSelected && styles.selectedActivityItem]}
         onPress={() => selectActivity(item)}
+        disabled={operationLoading}
       >
         <View style={styles.activityItemLeft}>
           {renderActivityIcon()}
           <View style={styles.activityItemInfo}>
             <Text style={styles.activityItemName}>{item.name}</Text>
             <Text style={styles.activityItemDetails}>
-              {item.calories} kcal / {item.mins} mins
+              {item.calories} kcal / {item.mins || item.duration || 30} mins
             </Text>
           </View>
         </View>
@@ -235,11 +283,11 @@ const ActivitySelectionScreen = () => {
           style={styles.detailsButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           onPress={() => {
-            // Aktivite detay sayfasına yönlendir
             navigation.navigate("ActivityDetails", {
               activity: item,
             });
           }}
+          disabled={operationLoading}
         >
           <Ionicons name="chevron-forward" size={20} color="#999" />
         </TouchableOpacity>
@@ -250,39 +298,77 @@ const ActivitySelectionScreen = () => {
   // Boş liste komponenti
   const EmptyListComponent = () => (
     <View style={styles.emptyListContainer}>
-      {isSearching ? (
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#FDCD55" />
+      ) : isSearching ? (
         <Text style={styles.emptyListText}>
           No results found for "{searchQuery}"
         </Text>
       ) : (
-        <Text style={styles.emptyListText}>
-          {localActiveTab === "Recent"
-            ? "Your recent activities will appear here."
-            : localActiveTab === "Favorites"
-            ? "Your favorite activities will appear here."
-            : "Your custom activities will appear here. Tap 'Create Activity' to add a new activity."}
-        </Text>
+        <View style={styles.emptyStateContainer}>
+          <Text style={styles.emptyListText}>
+            {localActiveTab === "Recent"
+              ? "Your recent activities will appear here."
+              : localActiveTab === "Favorites"
+              ? "Your favorite activities will appear here. Add some by tapping the heart icon on activities."
+              : "Your custom activities will appear here. Tap 'Create Activity' to add a new activity."}
+          </Text>
+
+          {localActiveTab === "Personal" && (
+            <TouchableOpacity
+              style={styles.emptyActionButton}
+              onPress={handleCreateActivityPress}
+            >
+              <Text style={styles.emptyActionButtonText}>Create Activity</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
   );
+
+  // Error display component
+  const ErrorComponent = () =>
+    error && (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={clearError} style={styles.errorCloseButton}>
+          <Ionicons name="close" size={16} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.container}>
+          {/* Error Display */}
+          <ErrorComponent />
+
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
+              disabled={operationLoading}
             >
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Activity Log</Text>
 
-            <View style={styles.spacer} />
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={refreshData}
+              disabled={isLoading || operationLoading}
+            >
+              <Ionicons
+                name="refresh"
+                size={20}
+                color={isLoading ? "#ccc" : "#666"}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Search Bar */}
@@ -295,25 +381,45 @@ const ActivitySelectionScreen = () => {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search"
+              placeholder="Search activities..."
               value={searchQuery}
               onChangeText={handleSearch}
+              editable={!operationLoading}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery("");
+                  setIsSearching(false);
+                }}
+                style={styles.searchClearButton}
+              >
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Quick Log and Create Activity Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={styles.quickLogButton}
+              style={[
+                styles.quickLogButton,
+                operationLoading && styles.disabledButton,
+              ]}
               onPress={handleQuickLogPress}
+              disabled={operationLoading}
             >
               <Ionicons name="flash" size={18} color="#333" />
               <Text style={styles.quickLogText}>Quick Log</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.createActivityButton}
+              style={[
+                styles.createActivityButton,
+                operationLoading && styles.disabledButton,
+              ]}
               onPress={handleCreateActivityPress}
+              disabled={operationLoading}
             >
               <Ionicons name="add-circle-outline" size={18} color="#333" />
               <Text style={styles.createActivityText}>Create Activity</Text>
@@ -328,6 +434,7 @@ const ActivitySelectionScreen = () => {
                 localActiveTab === "Recent" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Recent")}
+              disabled={operationLoading}
             >
               <Text
                 style={[
@@ -337,6 +444,13 @@ const ActivitySelectionScreen = () => {
               >
                 Recent
               </Text>
+              {recentActivities?.length > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>
+                    {recentActivities.length}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -345,6 +459,7 @@ const ActivitySelectionScreen = () => {
                 localActiveTab === "Favorites" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Favorites")}
+              disabled={operationLoading}
             >
               <Text
                 style={[
@@ -354,6 +469,13 @@ const ActivitySelectionScreen = () => {
               >
                 Favorites
               </Text>
+              {favoriteActivities?.length > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>
+                    {favoriteActivities.length}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -362,6 +484,7 @@ const ActivitySelectionScreen = () => {
                 localActiveTab === "Personal" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Personal")}
+              disabled={operationLoading}
             >
               <Text
                 style={[
@@ -371,6 +494,13 @@ const ActivitySelectionScreen = () => {
               >
                 Personal
               </Text>
+              {personalActivities?.length > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>
+                    {personalActivities.length}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -379,7 +509,9 @@ const ActivitySelectionScreen = () => {
             style={styles.activityList}
             data={filteredActivityItems}
             renderItem={renderActivityItem}
-            keyExtractor={(item) => item.id?.toString()}
+            keyExtractor={(item) =>
+              item.id?.toString() || Math.random().toString()
+            }
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.activityListContent,
@@ -388,6 +520,8 @@ const ActivitySelectionScreen = () => {
             ]}
             ListEmptyComponent={EmptyListComponent}
             extraData={selectedActivity}
+            refreshing={isLoading}
+            onRefresh={refreshData}
           />
 
           {/* Selected Activity Summary & Add Button - Only shows if activity is selected */}
@@ -401,14 +535,23 @@ const ActivitySelectionScreen = () => {
                   value={duration}
                   onChangeText={setDuration}
                   maxLength={3}
+                  editable={!operationLoading}
                 />
               </View>
 
               <TouchableOpacity
-                style={styles.addSelectedButton}
+                style={[
+                  styles.addSelectedButton,
+                  operationLoading && styles.disabledButton,
+                ]}
                 onPress={handleAddButtonPress}
+                disabled={operationLoading}
               >
-                <Text style={styles.addSelectedButtonText}>Add</Text>
+                {operationLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.addSelectedButtonText}>Add</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -434,6 +577,7 @@ const ActivitySelectionScreen = () => {
                       placeholder="Activity Name"
                       value={quickLogName}
                       onChangeText={setQuickLogName}
+                      editable={!operationLoading}
                     />
 
                     {/* Calories Input */}
@@ -443,6 +587,7 @@ const ActivitySelectionScreen = () => {
                       keyboardType="numeric"
                       value={quickLogCalories}
                       onChangeText={setQuickLogCalories}
+                      editable={!operationLoading}
                     />
 
                     {/* Duration Input */}
@@ -452,22 +597,35 @@ const ActivitySelectionScreen = () => {
                       keyboardType="numeric"
                       value={quickLogDuration}
                       onChangeText={setQuickLogDuration}
+                      editable={!operationLoading}
                     />
 
                     {/* Buttons */}
                     <View style={styles.modalButtons}>
                       <TouchableOpacity
-                        style={styles.cancelButton}
+                        style={[
+                          styles.cancelButton,
+                          operationLoading && styles.disabledButton,
+                        ]}
                         onPress={() => setShowQuickLogModal(false)}
+                        disabled={operationLoading}
                       >
                         <Text style={styles.cancelButtonText}>Cancel</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.saveButton}
+                        style={[
+                          styles.saveButton,
+                          operationLoading && styles.disabledButton,
+                        ]}
                         onPress={handleQuickLogSubmit}
+                        disabled={operationLoading}
                       >
-                        <Text style={styles.saveButtonText}>Save</Text>
+                        {operationLoading ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.saveButtonText}>Save</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -491,6 +649,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: 24,
   },
+  errorContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ff4d4f",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 8,
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 14,
+    flex: 1,
+  },
+  errorCloseButton: {
+    padding: 4,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -510,8 +687,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
-  spacer: {
+  refreshButton: {
     width: 48,
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
   },
   searchContainer: {
     flexDirection: "row",
@@ -530,6 +710,9 @@ const styles = StyleSheet.create({
     height: 44,
     fontSize: 16,
     color: "#333",
+  },
+  searchClearButton: {
+    padding: 4,
   },
   actionButtons: {
     flexDirection: "row",
@@ -567,6 +750,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginLeft: 8,
   },
+  disabledButton: {
+    opacity: 0.6,
+  },
   tabs: {
     flexDirection: "row",
     marginTop: 16,
@@ -577,9 +763,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
   },
   activeTab: {
-    backgroundColor: "#FDCD55", // Aktivite için renk değiştirildi
+    backgroundColor: "#FDCD55",
     borderRadius: 4,
     marginHorizontal: 4,
   },
@@ -589,6 +777,20 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: "#fff",
+    fontWeight: "500",
+  },
+  tabBadge: {
+    backgroundColor: "#ff4d4f",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 4,
+  },
+  tabBadgeText: {
+    color: "#fff",
+    fontSize: 12,
     fontWeight: "500",
   },
   activityList: {
@@ -607,6 +809,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   selectedActivityItem: {
     borderWidth: 2,
@@ -693,7 +900,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   addSelectedButton: {
-    backgroundColor: "#FDCD55", // Aktivite için renk değiştirildi
+    backgroundColor: "#FDCD55",
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -713,10 +920,24 @@ const styles = StyleSheet.create({
     padding: 20,
     minHeight: 200,
   },
+  emptyStateContainer: {
+    alignItems: "center",
+  },
   emptyListText: {
     fontSize: 16,
     color: "#999",
     textAlign: "center",
+    marginBottom: 16,
+  },
+  emptyActionButton: {
+    backgroundColor: "#FDCD55",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  emptyActionButtonText: {
+    color: "#fff",
+    fontWeight: "500",
   },
   emptyListContentContainer: {
     flexGrow: 1,
@@ -774,7 +995,7 @@ const styles = StyleSheet.create({
   saveButton: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#FDCD55", // Aktivite için renk değiştirildi
+    backgroundColor: "#FDCD55",
     width: "48%",
     alignItems: "center",
   },

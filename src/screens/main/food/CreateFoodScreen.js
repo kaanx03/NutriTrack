@@ -1,4 +1,4 @@
-// src/screens/main/CreateFoodScreen.js
+// src/screens/main/CreateFoodScreen.js - Backend Integration
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -11,15 +11,18 @@ import {
   ScrollView,
   FlatList,
   Image,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
+import NutritionService from "../../../services/NutritionService";
 
 const CreateFoodScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { addPersonalFood } = useMeals();
+  const { addPersonalFood, refreshData } = useMeals();
 
   // Form state
   const [foodName, setFoodName] = useState("");
@@ -35,6 +38,7 @@ const CreateFoodScreen = () => {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [showIconSelector, setShowIconSelector] = useState(false);
   const [iconSearchQuery, setIconSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Unit options
   const unitOptions = [
@@ -48,7 +52,7 @@ const CreateFoodScreen = () => {
     "slice",
   ];
 
-  // Food icons/emojis - these would typically be stored elsewhere
+  // Food icons/emojis
   const foodIcons = [
     { id: 1, emoji: "🍔", name: "burger" },
     { id: 2, emoji: "🍕", name: "pizza" },
@@ -95,38 +99,125 @@ const CreateFoodScreen = () => {
       foodName.trim() !== "" &&
       serving.trim() !== "" &&
       calories.trim() !== "" &&
-      // Optional but preferred
-      selectedIcon !== null &&
-      carbs.trim() !== "" &&
-      protein.trim() !== "" &&
-      fat.trim() !== ""
+      parseFloat(calories) > 0 &&
+      parseFloat(serving) > 0
     );
   };
 
-  // Handle saving the food
-  const handleSave = () => {
-    if (isFormValid()) {
-      const newFood = {
-        id: Date.now().toString(),
-        name: foodName.trim(),
-        calories: parseInt(calories, 10),
-        carbs: parseInt(carbs, 10) || 0,
-        protein: parseInt(protein, 10) || 0,
-        fat: parseInt(fat, 10) || 0,
-        weight: parseInt(serving, 10) || 0,
-        unit: unit,
-        icon: selectedIcon?.emoji || "🍽️",
-        isPersonal: true, // Flag to identify personal foods
+  // Handle saving the food with backend integration
+  const handleSave = async () => {
+    if (!isFormValid()) {
+      Alert.alert(
+        "Validation Error",
+        "Please fill out all required fields with valid values."
+      );
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Prepare custom food data for backend
+      const customFoodData = {
+        foodName: foodName.trim(),
+        caloriesPer100g: parseFloat(calories),
+        proteinPer100g: parseFloat(protein) || 0,
+        carbsPer100g: parseFloat(carbs) || 0,
+        fatPer100g: parseFloat(fat) || 0,
+        servingSize: parseFloat(serving),
+        description: `Custom food created with ${
+          selectedIcon?.emoji || "🍽️"
+        } icon`,
       };
 
-      // Add to personal foods in the context
-      addPersonalFood(newFood);
+      console.log("Creating custom food with data:", customFoodData);
 
-      // Navigate back to the food selection screen with the Personal tab active
-      navigation.navigate("FoodSelection", { activeTab: "Personal" });
-    } else {
-      // Could add an alert here for validation
-      console.log("Please fill out all required fields");
+      // Save to backend - SADECE BU İSTEK YAPILACAK
+      const savedFood = await NutritionService.addCustomFood(customFoodData);
+      console.log("Custom food saved to backend:", savedFood);
+
+      // Backend'den gelen veriyi frontend formatına çevir
+      const newFood = {
+        id: savedFood.id?.toString() || Date.now().toString(),
+        name: savedFood.food_name || foodName.trim(),
+        calories:
+          parseFloat(savedFood.calories_per_100g) || parseFloat(calories),
+        carbs: parseFloat(savedFood.carbs_per_100g) || parseFloat(carbs) || 0,
+        protein:
+          parseFloat(savedFood.protein_per_100g) || parseFloat(protein) || 0,
+        fat: parseFloat(savedFood.fat_per_100g) || parseFloat(fat) || 0,
+        weight: parseFloat(savedFood.serving_size) || parseFloat(serving),
+        portionSize: parseFloat(savedFood.serving_size) || parseFloat(serving),
+        portionUnit: unit,
+        icon: selectedIcon?.emoji || "🍽️",
+        isPersonal: true,
+        isCustomFood: true,
+        backendId: savedFood.id,
+      };
+
+      // SADECE CONTEXT'E EKLE - Backend'e tekrar istek GÖNDERME
+      // addPersonalFood yerine sadece context'i güncelle
+      console.log(
+        "Adding food to context only (no backend request):",
+        newFood.name
+      );
+
+      // MealsContext'teki setPersonalFoods'u direkt kullan
+      // veya refreshData() ile personal foods'u yenile
+      await refreshData();
+
+      Alert.alert("Success", "Custom food created successfully!", [
+        {
+          text: "OK",
+          onPress: () => {
+            // Navigate back to food selection with Personal tab active
+            navigation.navigate("FoodSelection", {
+              activeTab: "Personal",
+              refreshPersonal: true,
+            });
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error("Error creating custom food:", error);
+
+      // Handle specific error cases
+      if (error.message && error.message.includes("Food already exists")) {
+        // Eğer duplicate error ise, muhtemelen yemek oluşturulmuştur
+        // Personal foods'u yenile ve kontrol et
+        try {
+          await refreshData();
+          Alert.alert(
+            "Food Created",
+            "Your custom food has been created successfully!",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  navigation.navigate("FoodSelection", {
+                    activeTab: "Personal",
+                    refreshPersonal: true,
+                  });
+                },
+              },
+            ]
+          );
+        } catch (refreshError) {
+          Alert.alert(
+            "Food Already Exists",
+            "A food with this name already exists. Please use a different name or edit the existing food.",
+            [{ text: "OK", style: "default" }]
+          );
+        }
+      } else {
+        Alert.alert(
+          "Error",
+          "Failed to create custom food. Please try again.",
+          [{ text: "OK", style: "default" }]
+        );
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -150,6 +241,7 @@ const CreateFoodScreen = () => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          disabled={isLoading}
         >
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
@@ -163,6 +255,7 @@ const CreateFoodScreen = () => {
           <TouchableOpacity
             style={styles.iconSelector}
             onPress={() => setShowIconSelector(true)}
+            disabled={isLoading}
           >
             {selectedIcon ? (
               <Text style={styles.selectedIconEmoji}>{selectedIcon.emoji}</Text>
@@ -176,25 +269,27 @@ const CreateFoodScreen = () => {
         <View style={styles.formContainer}>
           {/* Food Name */}
           <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Food Name</Text>
+            <Text style={styles.formLabel}>Food Name *</Text>
             <TextInput
               style={styles.formInput}
               placeholder="e.g. Pasta, Sandwich, etc."
               value={foodName}
               onChangeText={setFoodName}
+              editable={!isLoading}
             />
           </View>
 
           {/* Serving and Unit Row */}
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-              <Text style={styles.formLabel}>Serving</Text>
+              <Text style={styles.formLabel}>Serving Size *</Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="e.g. 100"
                 keyboardType="numeric"
                 value={serving}
                 onChangeText={setServing}
+                editable={!isLoading}
               />
             </View>
 
@@ -203,6 +298,7 @@ const CreateFoodScreen = () => {
               <TouchableOpacity
                 style={styles.dropdownSelector}
                 onPress={() => setShowUnitDropdown(!showUnitDropdown)}
+                disabled={isLoading}
               >
                 <Text style={styles.dropdownText}>{unit}</Text>
                 <Ionicons
@@ -234,13 +330,14 @@ const CreateFoodScreen = () => {
           {/* Calories and Carbs Row */}
           <View style={styles.formRow}>
             <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-              <Text style={styles.formLabel}>Calories (kcal)</Text>
+              <Text style={styles.formLabel}>Calories (per 100g) *</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="e.g. 100"
+                placeholder="e.g. 250"
                 keyboardType="numeric"
                 value={calories}
                 onChangeText={setCalories}
+                editable={!isLoading}
               />
             </View>
 
@@ -248,10 +345,11 @@ const CreateFoodScreen = () => {
               <Text style={styles.formLabel}>Carbs (g)</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="e.g. 10"
+                placeholder="e.g. 30"
                 keyboardType="numeric"
                 value={carbs}
                 onChangeText={setCarbs}
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -262,10 +360,11 @@ const CreateFoodScreen = () => {
               <Text style={styles.formLabel}>Protein (g)</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="e.g. 5"
+                placeholder="e.g. 15"
                 keyboardType="numeric"
                 value={protein}
                 onChangeText={setProtein}
+                editable={!isLoading}
               />
             </View>
 
@@ -273,23 +372,38 @@ const CreateFoodScreen = () => {
               <Text style={styles.formLabel}>Fat (g)</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="e.g. 3"
+                placeholder="e.g. 8"
                 keyboardType="numeric"
                 value={fat}
                 onChangeText={setFat}
+                editable={!isLoading}
               />
             </View>
+          </View>
+
+          {/* Help Text */}
+          <View style={styles.helpContainer}>
+            <Text style={styles.helpText}>
+              * Required fields. Nutrition values are per 100g of the food.
+            </Text>
           </View>
         </View>
       </ScrollView>
 
       {/* Add Button */}
       <TouchableOpacity
-        style={[styles.addButton, !isFormValid() && styles.addButtonDisabled]}
+        style={[
+          styles.addButton,
+          (!isFormValid() || isLoading) && styles.addButtonDisabled,
+        ]}
         onPress={handleSave}
-        disabled={!isFormValid()}
+        disabled={!isFormValid() || isLoading}
       >
-        <Text style={styles.addButtonText}>Add</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={styles.addButtonText}>Create Food</Text>
+        )}
       </TouchableOpacity>
 
       {/* Icon Selector Modal */}
@@ -319,7 +433,7 @@ const CreateFoodScreen = () => {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search"
+              placeholder="Search icons"
               value={iconSearchQuery}
               onChangeText={setIconSearchQuery}
             />
@@ -443,6 +557,15 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 16,
+  },
+  helpContainer: {
+    marginTop: 10,
+    paddingHorizontal: 5,
+  },
+  helpText: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
   },
   addButton: {
     margin: 20,

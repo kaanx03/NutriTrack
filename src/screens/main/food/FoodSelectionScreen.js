@@ -1,4 +1,4 @@
-// src/screens/main/food/FoodSelectionScreen.js
+// src/screens/main/food/FoodSelectionScreen.js - FINAL CLEAN VERSION WITH ALL FIXES
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
@@ -12,6 +12,7 @@ import {
   SafeAreaView,
   Modal,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
 import usdaFoodApiService from "../../../services/UsdaFoodApiService";
+import NutritionService from "../../../services/NutritionService";
 
 // Popüler yemek önerileri
 const popularFoodSuggestions = {
@@ -33,6 +35,7 @@ const popularFoodSuggestions = {
 const FoodSelectionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+
   // Context'ten tüm gerekli state ve fonksiyonları al
   const {
     addFood,
@@ -41,6 +44,11 @@ const FoodSelectionScreen = () => {
     personalFoods,
     mealFoods,
     updateFoodPortion,
+    loadFavoriteFoods,
+    loadPersonalFoods,
+    loadRecentFoods,
+    clearRecentFoods,
+    refreshData,
   } = useMeals();
 
   // Get mealType from route params, default to "Dinner" if not provided
@@ -72,9 +80,13 @@ const FoodSelectionScreen = () => {
   const [quickLogCalories, setQuickLogCalories] = useState("");
   const [quickLogMealType, setQuickLogMealType] = useState(mealType);
 
+  // Backend loading states
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  const [isLoadingPersonal, setIsLoadingPersonal] = useState(false);
+  const [isLoadingRecent, setIsLoadingRecent] = useState(false);
+
   // Mevcut öğündeki yiyecekleri al
   useEffect(() => {
-    // Context'ten ilgili öğün yemeklerini al
     const currentMealFoods = mealFoods[mealType] || [];
     setExistingMealFoods(currentMealFoods);
   }, [mealFoods, mealType]);
@@ -90,7 +102,52 @@ const FoodSelectionScreen = () => {
     return () => clearTimeout(timeoutId);
   }, [showMealTypeMenu]);
 
-  // API'den yemekleri yükle
+  // Recent foods'u temizleme fonksiyonu
+  const handleClearRecent = async () => {
+    Alert.alert(
+      "Clear Recent Foods",
+      "Are you sure you want to clear all recent foods?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Frontend'te hemen sıfırla (kullanıcı deneyimi için)
+              setFoodItems([]);
+
+              // Backend'den recent foods'u temizle (background'da)
+              try {
+                await NutritionService.clearRecentFoods();
+              } catch (backendError) {
+                // Non-critical error
+              }
+
+              // Context üzerinden recent foods'u temizle
+              try {
+                await clearRecentFoods();
+              } catch (contextError) {
+                // Non-critical error
+              }
+            } catch (error) {
+              // Hata durumunda eski veriyi geri yükle
+              loadFoods(true);
+              Alert.alert(
+                "Error",
+                "Failed to clear recent foods. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Backend'den yemekleri yükle
   const loadFoods = async (refresh = false) => {
     if (isLoading || (!hasMoreItems && !refresh)) return;
 
@@ -113,27 +170,124 @@ const FoodSelectionScreen = () => {
       else {
         switch (localActiveTab) {
           case "Recent":
-            // Context'te son kullanılan yemekler varsa onları kullan
-            if (recentFoods.length > 0) {
-              results = recentFoods;
-            }
-            // Yoksa API'den öğün tipine göre yükle
-            else {
-              results = await usdaFoodApiService.getFoodsByMealType(
-                mealType,
-                20,
-                page + 1
-              );
+            setIsLoadingRecent(true);
+            try {
+              // Backend'den recent foods'u al
+              const backendRecentFoods =
+                await NutritionService.getRecentFoods();
+
+              // Context'teki recent foods ile birleştir
+              const contextRecentFoods = recentFoods || [];
+
+              // Her iki kaynaktan unique foods oluştur
+              const allRecentFoods = [...contextRecentFoods];
+
+              backendRecentFoods.forEach((backendFood) => {
+                // Boş veya geçersiz kayıtları filtrele
+                if (
+                  !backendFood.food_name ||
+                  !backendFood.food_id ||
+                  backendFood.food_name.trim() === "" ||
+                  backendFood.food_id.trim() === "" ||
+                  backendFood.calories_per_100g === null ||
+                  backendFood.calories_per_100g === undefined ||
+                  isNaN(parseFloat(backendFood.calories_per_100g))
+                ) {
+                  return;
+                }
+
+                const exists = allRecentFoods.find(
+                  (food) =>
+                    food.id === backendFood.food_id ||
+                    food.name === backendFood.food_name
+                );
+
+                if (!exists) {
+                  // Backend food'u frontend formatına çevir
+                  const transformedFood = {
+                    id: backendFood.food_id,
+                    name: backendFood.food_name.trim(),
+                    calories: Math.round(
+                      parseFloat(backendFood.calories_per_100g) || 0
+                    ),
+                    protein:
+                      Math.round(
+                        (parseFloat(backendFood.protein_per_100g) || 0) * 10
+                      ) / 10,
+                    carbs:
+                      Math.round(
+                        (parseFloat(backendFood.carbs_per_100g) || 0) * 10
+                      ) / 10,
+                    fat:
+                      Math.round(
+                        (parseFloat(backendFood.fat_per_100g) || 0) * 10
+                      ) / 10,
+                    weight: 100,
+                    portionSize: 100,
+                    portionUnit: "gram (g)",
+                    isCustomFood: backendFood.is_custom_food || false,
+                  };
+
+                  // Final validation before adding
+                  if (
+                    transformedFood.name &&
+                    transformedFood.name.length > 0 &&
+                    transformedFood.calories >= 0
+                  ) {
+                    allRecentFoods.push(transformedFood);
+                  }
+                }
+              });
+
+              // Boş kayıtları filtrele
+              results = allRecentFoods
+                .filter(
+                  (food) =>
+                    food.name &&
+                    food.name.trim() !== "" &&
+                    food.name.length > 1 &&
+                    food.id &&
+                    food.id.toString().trim() !== "" &&
+                    food.calories !== null &&
+                    food.calories !== undefined &&
+                    food.calories >= 0 &&
+                    !isNaN(food.calories)
+                )
+                .slice(0, 20);
+            } catch (error) {
+              // Fallback to context data
+              results = recentFoods.slice(0, 20);
+            } finally {
+              setIsLoadingRecent(false);
             }
             break;
+
           case "Favorites":
-            // Favori yemekleri context'ten al
-            results = favoriteFoods;
+            setIsLoadingFavorites(true);
+            try {
+              // Backend'den favorites'ları yükle
+              await loadFavoriteFoods();
+              results = favoriteFoods.slice(0, 20);
+            } catch (error) {
+              results = favoriteFoods.slice(0, 20);
+            } finally {
+              setIsLoadingFavorites(false);
+            }
             break;
+
           case "Personal":
-            // Kişisel yemekleri context'ten al
-            results = personalFoods;
+            setIsLoadingPersonal(true);
+            try {
+              // Backend'den custom foods'u yükle
+              await loadPersonalFoods();
+              results = personalFoods.slice(0, 20);
+            } catch (error) {
+              results = personalFoods.slice(0, 20);
+            } finally {
+              setIsLoadingPersonal(false);
+            }
             break;
+
           default:
             results = [];
         }
@@ -148,9 +302,12 @@ const FoodSelectionScreen = () => {
 
       // Sayfalama durumunu güncelle
       setCurrentPage(page + 1);
-      setHasMoreItems(results.length === 20); // Eğer istenen sayıdan az sonuç geldiyse, sona gelmişiz demektir
+      setHasMoreItems(results.length === 20);
     } catch (error) {
-      console.error("Yemekleri yüklerken hata:", error);
+      Alert.alert(
+        "Loading Error",
+        "Failed to load foods. Please check your connection and try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +317,48 @@ const FoodSelectionScreen = () => {
   useEffect(() => {
     loadFoods(true);
   }, [localActiveTab, mealType]);
+
+  // Context verileri değiştiğinde ilgili tab'ı yenile - ENHANCED VERSION
+  useEffect(() => {
+    if (localActiveTab === "Favorites") {
+      // Favorites'ları frontend formatına çevir
+      const formattedFavorites = favoriteFoods.map((favorite) => ({
+        id: favorite.food_id || favorite.id,
+        name: favorite.food_name || favorite.name,
+        calories: Math.round(
+          favorite.calories_per_100g || favorite.calories || 0
+        ),
+        protein:
+          Math.round(
+            (favorite.protein_per_100g || favorite.protein || 0) * 10
+          ) / 10,
+        carbs:
+          Math.round((favorite.carbs_per_100g || favorite.carbs || 0) * 10) /
+          10,
+        fat: Math.round((favorite.fat_per_100g || favorite.fat || 0) * 10) / 10,
+        weight: 100,
+        portionSize: 100,
+        portionUnit: "gram (g)",
+        isCustomFood: favorite.is_custom_food || favorite.isCustomFood || false,
+      }));
+
+      setFoodItems(formattedFavorites);
+    }
+  }, [favoriteFoods, localActiveTab]);
+
+  // Personal foods için de aynı mantık
+  useEffect(() => {
+    if (localActiveTab === "Personal") {
+      setFoodItems(personalFoods.slice(0, 20));
+    }
+  }, [personalFoods, localActiveTab]);
+
+  // Recent foods için de aynı mantık
+  useEffect(() => {
+    if (localActiveTab === "Recent") {
+      setFoodItems(recentFoods.slice(0, 20));
+    }
+  }, [recentFoods, localActiveTab]);
 
   // Seçilen porsiyon için orijinal yemeği bulma fonksiyonu
   const findOriginalFood = (foodId) => {
@@ -172,6 +371,15 @@ const FoodSelectionScreen = () => {
     ];
 
     return allFoodSources.find((food) => food.id === foodId);
+  };
+
+  // Total calories hesaplama fonksiyonu
+  const calculateTotalCalories = (foods) => {
+    const total = foods.reduce((sum, food) => {
+      const calories = parseFloat(food.calories) || 0;
+      return sum + calories;
+    }, 0);
+    return Math.round(total);
   };
 
   // Reset selections when screen comes into focus and handle FoodDetailsScreen'den gelen yemekler
@@ -187,20 +395,7 @@ const FoodSelectionScreen = () => {
 
         // Eğer yemek zaten öğünde varsa ve FoodDetails'den güncellenmiş halde geliyorsa
         if (isExistingFood && existingFoodId) {
-          // Zaten var olan bir yemeğin porsiyon bilgisi güncellenmiş
-          // Bu yemeği doğrudan context üzerinden güncelleyebiliriz
-          updateFoodPortion(
-            existingFoodId,
-            route.params.mealType || "Breakfast",
-            portionInfo.portionSize,
-            portionInfo.portionUnit,
-            portionInfo.calculatedCalories,
-            portionInfo.carbs,
-            portionInfo.protein,
-            portionInfo.fat
-          );
-
-          // Doğrudan ana sayfaya dön
+          // Bu durumda FoodDetailsScreen'de zaten güncellendi, ana sayfaya dön
           navigation.navigate("Home");
           return;
         }
@@ -214,17 +409,26 @@ const FoodSelectionScreen = () => {
           // Yemeği özelleştirilmiş porsiyon bilgisiyle seç
           const portionedFood = {
             ...originalFood,
-            calories: portionInfo.calculatedCalories,
+            calories: Math.round(
+              portionInfo.calculatedCalories ||
+                portionInfo.baseCalories ||
+                originalFood.calories
+            ),
             portionSize: portionInfo.portionSize,
             portionUnit: portionInfo.portionUnit,
-            carbs: portionInfo.carbs,
-            protein: portionInfo.protein,
-            fat: portionInfo.fat,
-            // Diğer değerler orijinal yemekten gelir
+            carbs:
+              Math.round((portionInfo.carbs || originalFood.carbs || 0) * 10) /
+              10,
+            protein:
+              Math.round(
+                (portionInfo.protein || originalFood.protein || 0) * 10
+              ) / 10,
+            fat:
+              Math.round((portionInfo.fat || originalFood.fat || 0) * 10) / 10,
           };
 
           setSelectedFoods([portionedFood]);
-          setTotalCalories(portionInfo.calculatedCalories);
+          setTotalCalories(calculateTotalCalories([portionedFood]));
         }
 
         // Parametre temizliği
@@ -237,64 +441,97 @@ const FoodSelectionScreen = () => {
         // FoodDetailsScreen'den veri gelmezse, seçili yemekleri kontrol et
         if (selectedFoods.length === 0) {
           setTotalCalories(0);
+        } else {
+          // Mevcut seçili yemeklerin kalorisini yeniden hesapla
+          setTotalCalories(calculateTotalCalories(selectedFoods));
         }
       }
 
       setSearchQuery("");
       setIsSearching(false);
+
+      // Route params'ta refreshPersonal varsa personal foods'u yenile
+      if (route.params?.refreshPersonal) {
+        if (localActiveTab === "Personal") {
+          loadFoods(true);
+        }
+        // Parametre temizle
+        navigation.setParams({ refreshPersonal: false });
+      }
+
       return () => {};
     }, [
       route.params?.activeTab,
       route.params?.selectedPortion,
       route.params?.isExistingFood,
+      route.params?.refreshPersonal,
+      selectedFoods,
     ])
   );
 
   // Handle Quick Log button press
   const handleQuickLogPress = () => {
-    setQuickLogMealType(mealType); // Set default meal type to current
+    setQuickLogMealType(mealType);
     setShowQuickLogModal(true);
   };
 
-  // Handle Quick Log submission
-  const handleQuickLogSubmit = () => {
+  // Handle Quick Log submission with backend integration
+  const handleQuickLogSubmit = async () => {
     // Validate inputs
     if (!quickLogName.trim() || !quickLogCalories.trim()) {
-      // Could add an alert here for better UX
+      Alert.alert(
+        "Validation Error",
+        "Please fill in both food name and calories."
+      );
       return;
     }
 
     // Parse calories
-    const calories = parseInt(quickLogCalories, 10);
+    const calories = parseFloat(quickLogCalories);
     if (isNaN(calories) || calories <= 0) {
-      // Could add an alert here for invalid calories
+      Alert.alert("Invalid Calories", "Please enter a valid calorie amount.");
       return;
     }
 
-    // Create new food object
-    const newFood = {
-      id: Date.now().toString(),
-      name: quickLogName,
-      calories,
-      mealType: quickLogMealType,
-      // No macro values as specified in requirements
-    };
+    try {
+      setIsLoading(true);
 
-    // Add food using context function
-    addFood(newFood);
+      // Create new food object for backend
+      const quickLogFood = {
+        name: quickLogName.trim(),
+        calories: Math.round(calories), // Round to whole number
+        carbs: Math.round((calories * 0.5) / 4), // 50% carbs assumption
+        protein: Math.round((calories * 0.25) / 4), // 25% protein assumption
+        fat: Math.round((calories * 0.25) / 9), // 25% fat assumption
+        mealType: quickLogMealType,
+        portionSize: 100,
+        portionUnit: "gram (g)",
+        weight: 100,
+      };
 
-    // Reset form and close modal
-    setQuickLogName("");
-    setQuickLogCalories("");
-    setShowQuickLogModal(false);
+      // Add food using context function (which handles backend integration)
+      await addFood(quickLogFood);
 
-    // Navigate back to home
-    navigation.navigate("Home");
+      // Reset form and close modal
+      setQuickLogName("");
+      setQuickLogCalories("");
+      setShowQuickLogModal(false);
+
+      // Show success message
+      Alert.alert("Success", "Food logged successfully!", [
+        { text: "OK", onPress: () => navigation.navigate("Home") },
+      ]);
+    } catch (error) {
+      Alert.alert("Error", "Failed to log food. Please try again.", [
+        { text: "OK" },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Create Food button handler
   const handleCreateFoodPress = () => {
-    // Create Food sayfasına yönlendir
     navigation.navigate("CreateFood");
   };
 
@@ -313,38 +550,59 @@ const FoodSelectionScreen = () => {
     if (text.length >= 2) {
       clearTimeout(searchTimeout.current);
       searchTimeout.current = setTimeout(() => {
-        console.log("Searching for:", text);
         loadFoods(true);
       }, 500);
     } else if (text.length === 0) {
-      // Arama kutusu boşalınca, son görüntülenen yemekleri göster
+      // Arama kutusu boşalınca, mevcut tab'ın verilerini göster
       setIsSearching(false);
-      setFoodItems(recentFoods);
+      loadFoods(true);
     }
   };
 
   // Liste sonuna gelindiğinde daha fazla yemek yükle
   const handleEndReached = () => {
-    if (!isLoading && hasMoreItems) {
+    if (!isLoading && hasMoreItems && isSearching) {
       loadFoods();
     }
   };
 
   // Yenile fonksiyonu
-  const handleRefresh = () => {
-    loadFoods(true);
+  const handleRefresh = async () => {
+    try {
+      // Genel refresh
+      await refreshData();
+
+      // Mevcut tab'a göre spesifik refresh
+      switch (localActiveTab) {
+        case "Recent":
+          await loadRecentFoods();
+          break;
+        case "Favorites":
+          await loadFavoriteFoods();
+          break;
+        case "Personal":
+          await loadPersonalFoods();
+          break;
+      }
+
+      // Foods'u yeniden yükle
+      await loadFoods(true);
+    } catch (error) {
+      Alert.alert("Refresh Error", "Failed to refresh data. Please try again.");
+    }
   };
 
   // Yemek zaten öğünde var mı kontrol et
   const isFoodAlreadyInMeal = (foodId) => {
-    return existingMealFoods.some((food) => food.id === foodId);
+    const exists = existingMealFoods.some((food) => food.id === foodId);
+    return exists;
   };
 
-  // Toggle food selection (add/remove from selected foods) - Updated
+  // Toggle food selection (add/remove from selected foods)
   const toggleFoodSelection = (food) => {
     // Yemek zaten öğünde varsa, seçmeyi engelle
     if (isFoodAlreadyInMeal(food.id)) {
-      return; // Yemek zaten öğünde olduğu için hiçbir şey yapma
+      return;
     }
 
     // Check if food is already selected
@@ -358,33 +616,32 @@ const FoodSelectionScreen = () => {
       setSelectedFoods(newSelectedFoods);
 
       // Update total calories
-      const newTotalCalories = newSelectedFoods.reduce(
-        (total, item) => total + item.calories,
-        0
-      );
+      const newTotalCalories = calculateTotalCalories(newSelectedFoods);
       setTotalCalories(newTotalCalories);
-      setSelectedPortion(null); // Porsiyon seçimini temizle
+      setSelectedPortion(null);
     } else {
       // Food is not selected, so add it
-      const newSelectedFoods = [...selectedFoods, food];
+      const foodWithCorrectCalories = {
+        ...food,
+        calories: Math.round(parseFloat(food.calories) || 0), // Ensure calories is a number
+      };
+
+      const newSelectedFoods = [...selectedFoods, foodWithCorrectCalories];
       setSelectedFoods(newSelectedFoods);
 
       // Update total calories
-      const newTotalCalories = newSelectedFoods.reduce(
-        (total, item) => total + item.calories,
-        0
-      );
+      const newTotalCalories = calculateTotalCalories(newSelectedFoods);
       setTotalCalories(newTotalCalories);
 
-      // Tek bir yemek seçildiyse ve son seçilen buysa, orijinal porsiyon bilgisini seç
+      // Tek bir yemek seçildiyse porsiyon bilgisini seç
       if (newSelectedFoods.length === 1) {
         setSelectedPortion({
           foodId: food.id,
-          portionSize: food.weight,
+          portionSize: food.weight || food.portionSize || 100,
           portionUnit: food.portionUnit || "gram (g)",
-          calculatedCalories: food.calories,
-          baseCalories: food.calories,
-          baseWeight: food.weight,
+          calculatedCalories: foodWithCorrectCalories.calories,
+          baseCalories: foodWithCorrectCalories.calories,
+          baseWeight: food.weight || 100,
         });
       }
     }
@@ -399,45 +656,73 @@ const FoodSelectionScreen = () => {
     const currentMealFoods = mealFoods[newMealType] || [];
     setExistingMealFoods(currentMealFoods);
 
-    // Seçimleri temizle - öğünler arası geçişte seçimler sıfırlanır
+    // Seçimleri temizle
     setSelectedFoods([]);
     setTotalCalories(0);
   };
 
-  // Handle add button press
-  const handleAddButtonPress = () => {
+  // Handle add button press with backend integration
+  const handleAddButtonPress = async () => {
     if (selectedFoods.length === 0) return;
 
-    // Seçilen tüm yemekleri ayrı ayrı ekle (birleştirmek yerine)
-    selectedFoods.forEach((food) => {
-      // Porsiyon büyüklüğü ve birimini kullan (varsa)
-      const portionSize = food.portionSize || food.weight;
-      const portionUnit = food.portionUnit || "gram (g)";
+    try {
+      setIsLoading(true);
 
-      const foodToAdd = {
-        ...food,
-        mealType,
-        // Varsayılan makro değerleri (eğer yoksa)
-        carbs: food.carbs || Math.round((food.calories * 0.5) / 4),
-        protein: food.protein || Math.round((food.calories * 0.25) / 4),
-        fat: food.fat || Math.round((food.calories * 0.25) / 9),
-        // Porsiyon bilgilerini ekle
-        portionSize: portionSize,
-        portionUnit: portionUnit,
-      };
+      // Seçilen tüm yemekleri ayrı ayrı ekle
+      for (const food of selectedFoods) {
+        const portionSize = food.portionSize || food.weight || 100;
+        const portionUnit = food.portionUnit || "gram (g)";
 
-      // Context üzerinden her bir yemeği ayrı ayrı ekle
-      addFood(foodToAdd);
-    });
+        // Kalori ve makro değerleri doğru hesapla
+        const foodCalories = Math.round(parseFloat(food.calories) || 0);
+        const foodCarbs =
+          Math.round(
+            (parseFloat(food.carbs) || Math.round((foodCalories * 0.5) / 4)) *
+              10
+          ) / 10;
+        const foodProtein =
+          Math.round(
+            (parseFloat(food.protein) ||
+              Math.round((foodCalories * 0.25) / 4)) * 10
+          ) / 10;
+        const foodFat =
+          Math.round(
+            (parseFloat(food.fat) || Math.round((foodCalories * 0.25) / 9)) * 10
+          ) / 10;
 
-    // Ana ekrana dön
-    navigation.navigate("Home");
+        const foodToAdd = {
+          ...food,
+          mealType,
+          calories: foodCalories,
+          carbs: foodCarbs,
+          protein: foodProtein,
+          fat: foodFat,
+          portionSize: portionSize,
+          portionUnit: portionUnit,
+        };
+
+        // Context üzerinden her bir yemeği ayrı ayrı ekle (backend entegrasyonu dahil)
+        await addFood(foodToAdd);
+      }
+
+      // Success message
+      Alert.alert(
+        "Success",
+        `${selectedFoods.length} food(s) added to ${mealType}!`,
+        [{ text: "OK", onPress: () => navigation.navigate("Home") }]
+      );
+    } catch (error) {
+      Alert.alert("Error", "Failed to add foods to meal. Please try again.", [
+        { text: "OK" },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Porsiyon bilgisini formatla
   const formatPortion = (item) => {
     if (item.portionSize && item.portionUnit) {
-      // Porsiyon bilgisi varsa göster
       if (item.portionUnit === "gram (g)") {
         return `${item.portionSize} gr`;
       } else if (item.portionUnit === "tablespoon") {
@@ -450,23 +735,30 @@ const FoodSelectionScreen = () => {
         return `${item.portionSize} ${item.portionUnit}`;
       }
     } else if (item.weight) {
-      // Varsayılan ağırlık bilgisini göster
       return `${item.weight} gr`;
     }
-    return "";
+    return "100 gr";
   };
 
   const renderFoodItem = ({ item }) => {
+    // Boş item kontrolü
+    if (!item || !item.name || item.name.trim() === "" || !item.id) {
+      return null; // Boş item'ı render etme
+    }
+
     // Yemek zaten öğünde var mı kontrol et
     const isAlreadyInMeal = isFoodAlreadyInMeal(item.id);
 
-    // Seçili mi kontrol et - öğünde zaten varsa veya şu anda seçiliyse
+    // Seçili mi kontrol et
     const isSelected =
       isAlreadyInMeal || selectedFoods.some((food) => food.id === item.id);
-    const isPersonal = item.isPersonal === true;
+    const isPersonal = item.isPersonal === true || item.isCustomFood === true;
 
     // Yemeğin porsiyon bilgisi
     const portionText = formatPortion(item);
+
+    // Kalori değerini doğru göster
+    const displayCalories = Math.round(parseFloat(item.calories) || 0);
 
     return (
       <View style={styles.foodItem}>
@@ -479,7 +771,7 @@ const FoodSelectionScreen = () => {
             ]}
             onPress={() => toggleFoodSelection(item)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            disabled={isAlreadyInMeal} // Öğünde varsa tıklanamaz yap
+            disabled={isAlreadyInMeal}
           >
             {isSelected ? (
               <Ionicons name="checkmark" size={20} color="#FFFFFF" />
@@ -498,7 +790,7 @@ const FoodSelectionScreen = () => {
               )}
             </Text>
             <Text style={styles.foodItemDetails}>
-              {item.calories} kcal, {portionText}
+              {displayCalories} kcal, {portionText}
             </Text>
           </View>
         </View>
@@ -511,7 +803,8 @@ const FoodSelectionScreen = () => {
             navigation.navigate("FoodDetails", {
               food: {
                 ...item,
-                mealType: mealType, // Mevcut öğün tipini ekle
+                mealType: mealType,
+                calories: displayCalories, // Doğru kalori değerini gönder
               },
             });
           }}
@@ -523,42 +816,72 @@ const FoodSelectionScreen = () => {
   };
 
   // Boş liste komponenti
-  const EmptyListComponent = () => (
-    <View style={styles.emptyListContainer}>
-      {isSearching ? (
-        <View>
-          <Text style={styles.emptyListText}>
-            No results found for "{searchQuery}"
+  const EmptyListComponent = () => {
+    const tabSpecificLoading =
+      (localActiveTab === "Recent" && isLoadingRecent) ||
+      (localActiveTab === "Favorites" && isLoadingFavorites) ||
+      (localActiveTab === "Personal" && isLoadingPersonal);
+
+    if (tabSpecificLoading) {
+      return (
+        <View style={styles.emptyListContainer}>
+          <ActivityIndicator size="large" color="#A1CE50" />
+          <Text style={styles.loadingText}>
+            Loading {localActiveTab.toLowerCase()} foods...
           </Text>
-          <Text style={styles.suggestionsTitle}>Try searching for:</Text>
-          <View style={styles.suggestionsContainer}>
-            {popularFoodSuggestions[mealType.toLowerCase()]?.map(
-              (suggestion, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.suggestionButton}
-                  onPress={() => {
-                    setSearchQuery(suggestion);
-                    handleSearch(suggestion);
-                  }}
-                >
-                  <Text style={styles.suggestionText}>{suggestion}</Text>
-                </TouchableOpacity>
-              )
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyListContainer}>
+        {isSearching ? (
+          <View>
+            <Text style={styles.emptyListText}>
+              No results found for "{searchQuery}"
+            </Text>
+            <Text style={styles.suggestionsTitle}>Try searching for:</Text>
+            <View style={styles.suggestionsContainer}>
+              {popularFoodSuggestions[mealType.toLowerCase()]?.map(
+                (suggestion, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.suggestionButton}
+                    onPress={() => {
+                      setSearchQuery(suggestion);
+                      handleSearch(suggestion);
+                    }}
+                  >
+                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                )
+              )}
+            </View>
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.emptyListText}>
+              {localActiveTab === "Recent"
+                ? "Your recent foods will appear here."
+                : localActiveTab === "Favorites"
+                ? "Your favorite foods will appear here."
+                : "Your custom foods will appear here."}
+            </Text>
+            {localActiveTab === "Personal" && (
+              <TouchableOpacity
+                style={styles.createFoodPromptButton}
+                onPress={handleCreateFoodPress}
+              >
+                <Text style={styles.createFoodPromptText}>
+                  Create Your First Food
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
-        </View>
-      ) : (
-        <Text style={styles.emptyListText}>
-          {localActiveTab === "Recent"
-            ? "Your recent foods will appear here."
-            : localActiveTab === "Favorites"
-            ? "Your favorite foods will appear here."
-            : "Your custom foods will appear here. Tap 'Create Food' to add a new food item."}
-        </Text>
-      )}
-    </View>
-  );
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -575,6 +898,7 @@ const FoodSelectionScreen = () => {
               style={styles.backButton}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
+              disabled={isLoading}
             >
               <Ionicons name="close" size={24} color="#000" />
             </TouchableOpacity>
@@ -583,6 +907,7 @@ const FoodSelectionScreen = () => {
               style={styles.mealTypeSelector}
               onPress={() => setShowMealTypeMenu(!showMealTypeMenu)}
               hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
+              disabled={isLoading}
             >
               <Text style={styles.mealTypeText}>{mealType}</Text>
               <Ionicons
@@ -630,13 +955,13 @@ const FoodSelectionScreen = () => {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search"
+              placeholder="Search foods..."
               value={searchQuery}
               onChangeText={handleSearch}
+              editable={!isLoading}
             />
 
-            {/* Add scan button */}
-            <TouchableOpacity style={styles.scanButton}>
+            <TouchableOpacity style={styles.scanButton} disabled={isLoading}>
               <Ionicons name="scan-outline" size={20} color="#999" />
             </TouchableOpacity>
           </View>
@@ -646,6 +971,7 @@ const FoodSelectionScreen = () => {
             <TouchableOpacity
               style={styles.quickLogButton}
               onPress={handleQuickLogPress}
+              disabled={isLoading}
             >
               <Ionicons name="flash" size={18} color="#333" />
               <Text style={styles.quickLogText}>Quick Log</Text>
@@ -654,13 +980,14 @@ const FoodSelectionScreen = () => {
             <TouchableOpacity
               style={styles.createFoodButton}
               onPress={handleCreateFoodPress}
+              disabled={isLoading}
             >
               <Ionicons name="add-circle-outline" size={18} color="#333" />
               <Text style={styles.createFoodText}>Create Food</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Tabs */}
+          {/* Tabs with Clear for Recent */}
           <View style={styles.tabs}>
             <TouchableOpacity
               style={[
@@ -668,15 +995,35 @@ const FoodSelectionScreen = () => {
                 localActiveTab === "Recent" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Recent")}
+              disabled={isLoading}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  localActiveTab === "Recent" && styles.activeTabText,
-                ]}
-              >
-                Recent
-              </Text>
+              <View style={styles.tabContent}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    localActiveTab === "Recent" && styles.activeTabText,
+                  ]}
+                >
+                  Recent
+                </Text>
+                {/* Clear text - sadece Recent tab aktifken ve yemek varsa */}
+                {localActiveTab === "Recent" && recentFoods.length > 0 && (
+                  <TouchableOpacity
+                    onPress={handleClearRecent}
+                    disabled={isLoading}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text
+                      style={[
+                        styles.clearText,
+                        localActiveTab === "Recent" && styles.clearTextActive,
+                      ]}
+                    >
+                      {" • Clear"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -685,6 +1032,7 @@ const FoodSelectionScreen = () => {
                 localActiveTab === "Favorites" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Favorites")}
+              disabled={isLoading}
             >
               <Text
                 style={[
@@ -702,6 +1050,7 @@ const FoodSelectionScreen = () => {
                 localActiveTab === "Personal" && styles.activeTab,
               ]}
               onPress={() => setLocalActiveTab("Personal")}
+              disabled={isLoading}
             >
               <Text
                 style={[
@@ -730,7 +1079,7 @@ const FoodSelectionScreen = () => {
             ListEmptyComponent={EmptyListComponent}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
-            refreshing={isLoading}
+            refreshing={isLoading && foodItems.length === 0}
             onRefresh={handleRefresh}
             ListFooterComponent={
               isLoading && foodItems.length > 0 ? (
@@ -740,10 +1089,10 @@ const FoodSelectionScreen = () => {
                 </View>
               ) : null
             }
-            extraData={[selectedFoods, selectedPortion, existingMealFoods]} // Değişkenler eklendi
+            extraData={[selectedFoods, selectedPortion, existingMealFoods]}
           />
 
-          {/* Selected Foods Summary & Add Button - Only shows if foods are selected */}
+          {/* Selected Foods Summary & Add Button */}
           {selectedFoods.length > 0 && (
             <View style={styles.selectedFoodsSummary}>
               <View style={styles.caloriesCounter}>
@@ -752,14 +1101,22 @@ const FoodSelectionScreen = () => {
               </View>
 
               <TouchableOpacity
-                style={styles.addSelectedButton}
+                style={[
+                  styles.addSelectedButton,
+                  isLoading && styles.addSelectedButtonDisabled,
+                ]}
                 onPress={handleAddButtonPress}
+                disabled={isLoading}
               >
-                <Text style={styles.addSelectedButtonText}>
-                  {selectedFoods.length === 1
-                    ? "Add"
-                    : `Add(+${selectedFoods.length})`}
-                </Text>
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.addSelectedButtonText}>
+                    {selectedFoods.length === 1
+                      ? "Add"
+                      : `Add (+${selectedFoods.length})`}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -785,6 +1142,7 @@ const FoodSelectionScreen = () => {
                       placeholder="Food Name"
                       value={quickLogName}
                       onChangeText={setQuickLogName}
+                      editable={!isLoading}
                     />
 
                     {/* Calories Input */}
@@ -794,6 +1152,7 @@ const FoodSelectionScreen = () => {
                       keyboardType="numeric"
                       value={quickLogCalories}
                       onChangeText={setQuickLogCalories}
+                      editable={!isLoading}
                     />
 
                     {/* Meal Type Selector */}
@@ -808,6 +1167,7 @@ const FoodSelectionScreen = () => {
                               styles.mealTypeOptionActive,
                           ]}
                           onPress={() => setQuickLogMealType(type)}
+                          disabled={isLoading}
                         >
                           <Text
                             style={[
@@ -827,15 +1187,24 @@ const FoodSelectionScreen = () => {
                       <TouchableOpacity
                         style={styles.cancelButton}
                         onPress={() => setShowQuickLogModal(false)}
+                        disabled={isLoading}
                       >
                         <Text style={styles.cancelButtonText}>Cancel</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.saveButton}
+                        style={[
+                          styles.saveButton,
+                          isLoading && styles.saveButtonDisabled,
+                        ]}
                         onPress={handleQuickLogSubmit}
+                        disabled={isLoading}
                       >
-                        <Text style={styles.saveButtonText}>Save</Text>
+                        {isLoading ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.saveButtonText}>Save</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -857,28 +1226,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 24, // Increased padding to move content down
+    paddingTop: 24,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16, // Increased vertical padding
+    paddingVertical: 16,
     paddingHorizontal: 20,
     backgroundColor: "#fff",
-    marginTop: 20, // Added margin to push header down
+    marginTop: 20,
   },
   backButton: {
-    width: 48, // Increased touchable area
-    height: 48, // Increased touchable area
+    width: 48,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
   },
   mealTypeSelector: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12, // Increased padding for better touchability
-    height: 48, // Fixed height for better touchability
+    padding: 12,
+    height: 48,
   },
   mealTypeText: {
     fontSize: 18,
@@ -886,11 +1255,11 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   spacer: {
-    width: 48, // Match backButton width
+    width: 48,
   },
   mealTypeMenu: {
     position: "absolute",
-    top: 110, // Adjusted position to appear below header
+    top: 110,
     left: 0,
     right: 0,
     backgroundColor: "#fff",
@@ -904,7 +1273,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   mealTypeMenuItem: {
-    paddingVertical: 14, // Increased for better touchability
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
@@ -977,11 +1346,25 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginLeft: 8,
   },
+  createFoodPromptButton: {
+    marginTop: 16,
+    backgroundColor: "#A1CE50",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  createFoodPromptText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
   tabs: {
     flexDirection: "row",
     marginTop: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
+    alignItems: "center",
   },
   tab: {
     flex: 1,
@@ -993,6 +1376,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginHorizontal: 4,
   },
+  tabContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tabText: {
     fontSize: 14,
     color: "#666",
@@ -1001,13 +1389,23 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "500",
   },
+  clearText: {
+    fontSize: 12,
+    color: "#ff6b6b",
+    fontWeight: "400",
+    opacity: 0.8,
+  },
+  clearTextActive: {
+    color: "#fff",
+    opacity: 0.7,
+  },
   foodList: {
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
   foodListContent: {
     padding: 16,
-    paddingBottom: 90, // Extra padding at bottom for selected foods summary
+    paddingBottom: 90,
   },
   foodItem: {
     flexDirection: "row",
@@ -1038,11 +1436,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#A1CE50",
     borderColor: "#A1CE50",
   },
-  // Yeni: Öğünde zaten var olan yemekler için buton stili
   alreadyInMealButton: {
-    backgroundColor: "#cccccc", // Gri arka plan
+    backgroundColor: "#cccccc",
     borderColor: "#cccccc",
-    opacity: 0.7, // Biraz şeffaf
+    opacity: 0.7,
   },
   foodItemInfo: {
     flex: 1,
@@ -1058,7 +1455,6 @@ const styles = StyleSheet.create({
     color: "#A1CE50",
     fontWeight: "normal",
   },
-  // Yeni: Öğünde zaten var olan yemekler için badge
   alreadyAddedBadge: {
     fontSize: 12,
     color: "#999",
@@ -1118,12 +1514,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 140,
   },
+  addSelectedButtonDisabled: {
+    backgroundColor: "#cccccc",
+  },
   addSelectedButtonText: {
     color: "#fff",
     fontWeight: "600",
     fontSize: 16,
   },
-  // Boş liste ve arama önerileri stilleri
   emptyListContainer: {
     flex: 1,
     justifyContent: "center",
@@ -1177,19 +1575,6 @@ const styles = StyleSheet.create({
     color: "#333",
     fontSize: 14,
   },
-  tryAgainButton: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 5,
-    alignSelf: "center",
-  },
-  tryAgainText: {
-    color: "#666",
-    fontSize: 14,
-  },
-
-  // Quick Log Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -1277,6 +1662,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#A1CE50",
     width: "48%",
     alignItems: "center",
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#cccccc",
   },
   saveButtonText: {
     color: "#fff",

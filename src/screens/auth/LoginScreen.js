@@ -1,4 +1,4 @@
-// src/screens/auth/LoginScreen.js - Complete Updated Version
+// src/screens/auth/LoginScreen.js - Updated with Backend Integration
 import React, { useState } from "react";
 import {
   View,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
@@ -14,7 +15,7 @@ import AuthService from "../../services/AuthService";
 
 const LoginScreen = () => {
   const navigation = useNavigation();
-  const { updateFormData } = useSignUp(); // SignUp context'ini kullan
+  const { updateFormData } = useSignUp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +40,7 @@ const LoginScreen = () => {
         age--;
       }
 
-      // BMR hesaplama
+      // BMR hesaplama (Mifflin-St Jeor Equation)
       const bmr =
         gender && gender.toLowerCase() === "male"
           ? 10 * weight + 6.25 * height - 5 * age + 5
@@ -47,16 +48,17 @@ const LoginScreen = () => {
 
       // Aktivite çarpanları
       const activityMultipliers = {
-        1: 1.2,
-        2: 1.375,
-        3: 1.55,
-        4: 1.725,
-        5: 1.9,
+        1: 1.2, // Sedentary
+        2: 1.375, // Light activity
+        3: 1.55, // Moderate activity
+        4: 1.725, // Very active
+        5: 1.9, // Extra active
       };
 
       const multiplier = activityMultipliers[activityLevel] || 1.55;
       const calories = Math.round(bmr * multiplier);
 
+      // Makro besin dağılımı (%50 carbs, %30 protein, %20 fat)
       const carbs = Math.round((calories * 0.5) / 4);
       const protein = Math.round((calories * 0.3) / 4);
       const fat = Math.round((calories * 0.2) / 9);
@@ -75,8 +77,14 @@ const LoginScreen = () => {
   };
 
   const handleLogin = async () => {
+    // Validasyon
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      Alert.alert("Error", "Please enter a valid email address");
       return;
     }
 
@@ -85,14 +93,17 @@ const LoginScreen = () => {
     try {
       console.log("Starting login process...");
 
-      // 1. Login yap
-      const loginResult = await AuthService.login({ email, password });
+      // 1. Login API çağrısı
+      const loginResult = await AuthService.login({
+        email: email.toLowerCase().trim(),
+        password,
+      });
+
       console.log("Login successful:", loginResult);
 
       // 2. Kullanıcı profilini çek
-      const profileResult = await AuthService.getUserProfile(
-        loginResult.user.id
-      );
+      console.log("Fetching user profile...");
+      const profileResult = await AuthService.getUserProfile();
       console.log("Profile loaded:", profileResult);
 
       const userData = profileResult.user;
@@ -124,7 +135,7 @@ const LoginScreen = () => {
         }
       }
 
-      // 5. Kalori planını hesapla ve kaydet
+      // 5. Kalori planını hesapla ve context'e kaydet
       if (
         userData.gender &&
         userData.birthDate &&
@@ -158,13 +169,51 @@ const LoginScreen = () => {
           weight: userData.weight,
           activityLevel: userData.activityLevel,
         });
+
+        // Eksik veri varsa default plan kullan
+        updateFormData("calculatedPlan", {
+          dailyCalories: 2000,
+          macros: {
+            carbs: 250,
+            protein: 150,
+            fat: 55,
+          },
+        });
       }
 
-      // 6. Home'a git
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      // 6. Ana sayfaya yönlendir
+      Alert.alert(
+        "Login Successful",
+        `Welcome back, ${userData.firstName || "User"}!`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Home" }],
+              });
+            },
+          },
+        ]
+      );
     } catch (err) {
       console.error("Login error:", err);
-      Alert.alert("Login Error", err.message);
+
+      let errorMessage = "An error occurred during login";
+
+      if (err.message.includes("Invalid credentials")) {
+        errorMessage = "Email or password is incorrect";
+      } else if (err.message.includes("Network")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (err.message.includes("Backend sunucusuna")) {
+        errorMessage = "Cannot connect to server. Please try again later.";
+      } else {
+        errorMessage = err.message;
+      }
+
+      Alert.alert("Login Error", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -186,6 +235,7 @@ const LoginScreen = () => {
         autoCapitalize="none"
         keyboardType="email-address"
         editable={!isLoading}
+        autoCorrect={false}
       />
 
       <TextInput
@@ -196,6 +246,7 @@ const LoginScreen = () => {
         secureTextEntry
         style={styles.input}
         editable={!isLoading}
+        autoCorrect={false}
       />
 
       <TouchableOpacity
@@ -211,9 +262,14 @@ const LoginScreen = () => {
         onPress={handleLogin}
         disabled={isLoading}
       >
-        <Text style={styles.loginButtonText}>
-          {isLoading ? "Logging in..." : "Login now"}
-        </Text>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={styles.loginButtonText}>Logging in...</Text>
+          </View>
+        ) : (
+          <Text style={styles.loginButtonText}>Login now</Text>
+        )}
       </TouchableOpacity>
 
       <View style={styles.signupContainer}>
@@ -258,6 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
     paddingHorizontal: 4,
+    color: "#333",
   },
   forgotPassword: {
     alignSelf: "flex-end",
@@ -281,6 +338,11 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: "#fff",
     fontSize: 16,
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   signupContainer: {
     flexDirection: "row",

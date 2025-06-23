@@ -1,3 +1,4 @@
+// src/screens/main/TrackerScreen.js - COMPLETE FIXED VERSION
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -9,6 +10,9 @@ import {
   Modal,
   TextInput,
   Animated,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
@@ -19,12 +23,18 @@ import BottomNavigation from "../../components/BottomNavigation";
 const TrackerScreen = () => {
   const navigation = useNavigation();
 
-  // Water context
+  // Water context - UPDATED WITH refreshData
   const {
     waterIntake,
     increaseWater: contextIncreaseWater,
     decreaseWater: contextDecreaseWater,
     waterGoal,
+    loading: waterLoading,
+    getWaterPercentage,
+    getRemainingWater,
+    isGoalReached,
+    getTodayLogCount,
+    refreshData, // ADDED THIS
   } = useWater();
 
   // Weight context
@@ -39,12 +49,15 @@ const TrackerScreen = () => {
     getBMIColor,
     getWeightChange,
     getGoalProgress,
+    loading: weightLoading,
   } = useWeight();
 
   const [waterIncrement, setWaterIncrement] = useState(100);
   const [isWeightModalVisible, setIsWeightModalVisible] = useState(false);
   const [newWeight, setNewWeight] = useState(currentWeight.toString());
+  const [newWeightNotes, setNewWeightNotes] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
+  const [isUpdatingWeight, setIsUpdatingWeight] = useState(false);
 
   // Su animasyon referansları
   const waterLevelAnimation = useRef(new Animated.Value(0)).current;
@@ -108,58 +121,105 @@ const TrackerScreen = () => {
     return () => bubbleLoops.forEach((loop) => loop.stop());
   }, []);
 
-  // Su içme fonksiyonları
-  const decreaseWater = () => {
-    contextDecreaseWater(waterIncrement);
+  // Su içme fonksiyonları - UPDATED
+  const decreaseWater = async () => {
+    try {
+      console.log("TrackerScreen - Decrease water button pressed");
+      await contextDecreaseWater(waterIncrement);
+    } catch (error) {
+      console.error("TrackerScreen - Decrease water error:", error);
+      Alert.alert("Hata", "Su kaydı silinemedi. Tekrar deneyin.");
+    }
   };
 
-  const increaseWater = () => {
-    const newIntake = waterIntake + waterIncrement;
-    contextIncreaseWater(waterIncrement);
+  const increaseWater = async () => {
+    try {
+      console.log("TrackerScreen - Increase water button pressed");
+      const wasGoalReached = isGoalReached();
+      await contextIncreaseWater(waterIncrement);
 
-    // Hedef ulaşıldığında kutlama animasyonu
-    if (waterIntake < waterGoal && newIntake >= waterGoal) {
-      setShowCelebration(true);
+      // Hedef ulaşıldığında kutlama animasyonu
+      if (!wasGoalReached && isGoalReached()) {
+        setShowCelebration(true);
 
-      // Kutlama baloncuklarını başlat
-      celebrationBubbles.forEach((anim, index) => {
-        Animated.sequence([
-          Animated.delay(index * 100),
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      });
+        // Kutlama baloncuklarını başlat
+        celebrationBubbles.forEach((anim, index) => {
+          Animated.sequence([
+            Animated.delay(index * 100),
+            Animated.timing(anim, {
+              toValue: 1,
+              duration: 1500,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        });
 
-      setTimeout(() => setShowCelebration(false), 2000);
+        setTimeout(() => setShowCelebration(false), 2000);
+
+        // Başarı mesajı
+        Alert.alert("🎉 Tebrikler!", "Günlük su hedefine ulaştınız!", [
+          { text: "Harika!", style: "default" },
+        ]);
+      }
+    } catch (error) {
+      console.error("TrackerScreen - Increase water error:", error);
+      Alert.alert(
+        "Hata",
+        "Su kaydı eklenemedi. İnternet bağlantınızı kontrol edin."
+      );
+    }
+  };
+
+  // Manual refresh function - ADDED
+  const handleRefresh = async () => {
+    console.log("TrackerScreen - Manual refresh triggered");
+    try {
+      await refreshData(); // Water data refresh
+      // Add weight data refresh if you have it
+    } catch (error) {
+      console.error("TrackerScreen - Refresh error:", error);
     }
   };
 
   // Kilo güncelleme
   const updateWeightHandler = () => {
     setIsWeightModalVisible(true);
+    setNewWeight(currentWeight.toString());
+    setNewWeightNotes("");
   };
 
-  const saveWeight = () => {
+  const saveWeight = async () => {
     const weight = parseFloat(newWeight);
-    if (!isNaN(weight) && weight > 0 && weight <= 500) {
-      updateWeight(weight);
-      setIsWeightModalVisible(false);
-    } else {
-      alert("Please enter a valid weight between 1 and 500 kg");
-    }
-  };
 
-  // Su yüzdesi hesapla
-  const getWaterPercentage = () => {
-    return Math.min((waterIntake / waterGoal) * 100, 100);
+    if (isNaN(weight) || weight <= 0 || weight > 500) {
+      Alert.alert(
+        "Hata",
+        "Lütfen 1-500 kg arası geçerli bir kilo değeri giriniz."
+      );
+      return;
+    }
+
+    try {
+      setIsUpdatingWeight(true);
+      await updateWeight(weight, newWeightNotes);
+      setIsWeightModalVisible(false);
+
+      Alert.alert("Başarılı", "Kilonuz başarıyla güncellendi.", [
+        { text: "Tamam", style: "default" },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        "Hata",
+        error.message || "Kilo güncellenemedi. Tekrar deneyin."
+      );
+    } finally {
+      setIsUpdatingWeight(false);
+    }
   };
 
   // BMI çubuğu segmentleri
@@ -204,6 +264,16 @@ const TrackerScreen = () => {
   const weightChange = getWeightChange();
   const goalProgress = getGoalProgress();
 
+  // Loading gösterimi
+  if (waterLoading || weightLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#03A9F4" />
+        <Text style={styles.loadingText}>Veriler yükleniyor...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
@@ -222,6 +292,16 @@ const TrackerScreen = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={waterLoading || weightLoading}
+            onRefresh={handleRefresh} // UPDATED THIS LINE
+            colors={["#03A9F4"]}
+            tintColor="#03A9F4"
+            title="Veriler yenileniyor..."
+            titleColor="#666"
+          />
+        }
       >
         {/* Water Section */}
         <View style={styles.sectionCard}>
@@ -232,6 +312,14 @@ const TrackerScreen = () => {
                 <Text style={styles.waterIntakeText}>{waterIntake} mL</Text>
                 <Text style={styles.waterTarget}>/ {waterGoal} mL</Text>
               </View>
+              <Text style={styles.waterSubInfo}>
+                {getRemainingWater() > 0
+                  ? `${getRemainingWater()} mL kaldı`
+                  : "🎉 Hedef tamamlandı!"}
+              </Text>
+              <Text style={styles.waterLogCount}>
+                Bugün {getTodayLogCount()} kayıt
+              </Text>
             </View>
             <View style={styles.waterIncrementContainer}>
               <TouchableOpacity
@@ -271,10 +359,18 @@ const TrackerScreen = () => {
 
           <View style={styles.waterControlsContainer}>
             <TouchableOpacity
-              style={styles.waterButton}
+              style={[
+                styles.waterButton,
+                (waterLoading || waterIntake === 0) && styles.disabledButton,
+              ]}
               onPress={decreaseWater}
+              disabled={waterLoading || waterIntake === 0}
             >
-              <Text style={styles.waterButtonText}>−</Text>
+              {waterLoading ? (
+                <ActivityIndicator size="small" color="#03A9F4" />
+              ) : (
+                <Text style={styles.waterButtonText}>−</Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.waterGaugeContainer}>
@@ -371,10 +467,18 @@ const TrackerScreen = () => {
             </View>
 
             <TouchableOpacity
-              style={styles.waterButton}
+              style={[
+                styles.waterButton,
+                waterLoading && styles.disabledButton,
+              ]}
               onPress={increaseWater}
+              disabled={waterLoading}
             >
-              <Text style={styles.waterButtonText}>+</Text>
+              {waterLoading ? (
+                <ActivityIndicator size="small" color="#03A9F4" />
+              ) : (
+                <Text style={styles.waterButtonText}>+</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -384,10 +488,18 @@ const TrackerScreen = () => {
           <View style={styles.weightHeader}>
             <Text style={styles.sectionTitle}>Weight</Text>
             <TouchableOpacity
-              style={styles.updateButton}
+              style={[
+                styles.updateButton,
+                isUpdatingWeight && styles.disabledButton,
+              ]}
               onPress={updateWeightHandler}
+              disabled={isUpdatingWeight}
             >
-              <Text style={styles.updateButtonText}>Update</Text>
+              {isUpdatingWeight ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.updateButtonText}>Update</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -441,12 +553,16 @@ const TrackerScreen = () => {
             </View>
             <View style={styles.progressLabels}>
               <Text style={styles.progressLabel}>
-                Starting {initialWeight.toFixed(1)} kg
+                Başlangıç {initialWeight.toFixed(1)} kg
               </Text>
               <Text style={styles.progressLabel}>
-                Goal {goalWeight.toFixed(1)} kg
+                Hedef {goalWeight.toFixed(1)} kg
               </Text>
             </View>
+            <Text style={styles.progressInfo}>
+              Hedefe {goalProgress.remaining} kg{" "}
+              {goalProgress.remaining > 0 ? "var" : "geçildi"}
+            </Text>
           </View>
         </View>
 
@@ -458,6 +574,12 @@ const TrackerScreen = () => {
             <Text style={styles.bmiValue}>{bmi?.toFixed(1) || "0.0"}</Text>
             <Text style={[styles.bmiCategory, { color: getBMIColor(bmi) }]}>
               {bmiCategory}
+            </Text>
+          </View>
+
+          <View style={styles.bmiInfo}>
+            <Text style={styles.bmiInfoText}>
+              Boy: {height} cm | Kilo: {currentWeight.toFixed(1)} kg
             </Text>
           </View>
 
@@ -499,31 +621,54 @@ const TrackerScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Weight</Text>
-            <Text style={styles.modalSubtitle}>Enter your current weight</Text>
+            <Text style={styles.modalTitle}>Kilo Güncelle</Text>
+            <Text style={styles.modalSubtitle}>Güncel kilonuzu giriniz</Text>
 
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.weightInput}
                 value={newWeight}
                 onChangeText={setNewWeight}
-                placeholder="Weight"
+                placeholder="Kilo"
                 keyboardType="numeric"
                 autoFocus={true}
               />
               <Text style={styles.inputUnit}>kg</Text>
             </View>
 
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[styles.weightInput, styles.notesInput]}
+                value={newWeightNotes}
+                onChangeText={setNewWeightNotes}
+                placeholder="Not (opsiyonel)"
+                multiline={true}
+                numberOfLines={2}
+              />
+            </View>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setIsWeightModalVisible(false)}
+                disabled={isUpdatingWeight}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>İptal</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.saveButton} onPress={saveWeight}>
-                <Text style={styles.saveButtonText}>Save</Text>
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  isUpdatingWeight && styles.disabledButton,
+                ]}
+                onPress={saveWeight}
+                disabled={isUpdatingWeight}
+              >
+                {isUpdatingWeight ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Kaydet</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -540,6 +685,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
   },
   header: {
     flexDirection: "row",
@@ -576,6 +730,9 @@ const styles = StyleSheet.create({
     color: "#000",
     marginBottom: 16,
   },
+  disabledButton: {
+    opacity: 0.6,
+  },
 
   // Water Styles
   waterHeader: {
@@ -599,6 +756,17 @@ const styles = StyleSheet.create({
     color: "#666",
     marginLeft: 4,
     fontWeight: "500",
+  },
+  waterSubInfo: {
+    fontSize: 12,
+    color: "#03A9F4",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  waterLogCount: {
+    fontSize: 11,
+    color: "#999",
+    marginTop: 2,
   },
   waterControlsContainer: {
     flexDirection: "row",
@@ -782,12 +950,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
   },
+  progressInfo: {
+    fontSize: 11,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 4,
+  },
 
   // BMI Styles
   bmiDisplay: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 20,
+    marginBottom: 12,
   },
   bmiValue: {
     fontSize: 32,
@@ -798,6 +972,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
     fontWeight: "500",
+  },
+  bmiInfo: {
+    marginBottom: 16,
+  },
+  bmiInfoText: {
+    fontSize: 12,
+    color: "#666",
   },
   bmiBarContainer: {
     flexDirection: "row",
@@ -860,7 +1041,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     borderRadius: 8,
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 16,
     width: "100%",
   },
   weightInput: {
@@ -868,6 +1049,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: 12,
     color: "#000",
+  },
+  notesInput: {
+    minHeight: 60,
+    textAlignVertical: "top",
   },
   inputUnit: {
     fontSize: 16,
@@ -878,6 +1063,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     width: "100%",
+    marginTop: 8,
   },
   cancelButton: {
     flex: 1,

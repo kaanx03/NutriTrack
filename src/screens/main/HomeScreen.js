@@ -1,5 +1,5 @@
-// src/screens/main/HomeScreen.js - Updated
-import React, { useState, useEffect } from "react";
+// src/screens/main/HomeScreen.js - Backend Integration
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
 import { useMeals } from "../../context/MealsContext";
 import { useActivity } from "../../context/ActivityContext";
@@ -21,9 +28,9 @@ import Svg, { Circle } from "react-native-svg";
 const HomeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { formData } = useSignUp(); // SignUp context'ini de kullan
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const { formData } = useSignUp();
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // MealsContext'ten state ve fonksiyonları al
   const {
@@ -33,11 +40,32 @@ const HomeScreen = () => {
     caloriesLeft,
     consumedNutrients,
     calorieData,
+    currentDate,
+    changeDate,
     addFood,
+    refreshData: refreshMealsData,
+    isLoading: mealsLoading,
+    registerActivitySync,
   } = useMeals();
 
   // ActivityContext'ten burnedCalories değerini al
-  const { burnedCalories } = useActivity();
+  const {
+    burnedCalories,
+    refreshData: refreshActivityData,
+    isLoading: activityLoading,
+    syncWithDate,
+  } = useActivity();
+
+  // Context senkronizasyonunu kur
+  useEffect(() => {
+    if (registerActivitySync && syncWithDate) {
+      registerActivitySync(syncWithDate);
+      console.log("HomeScreen - Activity sync registered");
+    }
+  }, [registerActivitySync, syncWithDate]);
+
+  // Loading state
+  const isLoading = mealsLoading || activityLoading;
 
   // Debug için - SignUp verilerini konsola yazdır
   useEffect(() => {
@@ -47,15 +75,18 @@ const HomeScreen = () => {
     }
   }, [formData, calorieData]);
 
-  // Format numbers to fix floating point issues
-  const formatMacroValue = (value) => {
-    return Math.round(value * 10) / 10;
-  };
+  // Ekran focus olduğunda verileri yenile
+  useFocusEffect(
+    useCallback(() => {
+      console.log("HomeScreen focused, refreshing data...");
+      handleRefresh();
+    }, [currentDate])
+  );
 
   // Seçilen yemekleri işlemek için FoodSelectionScreen'den dönüşte
   useEffect(() => {
     if (route.params?.selectedFood) {
-      addFood(route.params.selectedFood);
+      handleAddFoodFromRoute(route.params.selectedFood);
       navigation.setParams({ selectedFood: undefined });
     }
   }, [route.params?.selectedFood]);
@@ -65,6 +96,46 @@ const HomeScreen = () => {
       navigation.setParams({ deletedFood: undefined });
     }
   }, [route.params?.deletedFood]);
+
+  // Route'dan gelen yemeği ekleme
+  const handleAddFoodFromRoute = async (selectedFood) => {
+    try {
+      await addFood(selectedFood);
+      console.log("Food added successfully from route:", selectedFood);
+    } catch (error) {
+      console.error("Error adding food from route:", error);
+      Alert.alert("Error", "Failed to add food. Please try again.", [
+        { text: "OK" },
+      ]);
+    }
+  };
+
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      console.log("Refreshing HomeScreen data...");
+
+      // Her iki context'i de yenile
+      await Promise.all([refreshMealsData(), refreshActivityData()]);
+
+      console.log("HomeScreen data refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      Alert.alert(
+        "Refresh Error",
+        "Failed to refresh data. Please check your connection and try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Format numbers to fix floating point issues
+  const formatMacroValue = (value) => {
+    return Math.round(value * 10) / 10;
+  };
 
   const formatDate = () => {
     const today = new Date();
@@ -80,41 +151,52 @@ const HomeScreen = () => {
   };
 
   const handleDateSelect = (date) => {
-    setCurrentDate(date);
+    console.log("Date selected:", date);
+    changeDate(date);
     setDatePickerVisible(false);
   };
 
   const goToPreviousDay = () => {
     const prevDay = new Date(currentDate);
     prevDay.setDate(prevDay.getDate() - 1);
-    setCurrentDate(prevDay);
+    console.log("Going to previous day:", prevDay);
+    changeDate(prevDay);
   };
 
   const goToNextDay = () => {
     const nextDay = new Date(currentDate);
     nextDay.setDate(nextDay.getDate() + 1);
-    setCurrentDate(nextDay);
+    console.log("Going to next day:", nextDay);
+    changeDate(nextDay);
   };
 
   const handleAddFood = (mealType) => {
+    console.log("Adding food for meal type:", mealType);
     navigation.navigate("FoodSelection", {
       mealType,
+      currentDate: currentDate.toISOString(),
     });
   };
 
   const viewMealDetails = (mealType) => {
+    console.log("Viewing meal details for:", mealType);
     navigation.navigate("MealDetails", {
       mealType: mealType,
       mealFoods: mealFoods[mealType],
+      currentDate: currentDate.toISOString(),
     });
   };
 
   const handleAddActivity = () => {
-    navigation.navigate("ActivitySelection");
+    console.log("Adding activity");
+    navigation.navigate("ActivitySelection", {
+      currentDate: currentDate.toISOString(),
+    });
   };
 
   // Calculate calories progress percentage (consumed/total * 100)
   const getCaloriesProgressPercentage = () => {
+    if (!calorieData.calories || calorieData.calories <= 0) return 0;
     return Math.min(
       Math.round((consumedCalories / calorieData.calories) * 100),
       100
@@ -179,6 +261,29 @@ const HomeScreen = () => {
     );
   };
 
+  // Loading component
+  if (isLoading && !refreshing) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <View style={styles.header}>
+          <View style={styles.headerPlaceholder}></View>
+          <Text style={styles.title}>NutriTrack</Text>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#000" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color="#A1CE50" />
+          <Text style={styles.loadingText}>Loading your nutrition data...</Text>
+        </View>
+        <BottomNavigation activeTab="Home" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -193,7 +298,17 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#A1CE50"]}
+            tintColor="#A1CE50"
+          />
+        }
+      >
         {/* Main Card */}
         <View style={styles.mainCard}>
           {/* Date Navigation */}
@@ -415,7 +530,6 @@ const HomeScreen = () => {
   );
 };
 
-// Styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -452,6 +566,21 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     marginTop: -60,
+  },
+  loadingContainer: {
+    justifyContent: "center",
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 100,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
   },
   mainCard: {
     backgroundColor: "#FFFFFF",

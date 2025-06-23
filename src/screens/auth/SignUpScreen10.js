@@ -1,5 +1,13 @@
+// src/screens/auth/SignUpScreen10.js - Updated with Backend Integration
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle } from "react-native-svg";
 import { useSignUp } from "../../context/SignUpContext";
@@ -15,6 +23,7 @@ const SignUpScreen10 = () => {
   const { formData, updateFormData } = useSignUp();
   const [calorieData, setCalorieData] = useState(null);
   const [calculationError, setCalculationError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const calculateCaloriesAndMacros = (
@@ -35,22 +44,24 @@ const SignUpScreen10 = () => {
         return null;
       }
 
+      // BMR hesaplama (Mifflin-St Jeor Equation)
       const bmr =
         gender.toLowerCase() === "male"
           ? 10 * weight + 6.25 * height - 5 * age + 5
           : 10 * weight + 6.25 * height - 5 * age - 161;
 
       const activityMultipliers = {
-        1: 1.2,
-        2: 1.375,
-        3: 1.55,
-        4: 1.725,
-        5: 1.9,
+        1: 1.2, // Sedentary
+        2: 1.375, // Light activity
+        3: 1.55, // Moderate activity
+        4: 1.725, // Very active
+        5: 1.9, // Extra active
       };
 
-      const multiplier = activityMultipliers[activityLevel] || 1.2;
+      const multiplier = activityMultipliers[activityLevel] || 1.55;
       const calories = Math.round(bmr * multiplier);
 
+      // Makro besin dağılımı (%50 carbs, %30 protein, %20 fat)
       const carbs = Math.round((calories * 0.5) / 4);
       const protein = Math.round((calories * 0.3) / 4);
       const fat = Math.round((calories * 0.2) / 9);
@@ -106,6 +117,14 @@ const SignUpScreen10 = () => {
       const weight = parseFloat(formData.weight);
       const activityLevel = parseInt(formData.activityLevel, 10);
 
+      console.log("Calculating with data:", {
+        gender,
+        age,
+        height,
+        weight,
+        activityLevel,
+      });
+
       const result = calculateCaloriesAndMacros(
         gender,
         age,
@@ -117,52 +136,107 @@ const SignUpScreen10 = () => {
       if (result) {
         setCalorieData(result);
         setCalculationError(false);
+        console.log("Calculated nutrition targets:", result);
+      } else {
+        setCalculationError(true);
       }
-    } catch {
+    } catch (error) {
+      console.error("Calculation error:", error);
       setCalculationError(true);
     }
   }, [formData]);
 
+  const validateFormData = () => {
+    const requiredFields = [
+      "email",
+      "password",
+      "firstName",
+      "lastName",
+      "gender",
+      "height",
+      "weight",
+    ];
+    const missingFields = [];
+
+    requiredFields.forEach((field) => {
+      if (!formData[field] || formData[field].toString().trim() === "") {
+        missingFields.push(field);
+      }
+    });
+
+    if (missingFields.length > 0) {
+      Alert.alert(
+        "Missing Information",
+        `Please fill in the following fields: ${missingFields.join(", ")}`
+      );
+      return false;
+    }
+
+    if (!formData.email.includes("@")) {
+      Alert.alert("Invalid Email", "Please enter a valid email address");
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      Alert.alert(
+        "Invalid Password",
+        "Password must be at least 6 characters long"
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleContinue = async () => {
+    if (!validateFormData()) {
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
+      console.log("Starting signup process...");
+
+      // 1. Doğum tarihini formatla
       let formattedBirthDate = "";
       if (formData.year && formData.month && formData.day) {
         formattedBirthDate = `${formData.year}-${formData.month.padStart(
           2,
           "0"
         )}-${formData.day.padStart(2, "0")}`;
+      } else if (formData.birthDate) {
+        formattedBirthDate = formData.birthDate;
       }
 
+      // 2. Backend için veri hazırla
       const userDataForBackend = {
-        ...formData,
+        email: formData.email.toLowerCase().trim(),
+        password: formData.password,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phoneNumber: formData.phoneNumber || "",
+        gender: formData.gender,
         birthDate: formattedBirthDate,
-        calculatedPlan: calorieData
-          ? {
-              dailyCalories: calorieData.calories,
-              macros: {
-                carbs: calorieData.carbs,
-                protein: calorieData.protein,
-                fat: calorieData.fat,
-              },
-            }
-          : null,
+        height: parseInt(formData.height) || null,
+        weight: parseFloat(formData.weight) || null,
+        activityLevel: parseInt(formData.activityLevel) || 3,
       };
 
-      console.log("Starting signup process...");
+      console.log("Signup data being sent:", userDataForBackend);
 
-      // 1. Signup yap
+      // 3. Signup API çağrısı
       const signupResult = await AuthService.signup(userDataForBackend);
       console.log("Signup successful:", signupResult);
 
-      // 2. Kullanıcı profilini veritabanından çek
-      const profileResult = await AuthService.getUserProfile(
-        signupResult.user.id
-      );
+      // 4. Kullanıcı profilini çek
+      console.log("Fetching user profile after signup...");
+      const profileResult = await AuthService.getUserProfile();
       console.log("Profile loaded after signup:", profileResult);
 
       const userData = profileResult.user;
 
-      // 3. SignUp context'ini veritabanından gelen verilerle güncelle
+      // 5. Context'i güncelle
       updateFormData("email", userData.email || "");
       updateFormData("firstName", userData.firstName || "");
       updateFormData("lastName", userData.lastName || "");
@@ -174,7 +248,7 @@ const SignUpScreen10 = () => {
         userData.activityLevel?.toString() || "3"
       );
 
-      // 4. Doğum tarihi formatını ayarla
+      // 6. Doğum tarihi formatını ayarla
       if (userData.birthDate) {
         try {
           const date = new Date(userData.birthDate);
@@ -189,98 +263,78 @@ const SignUpScreen10 = () => {
         }
       }
 
-      // 5. Kalori planını yeniden hesapla ve kaydet
-      if (
-        userData.gender &&
-        userData.birthDate &&
-        userData.height &&
-        userData.weight &&
-        userData.activityLevel
-      ) {
-        const calculateCaloriesFromDB = (
-          gender,
-          birthDate,
-          height,
-          weight,
-          activityLevel
-        ) => {
-          try {
-            // Yaş hesaplama
-            const today = new Date();
-            const birth = new Date(birthDate);
-            let age = today.getFullYear() - birth.getFullYear();
-            const monthDiff = today.getMonth() - birth.getMonth();
-            if (
-              monthDiff < 0 ||
-              (monthDiff === 0 && today.getDate() < birth.getDate())
-            ) {
-              age--;
-            }
+      // 7. Kalori planını context'e kaydet
+      const finalCalorieData = calorieData || {
+        calories: 2000,
+        carbs: 250,
+        protein: 150,
+        fat: 55,
+      };
 
-            // BMR hesaplama
-            const bmr =
-              gender && gender.toLowerCase() === "male"
-                ? 10 * weight + 6.25 * height - 5 * age + 5
-                : 10 * weight + 6.25 * height - 5 * age - 161;
+      updateFormData("calculatedPlan", {
+        dailyCalories: finalCalorieData.calories,
+        macros: {
+          carbs: finalCalorieData.carbs,
+          protein: finalCalorieData.protein,
+          fat: finalCalorieData.fat,
+        },
+      });
 
-            // Aktivite çarpanları
-            const activityMultipliers = {
-              1: 1.2,
-              2: 1.375,
-              3: 1.55,
-              4: 1.725,
-              5: 1.9,
-            };
+      console.log("Final calculated plan:", finalCalorieData);
 
-            const multiplier = activityMultipliers[activityLevel] || 1.55;
-            const calories = Math.round(bmr * multiplier);
-
-            const carbs = Math.round((calories * 0.5) / 4);
-            const protein = Math.round((calories * 0.3) / 4);
-            const fat = Math.round((calories * 0.2) / 9);
-
-            return { calories, carbs, protein, fat };
-          } catch (error) {
-            console.error("Calorie calculation error:", error);
-            return (
-              calorieData || {
-                calories: 2000,
-                carbs: 250,
-                protein: 150,
-                fat: 55,
-              }
-            );
-          }
-        };
-
-        const calculatedPlan = calculateCaloriesFromDB(
-          userData.gender,
-          userData.birthDate,
-          userData.height,
-          userData.weight,
-          userData.activityLevel
-        );
-
-        updateFormData("calculatedPlan", {
-          dailyCalories: calculatedPlan.calories,
-          macros: {
-            carbs: calculatedPlan.carbs,
-            protein: calculatedPlan.protein,
-            fat: calculatedPlan.fat,
+      // 8. Başarı mesajı ve yönlendirme
+      Alert.alert(
+        "Account Created Successfully!",
+        `Welcome to NutriTrack, ${userData.firstName}! Your personalized nutrition plan is ready.`,
+        [
+          {
+            text: "Start Tracking",
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Home" }],
+              });
+            },
           },
-        });
-
-        console.log("Calculated plan updated from DB:", calculatedPlan);
-      }
-
-      // 6. Home'a git
-      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        ]
+      );
     } catch (err) {
       console.error("Signup error:", err);
-      Alert.alert("Signup Error", err.message);
+
+      let errorMessage = "An error occurred during account creation";
+
+      if (err.message.includes("Email already in use")) {
+        errorMessage =
+          "An account with this email already exists. Please try logging in.";
+      } else if (err.message.includes("Network")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (err.message.includes("Backend sunucusuna")) {
+        errorMessage = "Cannot connect to server. Please try again later.";
+      } else {
+        errorMessage = err.message;
+      }
+
+      Alert.alert("Signup Error", errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#474747" />
+        <Text style={styles.loadingText}>Creating your account...</Text>
+        <Text style={styles.loadingSubText}>
+          Please wait while we set up your personalized nutrition plan.
+        </Text>
+      </View>
+    );
+  }
+
+  // Error state
   if (calculationError) {
     return (
       <View style={styles.container}>
@@ -366,14 +420,19 @@ const SignUpScreen10 = () => {
     );
   }
 
+  // Loading calculation state
   if (!calorieData) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Calculating your plan...</Text>
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#474747" />
+        <Text style={styles.loadingText}>
+          Calculating your personalized plan...
+        </Text>
       </View>
     );
   }
 
+  // Success state with calculated data
   const carbsLength =
     ((calorieData.carbs * 4) / calorieData.calories) * circumference;
   const proteinLength =
@@ -470,6 +529,10 @@ const styles = StyleSheet.create({
     paddingTop: 100,
     alignItems: "center",
   },
+  centerContent: {
+    justifyContent: "center",
+    paddingTop: 0,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -482,6 +545,20 @@ const styles = StyleSheet.create({
     color: "#F44336",
     textAlign: "center",
     marginBottom: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  loadingSubText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 10,
+    paddingHorizontal: 20,
   },
   pickerContainer: {
     marginTop: 30,
