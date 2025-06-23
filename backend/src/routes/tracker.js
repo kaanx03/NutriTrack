@@ -374,14 +374,14 @@ router.get("/weight", authenticateToken, async (req, res) => {
 
 // Kilo kaydı ekle
 router.post("/weight", authenticateToken, async (req, res) => {
-  const client = await db.beginTransaction(); // Start a transaction
+  const client = await db.beginTransaction();
 
   try {
     const userId = req.userId;
     const { weight, date, notes } = req.body;
 
     if (!weight || weight <= 0 || weight > 500) {
-      await db.rollbackTransaction(client); // Rollback on validation error
+      await db.rollbackTransaction(client);
       return res.status(400).json({
         error: "Invalid weight",
         details: "Weight must be between 1 and 500 kg",
@@ -402,29 +402,40 @@ router.post("/weight", authenticateToken, async (req, res) => {
       bmi = weight / (heightInMeters * heightInMeters);
     }
 
-    // Kilo kaydını ekle
+    console.log(
+      `🏋️ Adding weight log: ${weight}kg for user ${userId} on ${loggedDate}`
+    );
+
+    // 1. Kilo kaydını weight_logs'a ekle
     const weightLog = await client.query(
       `INSERT INTO weight_logs (user_id, weight_kg, bmi, logged_date, notes)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [userId, weight, bmi, loggedDate, notes]
     );
 
-    // Kullanıcının mevcut kilosunu güncelle
+    console.log(`✅ Weight log added:`, weightLog.rows[0]);
+
+    // 2. Kullanıcının mevcut kilosunu güncelle
     await client.query(
       "UPDATE users SET weight = $2, updated_at = NOW() WHERE id = $1",
       [userId, weight]
     );
 
-    // Günlük veri tablosunda da kiloya yer ver
-    await client.query(
-      `INSERT INTO user_daily_data (user_id, date, weight_kg)
-       VALUES ($1, $2, $3)
+    console.log(`✅ User weight updated to ${weight}kg`);
+
+    // 3. CRITICAL: user_daily_data tablosunda da kiloya yer ver
+    const upsertResult = await client.query(
+      `INSERT INTO user_daily_data (user_id, date, weight_kg, updated_at)
+       VALUES ($1, $2, $3, NOW())
        ON CONFLICT (user_id, date)
-       DO UPDATE SET weight_kg = $3, updated_at = NOW()`,
+       DO UPDATE SET weight_kg = $3, updated_at = NOW()
+       RETURNING *`,
       [userId, loggedDate, weight]
     );
 
-    await db.commitTransaction(client); // Commit the transaction
+    console.log(`✅ user_daily_data updated:`, upsertResult.rows[0]);
+
+    await db.commitTransaction(client);
 
     res.status(201).json({
       success: true,
@@ -432,8 +443,8 @@ router.post("/weight", authenticateToken, async (req, res) => {
       message: "Weight logged successfully",
     });
   } catch (err) {
-    await db.rollbackTransaction(client); // Rollback on any error
-    console.error("Add weight log error:", err);
+    await db.rollbackTransaction(client);
+    console.error("❌ Add weight log error:", err);
     res.status(500).json({
       error: "Server error",
       details: "Failed to log weight",
@@ -441,9 +452,9 @@ router.post("/weight", authenticateToken, async (req, res) => {
   }
 });
 
-// Kilo kaydını güncelle
+// Kilo kaydını güncelle - IMPROVED with user_daily_data sync
 router.put("/weight/:logId", authenticateToken, async (req, res) => {
-  const client = await db.beginTransaction(); // Start a transaction
+  const client = await db.beginTransaction();
 
   try {
     const userId = req.userId;
@@ -457,7 +468,7 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
     );
 
     if (existing.rows.length === 0) {
-      await db.rollbackTransaction(client); // Rollback
+      await db.rollbackTransaction(client);
       return res.status(404).json({
         error: "Weight log not found",
         details: "Weight log not found or you don't have permission to edit it",
@@ -465,8 +476,6 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
     }
 
     const currentLog = existing.rows[0];
-
-    // Yeni değerler
     const newWeight = weight || currentLog.weight_kg;
     const newNotes = notes !== undefined ? notes : currentLog.notes;
 
@@ -482,7 +491,9 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
       bmi = newWeight / (heightInMeters * heightInMeters);
     }
 
-    // Kilo kaydını güncelle
+    console.log(`🏋️ Updating weight log ${logId}: ${newWeight}kg`);
+
+    // 1. Weight_logs'u güncelle
     const result = await client.query(
       `UPDATE weight_logs
        SET weight_kg = $3, bmi = $4, notes = $5, created_at = NOW()
@@ -491,7 +502,15 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
       [logId, userId, newWeight, bmi, newNotes]
     );
 
-    // Eğer bu en son kayıtsa kullanıcının mevcut kilosunu da güncelle
+    // 2. user_daily_data'yı da güncelle
+    await client.query(
+      `UPDATE user_daily_data
+       SET weight_kg = $3, updated_at = NOW()
+       WHERE user_id = $1 AND date = $2`,
+      [userId, currentLog.logged_date, newWeight]
+    );
+
+    // 3. Eğer bu en son kayıtsa kullanıcının mevcut kilosunu da güncelle
     const latestLog = await client.query(
       `SELECT id FROM weight_logs
        WHERE user_id = $1
@@ -507,7 +526,7 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
       );
     }
 
-    await db.commitTransaction(client); // Commit the transaction
+    await db.commitTransaction(client);
 
     res.json({
       success: true,
@@ -515,8 +534,8 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
       message: "Weight log updated successfully",
     });
   } catch (err) {
-    await db.rollbackTransaction(client); // Rollback on any error
-    console.error("Update weight log error:", err);
+    await db.rollbackTransaction(client);
+    console.error("❌ Update weight log error:", err);
     res.status(500).json({
       error: "Server error",
       details: "Failed to update weight log",
@@ -524,9 +543,9 @@ router.put("/weight/:logId", authenticateToken, async (req, res) => {
   }
 });
 
-// Kilo kaydını sil
+// Kilo kaydını sil - IMPROVED with user_daily_data cleanup
 router.delete("/weight/:logId", authenticateToken, async (req, res) => {
-  const client = await db.beginTransaction(); // Start a transaction
+  const client = await db.beginTransaction();
 
   try {
     const userId = req.userId;
@@ -539,7 +558,7 @@ router.delete("/weight/:logId", authenticateToken, async (req, res) => {
     );
 
     if (weightLog.rows.length === 0) {
-      await db.rollbackTransaction(client); // Rollback
+      await db.rollbackTransaction(client);
       return res.status(404).json({
         error: "Weight log not found",
         details:
@@ -549,10 +568,20 @@ router.delete("/weight/:logId", authenticateToken, async (req, res) => {
 
     const log = weightLog.rows[0];
 
-    // Kilo kaydını sil
+    console.log(`🗑️ Deleting weight log ${logId} for date ${log.logged_date}`);
+
+    // 1. Weight_logs'dan sil
     await client.query("DELETE FROM weight_logs WHERE id = $1", [logId]);
 
-    // Eğer bu en son kayıtsa, bir önceki kayıtla kullanıcının kilosunu güncelle
+    // 2. user_daily_data'dan da weight_kg'yi temizle (sadece o tarih için)
+    await client.query(
+      `UPDATE user_daily_data 
+       SET weight_kg = NULL, updated_at = NOW()
+       WHERE user_id = $1 AND date = $2`,
+      [userId, log.logged_date]
+    );
+
+    // 3. Eğer bu en son kayıtsa, bir önceki kayıtla kullanıcının kilosunu güncelle
     const latestLog = await client.query(
       `SELECT weight_kg FROM weight_logs
        WHERE user_id = $1
@@ -567,14 +596,13 @@ router.delete("/weight/:logId", authenticateToken, async (req, res) => {
         [userId, latestLog.rows[0].weight_kg]
       );
     } else {
-      // If no other weight logs exist, set user's weight to NULL or 0
       await client.query(
         "UPDATE users SET weight = NULL, updated_at = NOW() WHERE id = $1",
         [userId]
       );
     }
 
-    await db.commitTransaction(client); // Commit the transaction
+    await db.commitTransaction(client);
 
     res.json({
       success: true,
@@ -582,11 +610,65 @@ router.delete("/weight/:logId", authenticateToken, async (req, res) => {
       deletedLog: log,
     });
   } catch (err) {
-    await db.rollbackTransaction(client); // Rollback on any error
-    console.error("Delete weight log error:", err);
+    await db.rollbackTransaction(client);
+    console.error("❌ Delete weight log error:", err);
     res.status(500).json({
       error: "Server error",
       details: "Failed to delete weight log",
+    });
+  }
+});
+
+// NEW: Mevcut weight_logs verilerini user_daily_data'ya sync et
+router.post("/weight/sync", authenticateToken, async (req, res) => {
+  const client = await db.beginTransaction();
+
+  try {
+    const userId = req.userId;
+
+    console.log(`🔄 Syncing weight data for user ${userId}`);
+
+    // Kullanıcının tüm weight_logs verilerini al
+    const weightLogs = await client.query(
+      `SELECT weight_kg, logged_date
+       FROM weight_logs 
+       WHERE user_id = $1
+       ORDER BY logged_date DESC`,
+      [userId]
+    );
+
+    console.log(`📊 Found ${weightLogs.rows.length} weight logs to sync`);
+
+    let syncedCount = 0;
+
+    // Her weight log'u user_daily_data'ya sync et
+    for (const log of weightLogs.rows) {
+      await client.query(
+        `INSERT INTO user_daily_data (user_id, date, weight_kg, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (user_id, date)
+         DO UPDATE SET weight_kg = $3, updated_at = NOW()`,
+        [userId, log.logged_date, log.weight_kg]
+      );
+      syncedCount++;
+    }
+
+    await db.commitTransaction(client);
+
+    console.log(`✅ Synced ${syncedCount} weight records`);
+
+    res.json({
+      success: true,
+      message: `Synced ${syncedCount} weight records to daily data`,
+      syncedCount: syncedCount,
+      totalLogs: weightLogs.rows.length,
+    });
+  } catch (err) {
+    await db.rollbackTransaction(client);
+    console.error("❌ Weight sync error:", err);
+    res.status(500).json({
+      error: "Server error",
+      details: "Failed to sync weight data",
     });
   }
 });

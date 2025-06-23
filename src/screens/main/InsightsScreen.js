@@ -1,4 +1,4 @@
-// src/screens/main/InsightsScreen.js - Simple Working Version
+// src/screens/main/InsightsScreen.js - Improved UI and Date Logic
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -46,9 +46,21 @@ const InsightsScreen = () => {
   } = useInsights();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCalorieDay, setSelectedCalorieDay] = useState(0);
-  const [selectedWaterDay, setSelectedWaterDay] = useState(0);
-  const [selectedWeightDay, setSelectedWeightDay] = useState(0);
+
+  // IMPROVED: Bugünün indeksini bul ve onu selected yap
+  const today = new Date().getDate();
+  const days = getChartDays();
+  const todayIndex = days.findIndex((day) => parseInt(day) === today);
+
+  const [selectedCalorieDay, setSelectedCalorieDay] = useState(
+    todayIndex >= 0 ? todayIndex : 0
+  );
+  const [selectedWaterDay, setSelectedWaterDay] = useState(
+    todayIndex >= 0 ? todayIndex : 0
+  );
+  const [selectedWeightDay, setSelectedWeightDay] = useState(
+    todayIndex >= 0 ? todayIndex : 0
+  );
   const [selectedNutritionDay, setSelectedNutritionDay] = useState(null);
 
   // Chart data
@@ -76,7 +88,6 @@ const InsightsScreen = () => {
     }));
   }, [nutritionData]);
 
-  const days = getChartDays();
   const calorieGoal = getSafeValue("calories.stats.average_goal", 2500);
   const waterGoal = getSafeValue("water.stats.average_goal", 2500);
   const goalWeight = getSafeValue("weight.goalWeight", 70);
@@ -121,7 +132,7 @@ const InsightsScreen = () => {
     );
   }
 
-  // Simple Bar Chart Component
+  // IMPROVED: Bar Chart Component with better styling
   const BarChart = ({
     data,
     goal,
@@ -163,7 +174,21 @@ const InsightsScreen = () => {
             const x = 30 + index * barWidth + barWidth * 0.2;
             const y = 170 - barHeight;
             const isSelected = index === selectedDay;
+            const isToday = parseInt(days[index]) === today;
+            const hasData = value > 0;
             const barWidthActual = barWidth * 0.6;
+
+            // IMPROVED: Renk mantığı - bugün + seçili + veri varlığı
+            let barColor;
+            if (isSelected && hasData) {
+              barColor = primaryColor; // Seçili ve verisi var - koyu renk
+            } else if (isToday && hasData) {
+              barColor = primaryColor; // Bugün ve verisi var - koyu renk
+            } else if (hasData) {
+              barColor = secondaryColor; // Sadece verisi var - açık renk
+            } else {
+              barColor = "#F0F0F0"; // Veri yok - çok açık gri
+            }
 
             return (
               <React.Fragment key={index}>
@@ -171,17 +196,18 @@ const InsightsScreen = () => {
                   x={x}
                   y={y + barWidthActual / 2}
                   width={barWidthActual}
-                  height={Math.max(0, barHeight - barWidthActual / 2)}
-                  fill={isSelected ? primaryColor : secondaryColor}
+                  height={Math.max(2, barHeight - barWidthActual / 2)} // Min 2px yükseklik
+                  fill={barColor}
                 />
                 <Circle
                   cx={x + barWidthActual / 2}
                   cy={y + barWidthActual / 2}
                   r={barWidthActual / 2}
-                  fill={isSelected ? primaryColor : secondaryColor}
+                  fill={barColor}
                 />
 
-                {isSelected && value > 0 && (
+                {/* IMPROVED: Selected indicator - sadece veri varsa göster */}
+                {isSelected && hasData && (
                   <>
                     <Circle
                       cx={x + barWidthActual / 2}
@@ -218,23 +244,37 @@ const InsightsScreen = () => {
                     </SvgText>
                   </>
                 )}
+
+                {/* IMPROVED: Today indicator - bugünü göster */}
+                {isToday && (
+                  <Circle
+                    cx={x + barWidthActual / 2}
+                    cy={185}
+                    r="3"
+                    fill={primaryColor}
+                  />
+                )}
               </React.Fragment>
             );
           })}
 
-          {/* X-axis labels */}
-          {days.slice(0, data.length).map((day, index) => (
-            <SvgText
-              key={index}
-              x={30 + index * barWidth + barWidth * 0.5}
-              y="195"
-              fontSize="12"
-              fill="#666"
-              textAnchor="middle"
-            >
-              {day}
-            </SvgText>
-          ))}
+          {/* IMPROVED: X-axis labels - bugün koyu, diğerleri normal */}
+          {days.slice(0, data.length).map((day, index) => {
+            const isToday = parseInt(day) === today;
+            return (
+              <SvgText
+                key={index}
+                x={30 + index * barWidth + barWidth * 0.5}
+                y="195"
+                fontSize="12"
+                fill={isToday ? "#333" : "#666"}
+                textAnchor="middle"
+                fontWeight={isToday ? "bold" : "normal"}
+              >
+                {day}
+              </SvgText>
+            );
+          })}
 
           {/* Y-axis labels */}
           {maxValue > 0 && (
@@ -265,7 +305,7 @@ const InsightsScreen = () => {
         </Svg>
 
         {/* Touchable overlay */}
-        {data.map((_, index) => {
+        {data.map((value, index) => {
           const x = 30 + index * barWidth + barWidth * 0.2;
           const barWidthActual = barWidth * 0.6;
 
@@ -273,12 +313,37 @@ const InsightsScreen = () => {
             <TouchableOpacity
               key={`touch-${index}`}
               style={[styles.barTouchArea, { left: x, width: barWidthActual }]}
-              onPress={() => onDaySelect(index)}
+              onPress={() => value > 0 && onDaySelect(index)} // Sadece veri varsa seçilebilir
             />
           );
         })}
       </View>
     );
+  };
+
+  // IMPROVED: Period labels - Dinamik içerik
+  const getPeriodLabel = (period) => {
+    switch (period) {
+      case "weekly":
+        return "Weekly";
+      case "monthly":
+        return "Monthly";
+      case "yearly":
+        return "Yearly";
+      default:
+        return period.charAt(0).toUpperCase() + period.slice(1);
+    }
+  };
+
+  // IMPROVED: Date navigation labels
+  const getDateNavigationLabel = () => {
+    if (selectedPeriod === "monthly") {
+      return getFormattedDateRange(); // Şubat 2025 gibi
+    } else if (selectedPeriod === "yearly") {
+      return getFormattedDateRange(); // 2025 gibi
+    } else {
+      return getFormattedDateRange(); // Jun 23 - Jun 29, 2025 gibi
+    }
   };
 
   return (
@@ -312,7 +377,7 @@ const InsightsScreen = () => {
           </View>
         )}
 
-        {/* Period Selection */}
+        {/* IMPROVED: Period Selection */}
         <View style={styles.periodContainer}>
           {["weekly", "monthly", "yearly"].map((period) => (
             <TouchableOpacity
@@ -329,27 +394,53 @@ const InsightsScreen = () => {
                   selectedPeriod === period && styles.selectedPeriodText,
                 ]}
               >
-                {period.charAt(0).toUpperCase() + period.slice(1)}
+                {getPeriodLabel(period)}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Date Navigation */}
+        {/* IMPROVED: Date Navigation */}
         <View style={styles.dateNav}>
-          <TouchableOpacity onPress={() => changeDate("previous")}>
+          <TouchableOpacity
+            onPress={() => changeDate("previous")}
+            style={styles.dateNavButton}
+          >
             <Ionicons name="chevron-back" size={20} color="#666" />
           </TouchableOpacity>
-          <Text style={styles.dateText}>{getFormattedDateRange()}</Text>
-          <TouchableOpacity onPress={() => changeDate("next")}>
+          <View style={styles.dateTextContainer}>
+            <Text style={styles.dateText}>{getDateNavigationLabel()}</Text>
+            {selectedPeriod === "weekly" && (
+              <Text style={styles.dateSubText}>7 days</Text>
+            )}
+            {selectedPeriod === "monthly" && (
+              <Text style={styles.dateSubText}>30 days</Text>
+            )}
+            {selectedPeriod === "yearly" && (
+              <Text style={styles.dateSubText}>365 days</Text>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={() => changeDate("next")}
+            style={styles.dateNavButton}
+          >
             <Ionicons name="chevron-forward" size={20} color="#666" />
           </TouchableOpacity>
+        </View>
+
+        {/* IMPROVED: Today indicator */}
+        <View style={styles.todayIndicator}>
+          <View style={styles.todayDot} />
+          <Text style={styles.todayText}>Today: {today}</Text>
         </View>
 
         {/* Calorie Chart */}
         <View style={styles.chartSection}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Calorie (kcal)</Text>
+            <View style={styles.goalInfo}>
+              <Text style={styles.goalText}>Goal: {calorieGoal}</Text>
+            </View>
           </View>
           <BarChart
             data={calorieChartData}
@@ -366,6 +457,9 @@ const InsightsScreen = () => {
         <View style={styles.chartSection}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Water (mL)</Text>
+            <View style={styles.goalInfo}>
+              <Text style={styles.goalText}>Goal: {waterGoal} ml</Text>
+            </View>
           </View>
           <BarChart
             data={waterChartData}
@@ -382,6 +476,9 @@ const InsightsScreen = () => {
         <View style={styles.chartSection}>
           <View style={styles.chartHeader}>
             <Text style={styles.chartTitle}>Weight (kg)</Text>
+            <View style={styles.goalInfo}>
+              <Text style={styles.goalText}>Goal: {goalWeight} kg</Text>
+            </View>
           </View>
           <BarChart
             data={weightChartData}
@@ -451,6 +548,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   title: {
     fontSize: 18,
@@ -481,14 +583,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
     marginTop: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   periodButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: "center",
-    borderRadius: 6,
+    borderRadius: 8,
   },
   selectedPeriodButton: {
     backgroundColor: "#63A4F4",
@@ -500,6 +607,7 @@ const styles = StyleSheet.create({
   },
   selectedPeriodText: {
     color: "#FFFFFF",
+    fontWeight: "600",
   },
   dateNav: {
     flexDirection: "row",
@@ -508,10 +616,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  dateNavButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+  },
+  dateTextContainer: {
+    alignItems: "center",
+  },
   dateText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#333",
+  },
+  dateSubText: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  todayIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 20,
+    marginBottom: 10,
+    paddingVertical: 8,
+  },
+  todayDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#63A4F4",
+    marginRight: 6,
+  },
+  todayText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "500",
   },
   chartSection: {
     backgroundColor: "#FFFFFF",
@@ -519,8 +660,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   chartHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   chartTitle: {
@@ -528,10 +677,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
+  goalInfo: {
+    backgroundColor: "#F8F9FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  goalText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "500",
+  },
   noDataContainer: {
     height: 220,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
   },
   noDataText: {
     fontSize: 14,
@@ -543,8 +705,8 @@ const styles = StyleSheet.create({
   },
   barTouchArea: {
     position: "absolute",
-    height: 120,
-    top: 50,
+    height: 140,
+    top: 30,
     backgroundColor: "transparent",
     zIndex: 2,
   },
