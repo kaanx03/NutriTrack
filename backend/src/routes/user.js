@@ -6,7 +6,142 @@ const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Kullanıcı profilini güncelle
+// Get user profile
+router.get("/profile", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const result = await db.query(
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.phone_number,
+              u.gender, u.birth_date, u.height, u.weight, u.activity_level,
+              u.profile_image_url, u.created_at,
+              dt.daily_calories, dt.daily_protein, dt.daily_carbs,
+              dt.daily_fat, dt.water_target, dt.goal_weight
+       FROM users u
+       LEFT JOIN user_daily_targets dt ON u.id = dt.user_id
+       WHERE u.id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const u = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        phoneNumber: u.phone_number,
+        gender: u.gender,
+        birthDate: u.birth_date,
+        height: u.height,
+        weight: u.weight,
+        activityLevel: u.activity_level,
+        profileImageUrl: u.profile_image_url,
+        createdAt: u.created_at,
+        targets: {
+          dailyCalories: u.daily_calories,
+          dailyProtein: u.daily_protein,
+          dailyCarbs: u.daily_carbs,
+          dailyFat: u.daily_fat,
+          waterTarget: u.water_target,
+          goalWeight: u.goal_weight,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Get profile error:", err);
+    res.status(500).json({ error: "Server error", details: "Failed to fetch profile" });
+  }
+});
+
+// Get daily nutrition targets
+router.get("/daily-targets", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const result = await db.query(
+      "SELECT * FROM user_daily_targets WHERE user_id = $1",
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Targets not found" });
+    }
+
+    const t = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        dailyCalories: t.daily_calories,
+        dailyProtein:  t.daily_protein,
+        dailyCarbs:    t.daily_carbs,
+        dailyFat:      t.daily_fat,
+        waterTarget:   t.water_target,
+        goal_weight:   t.goal_weight,
+      },
+    });
+  } catch (err) {
+    console.error("Get daily targets error:", err);
+    res.status(500).json({ error: "Server error", details: "Failed to fetch targets" });
+  }
+});
+
+// Update daily nutrition targets (including goal weight)
+router.put("/daily-targets", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { daily_calories, daily_protein, daily_carbs, daily_fat, water_target, goal_weight } = req.body;
+
+    const fields = [];
+    const values = [userId];
+    let idx = 2;
+
+    if (daily_calories !== undefined) { fields.push(`daily_calories = $${idx++}`); values.push(daily_calories); }
+    if (daily_protein  !== undefined) { fields.push(`daily_protein  = $${idx++}`); values.push(daily_protein); }
+    if (daily_carbs    !== undefined) { fields.push(`daily_carbs    = $${idx++}`); values.push(daily_carbs); }
+    if (daily_fat      !== undefined) { fields.push(`daily_fat      = $${idx++}`); values.push(daily_fat); }
+    if (water_target   !== undefined) { fields.push(`water_target   = $${idx++}`); values.push(water_target); }
+    if (goal_weight    !== undefined) { fields.push(`goal_weight    = $${idx++}`); values.push(goal_weight); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    fields.push(`updated_at = NOW()`);
+
+    const result = await db.query(
+      `UPDATE user_daily_targets SET ${fields.join(", ")} WHERE user_id = $1 RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Targets not found for this user" });
+    }
+
+    const t = result.rows[0];
+    res.json({
+      success: true,
+      data: {
+        dailyCalories: t.daily_calories,
+        dailyProtein:  t.daily_protein,
+        dailyCarbs:    t.daily_carbs,
+        dailyFat:      t.daily_fat,
+        waterTarget:   t.water_target,
+        goal_weight:   t.goal_weight,
+      },
+    });
+  } catch (err) {
+    console.error("Update daily targets error:", err);
+    res.status(500).json({ error: "Server error", details: "Failed to update targets" });
+  }
+});
+
+// Update user profile
 router.put("/profile", authenticateToken, async (req, res) => {
   const client = await db.beginTransaction();
 

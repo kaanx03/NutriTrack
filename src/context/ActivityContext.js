@@ -179,16 +179,21 @@ export const ActivityProvider = ({ children }) => {
       console.log("Loading recent activities...");
       const recentActivities = await NutritionService.getRecentActivities(10);
 
-      const transformedRecent = recentActivities.map((recent) => ({
-        id: recent.activity_id || Date.now().toString(),
-        name: recent.activity_name || "Unknown Activity",
-        calories: Math.round(recent.avg_calories_per_minute * 30), // 30 dakika için
-        mins: 30,
-        duration: 30,
-        type: "Cardio",
-        intensity: "Moderate",
-        lastUsed: recent.last_used,
-      }));
+      const transformedRecent = recentActivities.map((recent) => {
+        // Use stored average duration if available, otherwise default to 30
+        const avgDuration = recent.avg_duration_minutes || 30;
+        return {
+          id: recent.activity_id || Date.now().toString(),
+          name: recent.activity_name || "Unknown Activity",
+          caloriesPerMinute: recent.avg_calories_per_minute || 0,
+          calories: Math.round((recent.avg_calories_per_minute || 0) * avgDuration),
+          mins: avgDuration,
+          duration: avgDuration,
+          type: "Cardio",
+          intensity: "Moderate",
+          lastUsed: recent.last_used,
+        };
+      });
 
       setState((prevState) => ({
         ...prevState,

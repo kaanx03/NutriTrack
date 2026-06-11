@@ -41,18 +41,10 @@ const initialState = {
 
 const MealsContext = createContext(initialState);
 
-// Activity sync callback - ActivityContext'e date değişimini bildir
-let activitySyncCallback = null;
-
 export const MealsProvider = ({ children }) => {
   const { formData } = useSignUp();
   const [state, setState] = useState(initialState);
   const [currentDate, setCurrentDate] = useState(new Date());
-
-  // Activity context sync register
-  const registerActivitySync = (syncCallback) => {
-    activitySyncCallback = syncCallback;
-  };
 
   // SignUp verilerine göre kalori hedeflerini güncelleme
   useEffect(() => {
@@ -67,15 +59,6 @@ export const MealsProvider = ({ children }) => {
     const dateString = NutritionService.formatDate(currentDate);
     if (state.lastSyncDate !== dateString) {
       loadDailyData(currentDate);
-
-      // ActivityContext'e date değişimini bildir
-      if (activitySyncCallback) {
-        console.log(
-          "MealsContext - Syncing date change with ActivityContext:",
-          currentDate
-        );
-        activitySyncCallback(currentDate);
-      }
     }
   }, [currentDate]);
 
@@ -235,14 +218,7 @@ export const MealsProvider = ({ children }) => {
     };
   };
 
-  // Tarih değiştirme fonksiyonu - ActivityContext'i de uyarır
   const changeDate = (newDate) => {
-    console.log(
-      "MealsContext - Date changing from",
-      currentDate,
-      "to",
-      newDate
-    );
     setCurrentDate(newDate);
   };
 
@@ -1198,7 +1174,6 @@ export const MealsProvider = ({ children }) => {
     ...state,
     currentDate,
     changeDate,
-    registerActivitySync,
     addFood,
     deleteFood,
     toggleFavorite,

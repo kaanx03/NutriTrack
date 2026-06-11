@@ -18,12 +18,14 @@ const insightsRoutes = require("./routes/insights"); // NEW: Insights route
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin: ["http://localhost:19006", "http://10.0.2.2:19006"], // Expo development
-    credentials: true,
-  })
-);
+// In development allow any origin so physical devices on the LAN work.
+// In production restrict to the value of the CORS_ORIGIN env variable.
+const corsOrigin =
+  process.env.NODE_ENV === "production"
+    ? process.env.CORS_ORIGIN || false
+    : true; // true = reflect the request origin (any origin allowed)
+
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 

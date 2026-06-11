@@ -337,16 +337,37 @@ export const WaterProvider = ({ children }) => {
     }
   };
 
-  // Su hedefini güncelle - basit version
+  // Su hedefini güncelle — backend'e de kaydet
   const updateWaterGoal = async (newGoal) => {
     if (newGoal <= 0 || newGoal > 10000) {
       Alert.alert("Hata", "Su hedefi 500-5000 ml arasında olmalıdır.");
       return;
     }
 
-    // Şimdilik sadece local state'i güncelle
+    const previousGoal = waterGoal;
     setWaterGoal(newGoal);
-    console.log("WaterContext - Su hedefi güncellendi:", newGoal);
+
+    try {
+      const token = await getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_URL}/settings/water`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ water_intake_goal: newGoal }),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setWaterGoal(previousGoal);
+        console.error("WaterContext - Su hedefi backend'e kaydedilemedi:", data.error);
+      } else {
+        console.log("WaterContext - Su hedefi backend'e kaydedildi:", newGoal);
+      }
+    } catch (error) {
+      console.error("WaterContext - Su hedefi güncelleme hatası:", error);
+      setWaterGoal(previousGoal);
+    }
   };
 
   // Local cache'e kaydet

@@ -31,6 +31,14 @@ class AuthService {
     }
   }
 
+  // Token'ı döndür — henüz yüklenmemişse AsyncStorage'dan bekle
+  async getToken() {
+    if (!this.token) {
+      await this.loadToken();
+    }
+    return this.token;
+  }
+
   // Token'ı sil
   async clearToken() {
     try {

@@ -19,9 +19,10 @@ class NutritionService {
         ...options,
       };
 
-      // Token'ı ekle
-      if (AuthService.token) {
-        config.headers.Authorization = `Bearer ${AuthService.token}`;
+      // Token'ı ekle — cold-start race condition'ı önlemek için async getter kullan
+      const token = await AuthService.getToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
       }
 
       if (options.body && typeof options.body === "object") {

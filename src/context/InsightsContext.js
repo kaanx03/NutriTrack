@@ -11,11 +11,11 @@ export const InsightsProvider = ({ children }) => {
   const [selectedPeriod, setSelectedPeriod] = useState("weekly");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dashboardData, setDashboardData] = useState(null);
-  const [calorieData, setCalorieData] = useState(null);
-  const [weightData, setWeightData] = useState(null);
-  const [waterData, setWaterData] = useState(null);
-  const [nutritionData, setNutritionData] = useState(null);
-  const [bmiData, setBmiData] = useState(null);
+  const [calorieData,   setCalorieData]   = useState({ chart: [], stats: {} });
+  const [weightData,    setWeightData]    = useState({ chart: [], stats: {} });
+  const [waterData,     setWaterData]     = useState({ chart: [], stats: {} });
+  const [nutritionData, setNutritionData] = useState({ chart: [], stats: {} });
+  const [bmiData,       setBmiData]       = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
