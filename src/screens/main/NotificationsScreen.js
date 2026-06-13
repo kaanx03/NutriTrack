@@ -4,6 +4,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import ScreenHeader from "../../components/ScreenHeader";
+import { COLORS } from "../../theme";
 
 // Not: Uygulamada henüz sunucu taraflı bildirim sistemi yok. Daha önce burada
 // sabit örnek veri (Ocak 2025 tarihli, var olmayan "Daily Step Goal" vb.)
@@ -18,7 +19,7 @@ const NotificationsScreen = () => {
 
       <View style={styles.emptyState}>
         <View style={styles.emptyIcon}>
-          <Ionicons name="notifications-outline" size={40} color="#B0B8C1" />
+          <Ionicons name="notifications-outline" size={40} color={COLORS.avatarIcon} />
         </View>
         <Text style={styles.emptyTitle}>No notifications yet</Text>
         <Text style={styles.emptyText}>
@@ -32,7 +33,7 @@ const NotificationsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   emptyState: {
     flex: 1,
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: "#EDF1F5",
+    backgroundColor: COLORS.avatarBg,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -53,12 +54,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
     lineHeight: 20,
   },

@@ -7,12 +7,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
-  Modal,
-} from "react-native";
+  Modal } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { COLORS } from "../../../theme";
 
 const ForgotPasswordScreen3 = () => {
   const navigation = useNavigation();
@@ -52,7 +52,7 @@ const ForgotPasswordScreen3 = () => {
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       <View style={styles.content}>
@@ -69,7 +69,7 @@ const ForgotPasswordScreen3 = () => {
             <TextInput
               style={styles.input}
               placeholder="Enter your new password"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.textTertiary}
               secureTextEntry={!showPwd}
               value={password}
               onChangeText={(t) => setPassword(t)}
@@ -78,7 +78,7 @@ const ForgotPasswordScreen3 = () => {
               <AntDesign
                 name={showPwd ? "eye" : "eyeo"}
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -91,7 +91,7 @@ const ForgotPasswordScreen3 = () => {
             <TextInput
               style={styles.input}
               placeholder="Re-enter password"
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.textTertiary}
               secureTextEntry={!showConfirm}
               value={confirm}
               onChangeText={(t) => setConfirm(t)}
@@ -100,7 +100,7 @@ const ForgotPasswordScreen3 = () => {
               <AntDesign
                 name={showConfirm ? "eye" : "eyeo"}
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -144,8 +144,8 @@ const BOX_MARGIN = 24;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 80,
+    backgroundColor: COLORS.surface,
+    paddingTop: 60,
   },
   backButton: {
     width: 40,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
@@ -189,13 +189,13 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   input: {
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   error: {
     color: "#f44336",
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   updateText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.surface,
   },
   // Modal
   modalOverlay: {
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: "80%",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 8,
     padding: 24,
     alignItems: "center",
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

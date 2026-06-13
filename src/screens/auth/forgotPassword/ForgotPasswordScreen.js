@@ -4,11 +4,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-} from "react-native";
+  StyleSheet} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { AntDesign } from "@expo/vector-icons";
+import { COLORS } from "../../../theme";
 
 const ForgotPasswordScreen1 = () => {
   const navigation = useNavigation();
@@ -45,7 +45,7 @@ const ForgotPasswordScreen1 = () => {
     <SafeAreaView style={styles.container}>
       {/* Geri Butonu */}
       <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       <View style={styles.contentContainer}>
@@ -59,7 +59,7 @@ const ForgotPasswordScreen1 = () => {
           <TextInput
             style={styles.input}
             placeholder="Enter your email"
-            placeholderTextColor="#999"
+            placeholderTextColor={COLORS.textTertiary}
             value={email}
             onChangeText={handleChangeEmail}
             keyboardType="email-address"
@@ -88,8 +88,8 @@ const ForgotPasswordScreen1 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 80, // Sayfayı biraz daha aşağı itiyor
+    backgroundColor: COLORS.surface,
+    paddingTop: 60,
   },
   backButton: {
     width: 40,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 12,
     textAlign: "center",
   },
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#333",
-    backgroundColor: "#fff",
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.surface,
   },
   errorText: {
     color: "#f44336",
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.surface,
   },
 });
 

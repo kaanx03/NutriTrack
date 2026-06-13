@@ -12,6 +12,7 @@ import {
 import { MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext"; // ← Context kullanımı
+import { COLORS } from "../../theme";
 
 const SignUpScreen1 = () => {
   const navigation = useNavigation();
@@ -139,11 +140,11 @@ const SignUpScreen1 = () => {
         <TouchableOpacity
           style={[
             styles.checkbox,
-            { backgroundColor: isChecked ? "#63A4F4" : "#FFFFFF" },
+            { backgroundColor: isChecked ? COLORS.primary : COLORS.surface },
           ]}
           onPress={() => setIsChecked(!isChecked)}
         >
-          {isChecked && <FontAwesome name="check" size={14} color="#fff" />}
+          {isChecked && <FontAwesome name="check" size={14} color={COLORS.surface} />}
         </TouchableOpacity>
         <Text style={styles.checkboxText}>
           I agree to the <Text style={styles.link}>Terms</Text> and{" "}
@@ -170,14 +171,14 @@ const SignUpScreen1 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 24,
     justifyContent: "center",
   },
   header: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   errorText: {
     fontSize: 12,
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   link: {
-    color: "#63A4F4",
+    color: COLORS.primary,
     fontWeight: "bold",
   },
   signupButton: {
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
   },
   signupButtonText: {
     fontSize: 16,
-    color: "#fff",
+    color: COLORS.surface,
   },
   loginLinkContainer: {
     flexDirection: "row",
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 14,
-    color: "#63A4F4",
+    color: COLORS.primary,
     fontWeight: "bold",
   },
 });

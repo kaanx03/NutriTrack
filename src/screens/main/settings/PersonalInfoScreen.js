@@ -6,21 +6,98 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Image,
   TextInput,
   Alert,
   Animated,
+  Image
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import { useSignUp } from "../../../context/SignUpContext";
+import { useAuth } from "../../../context/AuthContext";
 import BottomNavigation from "../../../components/BottomNavigation";
+import OptionPicker from "../../../components/OptionPicker";
+import { showToast } from "../../../components/AppToast";
 import DatePickerModal from "../../../components/DatePickerModal";
+import PhotoStorage from "../../../services/PhotoStorage";
+import { COLORS } from "../../../theme";
 
 const PersonalInfoScreen = () => {
   const navigation = useNavigation();
   const { formData, updateFormData } = useSignUp();
+  const { user } = useAuth();
+
+  // Profil fotoğrafı (lokal depolama)
+  const [profilePhoto, setProfilePhoto] = useState(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      PhotoStorage.getProfilePhoto(user.id).then(setProfilePhoto);
+    }
+  }, [user?.id]);
+
+  const pickerOptions = {
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  };
+
+  const applyPickedPhoto = async (result) => {
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    const meta = await PhotoStorage.saveProfilePhoto(
+      user.id,
+      result.assets[0].uri
+    );
+    setProfilePhoto(meta);
+    showToast("Profile photo updated", "success");
+  };
+
+  const handleChangePhoto = () => {
+    if (!user?.id) return;
+    const buttons = [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const { status } =
+            await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
+            showToast("Camera permission denied", "error");
+            return;
+          }
+          applyPickedPhoto(await ImagePicker.launchCameraAsync(pickerOptions));
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          const { status } =
+            await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== "granted") {
+            showToast("Photo library permission denied", "error");
+            return;
+          }
+          applyPickedPhoto(
+            await ImagePicker.launchImageLibraryAsync(pickerOptions)
+          );
+        },
+      },
+    ];
+    if (profilePhoto) {
+      buttons.push({
+        text: "Remove Photo",
+        style: "destructive",
+        onPress: async () => {
+          await PhotoStorage.deleteProfilePhoto(user.id);
+          setProfilePhoto(null);
+          showToast("Profile photo removed", "info");
+        },
+      });
+    }
+    buttons.push({ text: "Cancel", style: "cancel" });
+    Alert.alert("Profile Photo", undefined, buttons);
+  };
 
   const [userInfo, setUserInfo] = useState({
     firstName: "",
@@ -197,7 +274,7 @@ const PersonalInfoScreen = () => {
 
       setOriginalUserInfo({ ...userInfo });
       setHasChanges(false);
-      Alert.alert("Success", "Your information has been saved successfully!");
+      showToast("Your information has been saved", "success");
     } catch (error) {
       Alert.alert("Error", "Failed to save information. Please try again.");
       console.error("Save error:", error);
@@ -289,7 +366,7 @@ const PersonalInfoScreen = () => {
                 handleSave(field, userInfo[field]);
               }}
               placeholder={placeholder}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.textTertiary}
               autoFocus
               keyboardType={keyboardType}
             />
@@ -314,7 +391,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="person-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -322,7 +399,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="person-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -330,7 +407,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="mail-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -345,7 +422,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="resize-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -353,7 +430,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="barbell-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -361,7 +438,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="fitness-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -369,7 +446,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="person-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -377,7 +454,7 @@ const PersonalInfoScreen = () => {
               <Ionicons
                 name="calendar-outline"
                 size={20}
-                color="#666"
+                color={COLORS.textSecondary}
                 style={styles.fieldIcon}
               />
             )}
@@ -405,14 +482,14 @@ const PersonalInfoScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Personal Info</Text>
@@ -427,14 +504,21 @@ const PersonalInfoScreen = () => {
         {/* Profile Image */}
         <View style={styles.profileSection}>
           <View style={styles.profileImageContainer}>
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-              }}
-              style={styles.profileImage}
-            />
-            <TouchableOpacity style={styles.editImageButton}>
-              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            {profilePhoto ? (
+              <Image
+                source={{ uri: `${profilePhoto.uri}?t=${profilePhoto.updatedAt}` }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={48} color={COLORS.avatarIcon} />
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.editImageButton}
+              onPress={handleChangePhoto}
+            >
+              <Ionicons name="camera" size={16} color={COLORS.surface} />
             </TouchableOpacity>
           </View>
         </View>
@@ -504,83 +588,23 @@ const PersonalInfoScreen = () => {
           )}
         </View>
 
-        {/* Gender Dropdown - Outside of info section */}
-        {showGenderDropdown && (
-          <View style={styles.dropdownOverlay}>
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownTitle}>Select Gender</Text>
-              {genderOptions.map((option, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.dropdownItem,
-                    userInfo.gender === option && styles.selectedDropdownItem,
-                  ]}
-                  onPress={() => selectGender(option)}
-                >
-                  <Text
-                    style={[
-                      styles.dropdownText,
-                      userInfo.gender === option && styles.selectedDropdownText,
-                    ]}
-                  >
-                    {option}
-                  </Text>
-                  {userInfo.gender === option && (
-                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                  )}
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={styles.dropdownCloseButton}
-                onPress={() => setShowGenderDropdown(false)}
-              >
-                <Text style={styles.dropdownCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Activity Level Dropdown - Outside of info section */}
-        {showActivityDropdown && (
-          <View style={styles.dropdownOverlay}>
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownTitle}>Select Activity Level</Text>
-              <ScrollView style={styles.dropdownScroll}>
-                {activityOptions.map((option, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.dropdownItem,
-                      userInfo.activityLevel === option &&
-                        styles.selectedDropdownItem,
-                    ]}
-                    onPress={() => selectActivityLevel(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownText,
-                        userInfo.activityLevel === option &&
-                          styles.selectedDropdownText,
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                    {userInfo.activityLevel === option && (
-                      <Ionicons name="checkmark" size={20} color="#4CAF50" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TouchableOpacity
-                style={styles.dropdownCloseButton}
-                onPress={() => setShowActivityDropdown(false)}
-              >
-                <Text style={styles.dropdownCloseText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        {/* Gender & Activity seçimleri artık ortalanmış OptionPicker modalında */}
+        <OptionPicker
+          visible={showGenderDropdown}
+          title="Select Gender"
+          options={genderOptions}
+          selected={userInfo.gender}
+          onSelect={selectGender}
+          onClose={() => setShowGenderDropdown(false)}
+        />
+        <OptionPicker
+          visible={showActivityDropdown}
+          title="Select Activity Level"
+          options={activityOptions}
+          selected={userInfo.activityLevel}
+          onSelect={selectActivityLevel}
+          onClose={() => setShowActivityDropdown(false)}
+        />
 
         {/* Calculated Data Section */}
         {formData && formData.calculatedPlan && (
@@ -657,7 +681,7 @@ const PersonalInfoScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -665,9 +689,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -676,22 +700,31 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
+    paddingTop: 16,
   },
   profileSection: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     paddingVertical: 30,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   profileImageContainer: {
     position: "relative",
   },
-  profileImage: {
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.avatarBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -700,17 +733,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderColor: COLORS.surface,
   },
   infoSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     borderRadius: 16,
     padding: 20,
@@ -721,7 +754,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   fieldContainer: {
@@ -729,7 +762,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E5E5",
@@ -746,7 +779,7 @@ const styles = StyleSheet.create({
     height: 18,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#E74C3C",
+    backgroundColor: COLORS.danger,
     borderRadius: 3,
   },
   flagText: {
@@ -755,23 +788,23 @@ const styles = StyleSheet.create({
   fieldValue: {
     flex: 1,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   placeholderText: {
-    color: "#999",
+    color: COLORS.textTertiary,
     fontStyle: "italic",
   },
   editContainer: {
     borderWidth: 2,
-    borderColor: "#A1CE50",
+    borderColor: COLORS.success,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   editInput: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
     minHeight: 50,
   },
   // Dropdown Overlay Styles
@@ -788,7 +821,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   dropdownContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     maxHeight: "80%",
     width: "100%",
@@ -805,7 +838,7 @@ const styles = StyleSheet.create({
   dropdownTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: 20,
     paddingHorizontal: 20,
@@ -820,36 +853,36 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   selectedDropdownItem: {
     backgroundColor: "#f0f8f0",
   },
   dropdownText: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
     flex: 1,
   },
   selectedDropdownText: {
-    color: "#A1CE50",
+    color: COLORS.success,
     fontWeight: "500",
   },
   dropdownCloseButton: {
     marginTop: 10,
     marginHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E5E5",
   },
   dropdownCloseText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
   },
   calculatedSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     marginTop: 0,
     borderRadius: 16,
@@ -858,7 +891,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 16,
     textAlign: "center",
   },
@@ -868,16 +901,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   calculatedLabel: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   calculatedValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#A1CE50",
+    color: COLORS.success,
   },
   bottomSpacing: {
     height: 100,
@@ -887,15 +920,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 12,
     marginRight: 8,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E5E5",
@@ -904,17 +937,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     marginLeft: 8,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     borderRadius: 8,
   },
   cancelButtonText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
   },
   saveButtonText: {
     fontSize: 16,
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
     textAlign: "center",
   },

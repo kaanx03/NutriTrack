@@ -1,5 +1,5 @@
 // src/screens/auth/LoginScreen.js - Updated with Backend Integration
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,63 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSignUp } from "../../context/SignUpContext";
+import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/AuthService";
+import { showToast } from "../../components/AppToast";
+import { COLORS } from "../../theme";
 
 const LoginScreen = () => {
   const navigation = useNavigation();
   const { updateFormData } = useSignUp();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+  // Kayıtlı token + biyometrik tercih + donanım varsa hızlı giriş sun
+  useEffect(() => {
+    (async () => {
+      try {
+        const [token, enabled] = await Promise.all([
+          SecureStore.getItemAsync("authToken"),
+          AsyncStorage.getItem("biometricEnabled"),
+        ]);
+        if (!token || enabled !== "1") return;
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        if (hasHardware && enrolled) setBiometricAvailable(true);
+      } catch (e) {
+        // biyometrik desteklenmiyor — normal login akışı
+      }
+    })();
+  }, []);
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Unlock NutriTrack",
+      });
+      if (!result.success) return;
+
+      setIsLoading(true);
+      const token = await SecureStore.getItemAsync("authToken");
+      if (!token) throw new Error("No saved session");
+
+      await hydrateAndEnter(token);
+    } catch (err) {
+      // Token süresi dolmuş olabilir — normal girişe düş
+      setBiometricAvailable(false);
+      showToast("Session expired, please log in", "info");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const calculateCaloriesAndMacros = (
     gender,
@@ -76,39 +124,18 @@ const LoginScreen = () => {
     }
   };
 
-  const handleLogin = async () => {
-    // Validasyon
-    if (!email || !password) {
-      Alert.alert("Error", "Please enter both email and password");
-      return;
-    }
-
-    if (!email.includes("@")) {
-      Alert.alert("Error", "Please enter a valid email address");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      console.log("Starting login process...");
-
-      // 1. Login API çağrısı
-      const loginResult = await AuthService.login({
-        email: email.toLowerCase().trim(),
-        password,
-      });
-
-      console.log("Login successful:", loginResult);
-
+  // Login sonrası ortak akış: profili çek, context'leri doldur, Home'a git.
+  // Hem şifreli login hem biyometrik unlock bu yoldan geçer.
+  const hydrateAndEnter = async (token) => {
       // 2. Kullanıcı profilini çek
-      console.log("Fetching user profile...");
       const profileResult = await AuthService.getUserProfile();
-      console.log("Profile loaded:", profileResult);
 
       const userData = profileResult.user;
 
-      // 3. SignUp context'ini güncelle - temel bilgiler
+      // 3. AuthContext'i güncelle
+      await signIn(token, userData);
+
+      // 5. SignUp context'ini güncelle - temel bilgiler
       updateFormData("email", userData.email || "");
       updateFormData("firstName", userData.firstName || "");
       updateFormData("lastName", userData.lastName || "");
@@ -120,7 +147,7 @@ const LoginScreen = () => {
         userData.activityLevel?.toString() || "3"
       );
 
-      // 4. Doğum tarihi formatını ayarla
+      // 6. Doğum tarihi formatını ayarla
       if (userData.birthDate) {
         try {
           const date = new Date(userData.birthDate);
@@ -135,7 +162,7 @@ const LoginScreen = () => {
         }
       }
 
-      // 5. Kalori planını hesapla ve context'e kaydet
+      // 7. Kalori planını hesapla ve context'e kaydet
       if (
         userData.gender &&
         userData.birthDate &&
@@ -160,15 +187,7 @@ const LoginScreen = () => {
           },
         });
 
-        console.log("Calculated plan:", calculatedPlan);
       } else {
-        console.log("Missing data for calorie calculation:", {
-          gender: userData.gender,
-          birthDate: userData.birthDate,
-          height: userData.height,
-          weight: userData.weight,
-          activityLevel: userData.activityLevel,
-        });
 
         // Eksik veri varsa default plan kullan
         updateFormData("calculatedPlan", {
@@ -181,22 +200,36 @@ const LoginScreen = () => {
         });
       }
 
-      // 6. Ana sayfaya yönlendir
-      Alert.alert(
-        "Login Successful",
-        `Welcome back, ${userData.firstName || "User"}!`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Home" }],
-              });
-            },
-          },
-        ]
-      );
+      // 8. Ana sayfaya yönlendir
+      showToast(`Welcome back, ${userData.firstName || "User"}!`, "success");
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "MainTabs" }],
+      });
+  };
+
+  const handleLogin = async () => {
+    // Validasyon
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // 1. Login API çağrısı
+      const loginResult = await AuthService.login({
+        email: email.toLowerCase().trim(),
+        password,
+      });
+
+      await hydrateAndEnter(loginResult.token);
     } catch (err) {
       console.error("Login error:", err);
 
@@ -207,7 +240,7 @@ const LoginScreen = () => {
       } else if (err.message.includes("Network")) {
         errorMessage =
           "Network error. Please check your connection and try again.";
-      } else if (err.message.includes("Backend sunucusuna")) {
+      } else if (err.message.includes("Cannot connect to server")) {
         errorMessage = "Cannot connect to server. Please try again later.";
       } else {
         errorMessage = err.message;
@@ -264,13 +297,26 @@ const LoginScreen = () => {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={COLORS.surface} size="small" />
             <Text style={styles.loginButtonText}>Logging in...</Text>
           </View>
         ) : (
           <Text style={styles.loginButtonText}>Login now</Text>
         )}
       </TouchableOpacity>
+
+      {biometricAvailable && (
+        <TouchableOpacity
+          style={styles.biometricButton}
+          onPress={handleBiometricLogin}
+          disabled={isLoading}
+        >
+          <Ionicons name="finger-print" size={22} color={COLORS.primary} />
+          <Text style={styles.biometricButtonText}>
+            Sign in with Biometrics
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.signupContainer}>
         <Text style={styles.signupText}>Don't have an account? </Text>
@@ -288,16 +334,32 @@ const LoginScreen = () => {
 const BUTTON_HEIGHT = 54;
 
 const styles = StyleSheet.create({
+  biometricButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: BUTTON_HEIGHT,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    marginTop: 12,
+  },
+  biometricButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 24,
     justifyContent: "center",
   },
   header: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
@@ -314,7 +376,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 16,
     paddingHorizontal: 4,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   forgotPassword: {
     alignSelf: "flex-end",
@@ -333,10 +395,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loginButtonDisabled: {
-    backgroundColor: "#999",
+    backgroundColor: COLORS.textTertiary,
   },
   loginButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     marginLeft: 8,
   },
@@ -351,11 +413,11 @@ const styles = StyleSheet.create({
   },
   signupText: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   signupLink: {
     fontSize: 14,
-    color: "#63A4F4",
+    color: COLORS.primary,
     fontWeight: "bold",
   },
 });

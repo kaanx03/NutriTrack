@@ -5,31 +5,21 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-} from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+  ScrollView} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const TermsOfServiceScreen = () => {
   const navigation = useNavigation();
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Terms of Service</Text>
-
-        <View style={styles.headerButton} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        title="Terms of Service"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -118,23 +108,23 @@ const TermsOfServiceScreen = () => {
 
       {/* Bottom Navigation - Updated to use component */}
       <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#f8f9fa",
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: COLORS.surfaceMuted,
   },
   headerButton: {
     padding: 8,
@@ -143,16 +133,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 20,
   },
   contentContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 20,
     borderRadius: 16,
     padding: 20,
@@ -165,16 +156,16 @@ const styles = StyleSheet.create({
   effectiveDate: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: "#63A4F4",
+    borderLeftColor: COLORS.primary,
     marginBottom: 24,
   },
   effectiveDateText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   section: {
     marginBottom: 24,
@@ -182,7 +173,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 12,
   },
   paragraph: {
@@ -197,7 +188,7 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
     marginRight: 8,
     marginTop: 2,
   },
@@ -209,7 +200,7 @@ const styles = StyleSheet.create({
   },
   boldText: {
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
 });
 

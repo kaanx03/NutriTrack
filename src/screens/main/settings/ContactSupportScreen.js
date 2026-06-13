@@ -6,14 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Linking,
   Alert,
-  Image,
+  Image
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const ContactSupportScreen = () => {
   const navigation = useNavigation();
@@ -132,19 +133,11 @@ const ContactSupportScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Contact Support</Text>
-
-        <View style={styles.headerButton} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        title="Contact Support"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -158,23 +151,23 @@ const ContactSupportScreen = () => {
 
       {/* Bottom Navigation - Updated to use component */}
       <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#f8f9fa",
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: COLORS.surfaceMuted,
   },
   headerButton: {
     padding: 8,
@@ -183,16 +176,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 20,
   },
   optionsContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 20,
     borderRadius: 16,
     overflow: "hidden",
@@ -209,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   lastOptionItem: {
     borderBottomWidth: 0,
@@ -233,7 +227,7 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
 });
 

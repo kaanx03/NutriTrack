@@ -10,26 +10,18 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
+import { showToast } from "../../components/AppToast";
+import { COLORS } from "../../theme";
 
 const ITEM_HEIGHT = 50;
 const VISIBLE_ITEMS = 7;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
-const prependExtras = (baseList, extras = 3) => {
-  const cloned = [...baseList];
-  const tail = baseList.slice(-extras);
-  return [...tail, ...cloned];
-};
-
 const generateDayList = () =>
-  prependExtras(
-    Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, "0"))
-  );
+  Array.from({ length: 31 }, (_, i) => (i + 1).toString().padStart(2, "0"));
 
 const generateMonthList = () =>
-  prependExtras(
-    Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"))
-  );
+  Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
 
 const generateYearList = () =>
   Array.from({ length: 40 }, (_, i) => (2010 - i).toString());
@@ -63,8 +55,8 @@ const SignUpScreen5 = () => {
 
   const handleScrollEnd = (event, list, updateKey) => {
     const index = Math.round(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-    const selected = list[index % list.length];
-    updateFormData(updateKey, selected);
+    const clamped = Math.max(0, Math.min(index, list.length - 1));
+    updateFormData(updateKey, list[clamped]);
   };
 
   const renderItem = (item, selectedValue) => {
@@ -99,6 +91,7 @@ const SignUpScreen5 = () => {
           index,
         })}
         onMomentumScrollEnd={(e) => handleScrollEnd(e, data, key)}
+        onScrollEndDrag={(e) => handleScrollEnd(e, data, key)}
         contentContainerStyle={{
           paddingTop: ITEM_HEIGHT * centerIndex,
           paddingBottom: ITEM_HEIGHT * centerIndex,
@@ -115,9 +108,26 @@ const SignUpScreen5 = () => {
   );
 
   const handleContinue = () => {
-    if (formData.day && formData.month && formData.year) {
-      navigation.navigate("SignUp6");
+    const day = formData.day || "01";
+    const month = formData.month || "01";
+    const year = formData.year || "2000";
+
+    // Geçerli bir tarih mi? (örn. 31 Şubat'ı engelle)
+    const date = new Date(`${year}-${month}-${day}T00:00:00`);
+    const isValid =
+      date.getFullYear() === parseInt(year) &&
+      date.getMonth() + 1 === parseInt(month) &&
+      date.getDate() === parseInt(day);
+
+    if (!isValid) {
+      showToast("Please select a valid date", "error");
+      return;
     }
+
+    updateFormData("day", day);
+    updateFormData("month", month);
+    updateFormData("year", year);
+    navigation.navigate("SignUp6");
   };
 
   return (
@@ -126,7 +136,7 @@ const SignUpScreen5 = () => {
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       <View style={styles.progressContainer}>
@@ -154,7 +164,7 @@ const SignUpScreen5 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingTop: 60,
     paddingHorizontal: 20,
   },
@@ -187,7 +197,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   title: {
     fontSize: 24,
@@ -212,7 +222,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "80%",
     height: 1,
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     zIndex: 10,
   },
   itemWrapper: {
@@ -225,7 +235,7 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     fontWeight: "bold",
-    color: "#63A4F4",
+    color: COLORS.primary,
     fontSize: 20,
   },
   unselectedText: {
@@ -240,7 +250,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   continueButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

@@ -6,12 +6,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  TextInput,
+  TextInput
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const FAQScreen = () => {
   const navigation = useNavigation();
@@ -144,7 +145,7 @@ const FAQScreen = () => {
           <Ionicons
             name={isExpanded ? "chevron-up" : "chevron-down"}
             size={20}
-            color="#666"
+            color={COLORS.textSecondary}
           />
         </TouchableOpacity>
 
@@ -158,20 +159,8 @@ const FAQScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>FAQ</Text>
-
-        <View style={styles.headerButton} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="FAQ" onBack={() => navigation.goBack()} />
 
       <ScrollView
         style={styles.scrollView}
@@ -184,7 +173,7 @@ const FAQScreen = () => {
             <Ionicons
               name="search"
               size={20}
-              color="#666"
+              color={COLORS.textSecondary}
               style={styles.searchIcon}
             />
             <TextInput
@@ -192,7 +181,7 @@ const FAQScreen = () => {
               placeholder="Search FAQ..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.textTertiary}
             />
           </View>
         </View>
@@ -246,23 +235,23 @@ const FAQScreen = () => {
 
       {/* Bottom Navigation - Updated to use component */}
       <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#f8f9fa",
+    paddingTop: 8,
+    paddingBottom: 16,
+    backgroundColor: COLORS.surfaceMuted,
   },
   headerButton: {
     padding: 8,
@@ -271,12 +260,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    paddingTop: 16,
     paddingBottom: 20,
   },
   searchContainer: {
@@ -286,7 +276,7 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -302,7 +292,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   categoriesContainer: {
     marginBottom: 20,
@@ -314,28 +304,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     marginRight: 12,
     borderWidth: 1,
     borderColor: "#E5E5E5",
   },
   selectedCategoryButton: {
-    backgroundColor: "#A1CE50",
-    borderColor: "#A1CE50",
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
   },
   categoryText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   selectedCategoryText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
   },
   faqContainer: {
     marginHorizontal: 20,
   },
   faqItem: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     marginBottom: 12,
     overflow: "hidden",
@@ -356,19 +346,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginRight: 12,
   },
   faqAnswer: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
   },
   answerText: {
     fontSize: 14,
     lineHeight: 20,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 12,
   },
   noResultsContainer: {
@@ -378,13 +368,13 @@ const styles = StyleSheet.create({
   noResultsText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 16,
     marginBottom: 8,
   },
   noResultsSubtext: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
   },
 });

@@ -10,6 +10,7 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle } from "react-native-svg";
+import { COLORS } from "../../theme";
 
 const SignUpScreen9 = () => {
   const navigation = useNavigation();
@@ -51,7 +52,7 @@ const SignUpScreen9 = () => {
         style={styles.closeButton}
         onPress={() => navigation.navigate("LoginScreen")}
       >
-        <AntDesign name="close" size={24} color="#333" />
+        <AntDesign name="close" size={24} color={COLORS.textPrimary} />
       </TouchableOpacity>
 
       <Text style={styles.title}>
@@ -97,9 +98,9 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 30,
-    paddingTop: 50,
+    paddingTop: 60,
     alignItems: "center",
   },
   closeButton: {
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   percentageText: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   messageText: {
     fontSize: 16,

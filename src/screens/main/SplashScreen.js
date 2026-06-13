@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { View, Image, StyleSheet } from "react-native";
+import { COLORS } from "../../theme";
 
 const SplashScreen = ({ navigation }) => {
   useEffect(() => {
@@ -23,7 +24,7 @@ const SplashScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -10,6 +10,7 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
+import { COLORS } from "../../theme";
 
 const { width } = Dimensions.get("window");
 
@@ -47,7 +48,7 @@ const SignUpScreen8 = () => {
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       {/* İlerleme Göstergesi */}
@@ -103,9 +104,9 @@ const SignUpScreen8 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 60,
   },
   backButton: {
     width: 40,
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   title: {
     fontSize: 24,
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   continueButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

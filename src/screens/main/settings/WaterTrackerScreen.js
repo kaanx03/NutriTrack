@@ -25,6 +25,7 @@ import { useWater } from "../../../context/WaterContext";
 import NotificationService, {
   WATER_SETTINGS_KEY,
 } from "../../../services/NotificationService";
+import { COLORS } from "../../../theme";
 
 const WaterTrackerScreen = () => {
   const navigation = useNavigation();
@@ -208,25 +209,25 @@ const WaterTrackerScreen = () => {
         value={value}
         onValueChange={onValueChange}
         trackColor={{ false: "#E5E5E5", true: "#4ECDC4" }}
-        thumbColor={value ? "#FFFFFF" : "#FFFFFF"}
+        thumbColor={value ? COLORS.surface : COLORS.surface}
       />
     </View>
   );
 
   const renderVolumeSlider = () => (
     <View style={styles.volumeContainer}>
-      <Ionicons name="volume-low" size={20} color="#666" />
+      <Ionicons name="volume-low" size={20} color={COLORS.textSecondary} />
       <Slider
         style={styles.volumeSlider}
         minimumValue={0}
         maximumValue={1}
         value={settings.volume}
         onSlidingComplete={(value) => handleSettingChange("volume", value)}
-        minimumTrackTintColor="#1A96F0"
-        maximumTrackTintColor="#E0E0E0"
-        thumbTintColor="#1A96F0"
+        minimumTrackTintColor={COLORS.water}
+        maximumTrackTintColor={COLORS.disabled}
+        thumbTintColor={COLORS.water}
       />
-      <Ionicons name="volume-high" size={20} color="#666" />
+      <Ionicons name="volume-high" size={20} color={COLORS.textSecondary} />
     </View>
   );
 
@@ -238,7 +239,7 @@ const WaterTrackerScreen = () => {
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Water Tracker</Text>
@@ -337,7 +338,7 @@ const WaterTrackerScreen = () => {
                 onPress={() => setGoalModalVisible(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -398,7 +399,7 @@ const WaterTrackerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -406,9 +407,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -417,14 +418,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
     paddingTop: 16,
   },
   section: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     marginBottom: 0,
     borderRadius: 16,
@@ -437,11 +438,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   settingLabel: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
     fontWeight: "500",
   },
   settingRight: {
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginRight: 8,
   },
   volumeContainer: {
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   volumeSlider: {
     flex: 1,
@@ -484,7 +485,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#4ECDC4",
     borderRadius: 10,
     borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderColor: COLORS.surface,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   infoSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     borderRadius: 16,
     padding: 20,
@@ -508,12 +509,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginLeft: 12,
   },
   infoText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -525,7 +526,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     margin: 20,
     width: "85%",
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   closeButton: {
     padding: 5,
@@ -562,7 +563,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 10,
   },
   inputContainer: {
@@ -578,17 +579,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     paddingVertical: 12,
   },
   inputUnit: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginLeft: 10,
   },
   helperText: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     fontStyle: "italic",
   },
   modalButtons: {
@@ -607,7 +608,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
   },
   saveButton: {
     backgroundColor: "#4ECDC4",
@@ -615,12 +616,12 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: COLORS.surface,
   },
 });
 

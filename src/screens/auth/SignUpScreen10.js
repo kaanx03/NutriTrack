@@ -11,7 +11,10 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle } from "react-native-svg";
 import { useSignUp } from "../../context/SignUpContext";
+import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/AuthService";
+import { showToast } from "../../components/AppToast";
+import { COLORS } from "../../theme";
 
 const size = 240;
 const strokeWidth = 25;
@@ -21,6 +24,7 @@ const circumference = 2 * Math.PI * radius;
 const SignUpScreen10 = () => {
   const navigation = useNavigation();
   const { formData, updateFormData } = useSignUp();
+  const { signIn } = useAuth();
   const [calorieData, setCalorieData] = useState(null);
   const [calculationError, setCalculationError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -117,13 +121,6 @@ const SignUpScreen10 = () => {
       const weight = parseFloat(formData.weight);
       const activityLevel = parseInt(formData.activityLevel, 10);
 
-      console.log("Calculating with data:", {
-        gender,
-        age,
-        height,
-        weight,
-        activityLevel,
-      });
 
       const result = calculateCaloriesAndMacros(
         gender,
@@ -136,7 +133,6 @@ const SignUpScreen10 = () => {
       if (result) {
         setCalorieData(result);
         setCalculationError(false);
-        console.log("Calculated nutrition targets:", result);
       } else {
         setCalculationError(true);
       }
@@ -196,7 +192,6 @@ const SignUpScreen10 = () => {
     setIsLoading(true);
 
     try {
-      console.log("Starting signup process...");
 
       // 1. Doğum tarihini formatla
       let formattedBirthDate = "";
@@ -223,20 +218,19 @@ const SignUpScreen10 = () => {
         activityLevel: parseInt(formData.activityLevel) || 3,
       };
 
-      console.log("Signup data being sent:", userDataForBackend);
 
       // 3. Signup API çağrısı
       const signupResult = await AuthService.signup(userDataForBackend);
-      console.log("Signup successful:", signupResult);
 
       // 4. Kullanıcı profilini çek
-      console.log("Fetching user profile after signup...");
       const profileResult = await AuthService.getUserProfile();
-      console.log("Profile loaded after signup:", profileResult);
 
       const userData = profileResult.user;
 
-      // 5. Context'i güncelle
+      // 5. AuthContext'i güncelle
+      await signIn(signupResult.token, userData);
+
+      // 7. Context'i güncelle
       updateFormData("email", userData.email || "");
       updateFormData("firstName", userData.firstName || "");
       updateFormData("lastName", userData.lastName || "");
@@ -248,7 +242,7 @@ const SignUpScreen10 = () => {
         userData.activityLevel?.toString() || "3"
       );
 
-      // 6. Doğum tarihi formatını ayarla
+      // 8. Doğum tarihi formatını ayarla
       if (userData.birthDate) {
         try {
           const date = new Date(userData.birthDate);
@@ -263,7 +257,7 @@ const SignUpScreen10 = () => {
         }
       }
 
-      // 7. Kalori planını context'e kaydet
+      // 9. Kalori planını context'e kaydet
       const finalCalorieData = calorieData || {
         calories: 2000,
         carbs: 250,
@@ -280,24 +274,16 @@ const SignUpScreen10 = () => {
         },
       });
 
-      console.log("Final calculated plan:", finalCalorieData);
 
-      // 8. Başarı mesajı ve yönlendirme
-      Alert.alert(
-        "Account Created Successfully!",
-        `Welcome to NutriTrack, ${userData.firstName}! Your personalized nutrition plan is ready.`,
-        [
-          {
-            text: "Start Tracking",
-            onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Home" }],
-              });
-            },
-          },
-        ]
+      // 10. Başarı mesajı ve yönlendirme
+      showToast(
+        `Welcome to NutriTrack, ${userData.firstName}! Your plan is ready.`,
+        "success"
       );
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "MainTabs" }],
+      });
     } catch (err) {
       console.error("Signup error:", err);
 
@@ -309,7 +295,7 @@ const SignUpScreen10 = () => {
       } else if (err.message.includes("Network")) {
         errorMessage =
           "Network error. Please check your connection and try again.";
-      } else if (err.message.includes("Backend sunucusuna")) {
+      } else if (err.message.includes("Cannot connect to server")) {
         errorMessage = "Cannot connect to server. Please try again later.";
       } else {
         errorMessage = err.message;
@@ -524,7 +510,7 @@ const SignUpScreen10 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 20,
     paddingTop: 100,
     alignItems: "center",
@@ -549,13 +535,13 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginTop: 20,
   },
   loadingSubText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginTop: 10,
     paddingHorizontal: 20,
@@ -575,7 +561,7 @@ const styles = StyleSheet.create({
   percentageText: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   kcalText: {
     fontSize: 16,
@@ -591,7 +577,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 10,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   macroRow: {
     flexDirection: "row",
@@ -632,7 +618,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   continueButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

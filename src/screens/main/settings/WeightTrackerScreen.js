@@ -19,6 +19,7 @@ import { useWeight } from "../../../context/WeightContext";
 import { showToast } from "../../../components/AppToast";
 import OptionPicker from "../../../components/OptionPicker";
 import Button from "../../../components/Button";
+import { COLORS } from "../../../theme";
 
 const WeightTrackerScreen = () => {
   const navigation = useNavigation();
@@ -220,14 +221,14 @@ const WeightTrackerScreen = () => {
         value={value}
         onValueChange={onValueChange}
         trackColor={{ false: "#E5E5E5", true: "#FF6B6B" }}
-        thumbColor={value ? "#FFFFFF" : "#FFFFFF"}
+        thumbColor={value ? COLORS.surface : COLORS.surface}
       />
     </View>
   );
 
   const renderVolumeSlider = () => (
     <View style={styles.volumeContainer}>
-      <Ionicons name="volume-low" size={20} color="#666" />
+      <Ionicons name="volume-low" size={20} color={COLORS.textSecondary} />
       <View style={styles.volumeSlider}>
         <View style={styles.volumeTrack}>
           <View
@@ -241,7 +242,7 @@ const WeightTrackerScreen = () => {
           />
         </View>
       </View>
-      <Ionicons name="volume-high" size={20} color="#666" />
+      <Ionicons name="volume-high" size={20} color={COLORS.textSecondary} />
     </View>
   );
 
@@ -266,7 +267,7 @@ const WeightTrackerScreen = () => {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -316,7 +317,7 @@ const WeightTrackerScreen = () => {
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Weight Tracker</Text>
@@ -451,7 +452,7 @@ const WeightTrackerScreen = () => {
                       ? "#10B981"
                       : weightChange.isPositive
                       ? "#EF4444"
-                      : "#666",
+                      : COLORS.textSecondary,
                   },
                 ]}
               >
@@ -536,7 +537,7 @@ const WeightTrackerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -544,9 +545,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -555,14 +556,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scrollView: {
     flex: 1,
     paddingTop: 16,
   },
   section: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     marginBottom: 0,
     borderRadius: 16,
@@ -575,11 +576,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   settingLabel: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
     fontWeight: "500",
   },
   settingRight: {
@@ -588,7 +589,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginRight: 8,
   },
   volumeContainer: {
@@ -597,7 +598,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   volumeSlider: {
     flex: 1,
@@ -622,7 +623,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF6B6B",
     borderRadius: 10,
     borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderColor: COLORS.surface,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -633,7 +634,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   progressSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     borderRadius: 16,
     padding: 20,
@@ -646,7 +647,7 @@ const styles = StyleSheet.create({
   progressTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginLeft: 12,
   },
   progressStats: {
@@ -661,13 +662,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   statValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   statDivider: {
     width: 1,
@@ -683,7 +684,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     margin: 20,
     width: "85%",
@@ -708,7 +709,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   closeButton: {
     padding: 5,
@@ -720,7 +721,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 10,
   },
   inputContainer: {
@@ -736,12 +737,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     paddingVertical: 12,
   },
   inputUnit: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginLeft: 10,
   },
   modalButtons: {
@@ -760,7 +761,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
   },
   saveButton: {
     backgroundColor: "#FF6B6B",
@@ -768,12 +769,12 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: COLORS.surface,
   },
 });
 

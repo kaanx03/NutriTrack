@@ -12,6 +12,7 @@ import { AntDesign, FontAwesome5 } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import ContinueButton from "../../components/ContinueButton";
 import { useSignUp } from "../../context/SignUpContext"; // context import
+import { COLORS } from "../../theme";
 
 const SignUpScreen4 = () => {
   const navigation = useNavigation();
@@ -32,7 +33,7 @@ const SignUpScreen4 = () => {
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       {/* Progress Bar */}
@@ -53,7 +54,7 @@ const SignUpScreen4 = () => {
           style={[
             styles.genderButton,
             formData.gender === "male" && {
-              backgroundColor: "#63A4F4",
+              backgroundColor: COLORS.primary,
               borderColor: "transparent",
             },
           ]}
@@ -62,7 +63,7 @@ const SignUpScreen4 = () => {
           <FontAwesome5
             name="mars"
             size={40}
-            color={formData.gender === "male" ? "#fff" : "#474545"}
+            color={formData.gender === "male" ? COLORS.surface : "#474545"}
           />
         </TouchableOpacity>
 
@@ -80,7 +81,7 @@ const SignUpScreen4 = () => {
           <FontAwesome5
             name="venus"
             size={40}
-            color={formData.gender === "female" ? "#fff" : "#474545"}
+            color={formData.gender === "female" ? COLORS.surface : "#474545"}
           />
         </TouchableOpacity>
       </View>
@@ -99,7 +100,7 @@ const SignUpScreen4 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 24,
     paddingTop: 60,
   },
@@ -125,12 +126,12 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: 6,
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
   },
   progressText: {
     fontFamily: "Roboto-Regular",
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "right",
     marginTop: 4,
   },
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     fontFamily: "Roboto-Bold",
     fontSize: 24,
     textAlign: "center",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 30,
   },
   genderContainer: {

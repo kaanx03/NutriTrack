@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  Alert,
-} from "react-native";
+  Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { AntDesign } from "@expo/vector-icons";
+import { COLORS } from "../../../theme";
 
 const ForgotPasswordScreen2 = () => {
   const navigation = useNavigation();
@@ -71,7 +71,7 @@ const ForgotPasswordScreen2 = () => {
     <SafeAreaView style={styles.container}>
       {/* Geri Butonu */}
       <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       <View style={styles.contentContainer}>
@@ -115,7 +115,7 @@ const ForgotPasswordScreen2 = () => {
           <Text style={styles.resendText}>Haven’t got the email yet? </Text>
           <TouchableOpacity onPress={handleResend} disabled={isResendDisabled}>
             <Text
-              style={[styles.resendLink, isResendDisabled && { color: "#999" }]}
+              style={[styles.resendLink, isResendDisabled && { color: COLORS.textTertiary }]}
             >
               Resend email
             </Text>
@@ -132,8 +132,8 @@ const BOX_MARGIN = 8;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 80,
+    backgroundColor: COLORS.surface,
+    paddingTop: 60,
   },
   backButton: {
     width: 40,
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.surface,
   },
   resendContainer: {
     flexDirection: "row",
@@ -200,11 +200,11 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   resendLink: {
     fontSize: 14,
-    color: "#63A4F4",
+    color: COLORS.primary,
   },
 });
 

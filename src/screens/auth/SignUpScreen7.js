@@ -10,6 +10,7 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
+import { COLORS } from "../../theme";
 
 const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -50,7 +51,7 @@ const SignUpScreen7 = () => {
         style={styles.backButton}
         onPress={() => navigation.goBack()}
       >
-        <AntDesign name="left" size={20} color="#fff" />
+        <AntDesign name="left" size={20} color={COLORS.surface} />
       </TouchableOpacity>
 
       <View style={styles.progressContainer}>
@@ -116,8 +117,8 @@ const SignUpScreen7 = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 50,
+    backgroundColor: COLORS.surface,
+    paddingTop: 60,
     paddingHorizontal: 20,
   },
   backButton: {
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   title: {
     fontSize: 24,
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
     color: "#4285F4",
   },
   activeUnitText: {
-    color: "#fff",
+    color: COLORS.surface,
   },
   inputWrapper: {
     alignItems: "center",
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   continueButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },
