@@ -20,6 +20,7 @@ import { useMeals } from "../../../context/MealsContext";
 import { showToast } from "../../../components/AppToast";
 import Button from "../../../components/Button";
 import NutritionService from "../../../services/NutritionService";
+import { COLORS } from "../../../theme";
 
 const CreateFoodScreen = () => {
   const navigation = useNavigation();
@@ -235,7 +236,7 @@ const CreateFoodScreen = () => {
             {selectedIcon ? (
               <Text style={styles.selectedIconEmoji}>{selectedIcon.emoji}</Text>
             ) : (
-              <Ionicons name="add" size={40} color="#A1CE50" />
+              <Ionicons name="add" size={40} color={COLORS.success} />
             )}
           </TouchableOpacity>
         </View>
@@ -279,7 +280,7 @@ const CreateFoodScreen = () => {
                 <Ionicons
                   name={showUnitDropdown ? "chevron-up" : "chevron-down"}
                   size={16}
-                  color="#666"
+                  color={COLORS.textSecondary}
                 />
               </TouchableOpacity>
 
@@ -395,7 +396,7 @@ const CreateFoodScreen = () => {
             <Ionicons
               name="search"
               size={20}
-              color="#999"
+              color={COLORS.textTertiary}
               style={styles.searchIcon}
             />
             <TextInput
@@ -422,7 +423,7 @@ const CreateFoodScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: "row",
@@ -432,7 +433,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -456,7 +457,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -478,7 +479,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: 14,
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 6,
     fontWeight: "500",
   },
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
     top: 74,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
@@ -520,7 +521,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   dropdownItemText: {
     fontSize: 16,
@@ -531,12 +532,12 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontStyle: "italic",
   },
   addButton: {
     margin: 20,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
@@ -545,13 +546,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#cccccc",
   },
   addButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   modalHeader: {
     flexDirection: "row",
@@ -561,7 +562,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
     position: "relative",
   },
   modalTitle: {
@@ -577,7 +578,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
     margin: 16,
     paddingHorizontal: 10,

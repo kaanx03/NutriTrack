@@ -6,15 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Dimensions,
   TextInput,
-  Animated,
+  Animated
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { articlesData, getAllArticles } from "../../../data/articlesData";
 import BottomNavigation from "../../../components/BottomNavigation";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const { width } = Dimensions.get("window");
 
@@ -167,28 +168,30 @@ const ArticlesScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Articles</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.navigate("SavedArticles")}
-          >
-            <Ionicons name="bookmark-outline" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
-            <Ionicons
-              name={searchVisible ? "close" : "search"}
-              size={24}
-              color="#333"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        title="Articles"
+        rightContent={
+          <>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.navigate("SavedArticles")}
+            >
+              <Ionicons name="bookmark-outline" size={24} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={toggleSearch}
+            >
+              <Ionicons
+                name={searchVisible ? "close" : "search"}
+                size={24}
+                color={COLORS.textPrimary}
+              />
+            </TouchableOpacity>
+          </>
+        }
+      />
 
       {/* Search Bar */}
       <Animated.View
@@ -207,7 +210,7 @@ const ArticlesScreen = () => {
           <Ionicons
             name="search"
             size={20}
-            color="#666"
+            color={COLORS.textSecondary}
             style={styles.searchIcon}
           />
           <TextInput
@@ -215,7 +218,7 @@ const ArticlesScreen = () => {
             placeholder="Search articles..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
+            placeholderTextColor={COLORS.textTertiary}
             autoFocus={searchVisible}
           />
           {searchQuery.length > 0 && (
@@ -223,7 +226,7 @@ const ArticlesScreen = () => {
               onPress={() => setSearchQuery("")}
               style={styles.clearButton}
             >
-              <Ionicons name="close-circle" size={20} color="#999" />
+              <Ionicons name="close-circle" size={20} color={COLORS.textTertiary} />
             </TouchableOpacity>
           )}
         </View>
@@ -243,15 +246,14 @@ const ArticlesScreen = () => {
       </ScrollView>
 
       {/* Bottom Navigation - Updated to use component */}
-      <BottomNavigation activeTab="Articles" />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -259,9 +261,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerLeft: {
     flex: 1,
@@ -269,7 +271,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   headerRight: {
     flexDirection: "row",
@@ -279,16 +281,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   searchContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
     overflow: "hidden",
   },
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
@@ -300,7 +302,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   clearButton: {
     padding: 4,
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
   searchResultsTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 16,
   },
   searchArticlesGrid: {
@@ -332,13 +334,13 @@ const styles = StyleSheet.create({
   noResultsText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 16,
     marginBottom: 8,
   },
   noResultsSubtext: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
   },
   categorySection: {
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   viewAllButton: {
     flexDirection: "row",
@@ -375,7 +377,7 @@ const styles = StyleSheet.create({
   },
   articleCard: {
     width: (width - 60) / 2,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -411,19 +413,19 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     lineHeight: 20,
     marginBottom: 8,
   },
   articleDescription: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     lineHeight: 16,
     marginBottom: 8,
   },
   readTime: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "400",
   },
   iconContainer: {

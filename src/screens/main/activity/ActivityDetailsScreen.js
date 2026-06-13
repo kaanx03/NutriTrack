@@ -6,17 +6,21 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
+import { showToast } from "../../../components/AppToast";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const ActivityDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { activity } = route.params;
   const isEditing = route.params?.isEditing || false;
 
@@ -133,28 +137,16 @@ const ActivityDetailsScreen = () => {
         result = await addActivity(activityData);
       }
 
-      // Başarılı bir şekilde eklendiğini/güncellendiğini bildir
-      const actionText = isEditing ? "Updated" : "Added";
-
-      Alert.alert(
-        `Activity ${actionText}`,
-        `${
-          activity.name
-        } has been ${actionText.toLowerCase()} for ${duration} minutes, burning ${totalCalories} calories.`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              // Düzenleme modunda ActivityLog ekranına dön
-              if (isEditing) {
-                navigation.navigate("ActivityLog");
-              } else {
-                navigation.navigate("Home");
-              }
-            },
-          },
-        ]
+      const actionText = isEditing ? "updated" : "added";
+      showToast(
+        `${activity.name} ${actionText} — ${duration} min, ${totalCalories} kcal`,
+        "success"
       );
+      if (isEditing) {
+        navigation.navigate("ActivityLog");
+      } else {
+        navigation.navigate("MainTabs", { screen: "Home" });
+      }
     } catch (error) {
       console.error("Activity action error:", error);
       const actionText = isEditing ? "update" : "add";
@@ -172,7 +164,7 @@ const ActivityDetailsScreen = () => {
     operationLoading && (
       <View style={styles.loadingOverlay}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FDCD55" />
+          <ActivityIndicator size="large" color={COLORS.warning} />
           <Text style={styles.loadingText}>
             {isEditing ? "Updating..." : "Adding..."}
           </Text>
@@ -181,21 +173,11 @@ const ActivityDetailsScreen = () => {
     );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          disabled={operationLoading}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {activity.name}
-        </Text>
-        <View style={styles.headerRight}>
-          {/* Favori butonu */}
+    <View style={styles.container}>
+      <ScreenHeader
+        title={activity.name}
+        onBack={() => navigation.goBack()}
+        rightContent={
           <TouchableOpacity
             style={styles.favoriteButton}
             onPress={handleToggleFavorite}
@@ -211,8 +193,8 @@ const ActivityDetailsScreen = () => {
               />
             )}
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
       {/* Activity Details */}
       <View style={styles.detailsContainer}>
@@ -263,7 +245,7 @@ const ActivityDetailsScreen = () => {
             }}
             disabled={operationLoading}
           >
-            <Ionicons name="remove" size={24} color="#666" />
+            <Ionicons name="remove" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
           <TextInput
@@ -289,7 +271,7 @@ const ActivityDetailsScreen = () => {
             }}
             disabled={operationLoading}
           >
-            <Ionicons name="add" size={24} color="#666" />
+            <Ionicons name="add" size={24} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -309,12 +291,16 @@ const ActivityDetailsScreen = () => {
 
       {/* Add/Update Button */}
       <TouchableOpacity
-        style={[styles.addButton, operationLoading && styles.disabledButton]}
+        style={[
+          styles.addButton,
+          { marginBottom: Math.max(insets.bottom, 16) },
+          operationLoading && styles.disabledButton,
+        ]}
         onPress={handleActivityAction}
         disabled={operationLoading}
       >
         {operationLoading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={COLORS.surface} />
         ) : (
           <Text style={styles.addButtonText}>
             {isEditing ? "Update Activity" : "Add Activity"}
@@ -324,24 +310,24 @@ const ActivityDetailsScreen = () => {
 
       {/* Loading Overlay */}
       <LoadingOverlay />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -366,31 +352,31 @@ const styles = StyleSheet.create({
   detailsContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   detailItem: {
     marginBottom: 16,
   },
   detailLabel: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 18,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   durationContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   durationLabel: {
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   durationInputGroup: {
     flexDirection: "row",
@@ -400,7 +386,7 @@ const styles = StyleSheet.create({
   durationButton: {
     width: 44,
     height: 44,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
@@ -412,7 +398,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     textAlign: "center",
     marginHorizontal: 20,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   disabledButton: {
     opacity: 0.6,
@@ -426,18 +412,18 @@ const styles = StyleSheet.create({
   },
   calculatedCaloriesLabel: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 8,
   },
   calculatedCaloriesValue: {
     fontSize: 36,
     fontWeight: "600",
-    color: "#FDCD55",
+    color: COLORS.warning,
     marginBottom: 4,
   },
   calculatedCaloriesNote: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
   },
   addButton: {
@@ -445,7 +431,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     borderRadius: 30,
     paddingVertical: 16,
     alignItems: "center",
@@ -457,7 +443,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 18,
     fontWeight: "600",
   },
@@ -472,7 +458,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
@@ -485,7 +471,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
 });
 

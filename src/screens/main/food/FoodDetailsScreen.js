@@ -6,23 +6,30 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
   Alert,
   Modal,
   FlatList,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
+import { showToast } from "../../../components/AppToast";
+import OptionPicker from "../../../components/OptionPicker";
 import NutritionService from "../../../services/NutritionService";
+import { COLORS } from "../../../theme";
 
 const FoodDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { food } = route.params;
 
   // Context'ten fonksiyonları ve state'i al
@@ -198,7 +205,6 @@ const FoodDetailsScreen = () => {
 
       // If the food is already in the current meal, update it directly
       if (isInCurrentMeal && existingFoodId) {
-        console.log("Updating existing food portion in meal");
 
         // Update the existing food with new portion size in the context
         await updateFoodPortion(
@@ -220,7 +226,6 @@ const FoodDetailsScreen = () => {
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
-        console.log("Navigating back with new portion info");
 
         // FoodSelectionScreen'e dön ve bilgileri parametre olarak gönder
         navigation.navigate("FoodSelection", {
@@ -244,34 +249,20 @@ const FoodDetailsScreen = () => {
   const handleToggleFavorite = async () => {
     try {
       setIsLoading(true);
-      console.log("=== TOGGLE FAVORITE START ===");
-      console.log("Current favorite status:", isFavorite);
-      console.log("Food data:", {
-        id: food.id,
-        name: food.name,
-        calories: food.calories,
-        isCustomFood: food.isCustomFood || food.isPersonal,
-      });
 
       // Backend entegrasyonu ile favori durumunu değiştir
       await toggleFavorite(food);
 
-      console.log("Toggle favorite completed successfully");
-
-      // Refresh data to ensure sync - FORCE REFRESH
+      // Refresh data to ensure sync
       await refreshData();
 
-      // Show success feedback
       const newStatus = !isFavorite;
-      Alert.alert(
-        "Success",
-        newStatus ? "Added to favorites!" : "Removed from favorites!",
-        [{ text: "OK" }]
+      showToast(
+        newStatus ? "Added to favorites" : "Removed from favorites",
+        "success"
       );
-
-      console.log("=== TOGGLE FAVORITE COMPLETED ===");
     } catch (error) {
-      console.error("=== TOGGLE FAVORITE ERROR ===", error);
+      console.error("Toggle favorite error:", error);
       Alert.alert(
         "Error",
         "Failed to update favorite status. Please try again.",
@@ -393,7 +384,7 @@ const FoodDetailsScreen = () => {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#999" />
+                <ActivityIndicator size="small" color={COLORS.textTertiary} />
               ) : (
                 <Ionicons
                   name={isFavorite ? "heart" : "heart-outline"}
@@ -459,7 +450,7 @@ const FoodDetailsScreen = () => {
           <View style={styles.nutritionItem}>
             <View style={styles.nutritionHeader}>
               <View
-                style={[styles.macroIndicator, { backgroundColor: "#63A4F4" }]}
+                style={[styles.macroIndicator, { backgroundColor: COLORS.primary }]}
               />
               <Text style={styles.macroLabel}>Protein</Text>
             </View>
@@ -482,60 +473,45 @@ const FoodDetailsScreen = () => {
           </View>
         </View>
 
-        {/* Additional Nutrition Information */}
-        <View style={styles.additionalNutritionContainer}>
-          <View style={styles.nutritionRow}>
-            <Text style={styles.nutritionLabel}>Cholesterol</Text>
-            <Text style={styles.nutritionValue}>
-              {Math.round(
-                (food.cholesterol || 0) *
-                  (calculatedValues.weightInGrams / weightPerUnit)
-              )}
-              mg ({food.cholesterolPercent || 0}%)
-            </Text>
-          </View>
-          <View style={styles.nutritionRow}>
-            <Text style={styles.nutritionLabel}>Sodium</Text>
-            <Text style={styles.nutritionValue}>
-              {Math.round(
-                (food.sodium || 0) *
-                  (calculatedValues.weightInGrams / weightPerUnit)
-              )}
-              mg ({food.sodiumPercent || 0}%)
-            </Text>
-          </View>
-          <View style={styles.nutritionRow}>
-            <Text style={styles.nutritionLabel}>Calcium</Text>
-            <Text style={styles.nutritionValue}>
-              {Math.round(
-                (food.calcium || 0) *
-                  (calculatedValues.weightInGrams / weightPerUnit)
-              )}
-              mg ({food.calciumPercent || 0}%)
-            </Text>
-          </View>
-          <View style={styles.nutritionRow}>
-            <Text style={styles.nutritionLabel}>Iron</Text>
-            <Text style={styles.nutritionValue}>
-              {Math.round(
-                (food.iron || 0) *
-                  (calculatedValues.weightInGrams / weightPerUnit)
-              )}
-              mg ({food.ironPercent || 0}%)
-            </Text>
-          </View>
-        </View>
+        {/* Ek besin bilgileri — yalnızca gerçek veri varsa göster.
+            USDA temel sonuçları genelde sadece makro döndürür; o durumda
+            0mg satırları gösterilmez. */}
+        {(() => {
+          const ratio = calculatedValues.weightInGrams / weightPerUnit;
+          const micros = [
+            { label: "Cholesterol", value: food.cholesterol, percent: food.cholesterolPercent },
+            { label: "Sodium", value: food.sodium, percent: food.sodiumPercent },
+            { label: "Calcium", value: food.calcium, percent: food.calciumPercent },
+            { label: "Iron", value: food.iron, percent: food.ironPercent },
+          ].filter((m) => m.value && m.value > 0);
 
-        {/* Weight and Unit Input Section */}
+          if (micros.length === 0) return null;
+
+          return (
+            <View style={styles.additionalNutritionContainer}>
+              {micros.map((m) => (
+                <View key={m.label} style={styles.nutritionRow}>
+                  <Text style={styles.nutritionLabel}>{m.label}</Text>
+                  <Text style={styles.nutritionValue}>
+                    {Math.round(m.value * ratio)}mg ({m.percent || 0}%)
+                  </Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
+        {/* Porsiyon — "Portion" üstte ortalı, kontroller altında ortalı */}
         <View style={styles.weightContainer}>
           <Text style={styles.weightLabel}>Portion</Text>
-          <View style={styles.weightSelector}>
+
+          <View style={styles.portionRow}>
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={decreaseWeight}
               disabled={isLoading}
             >
-              <Ionicons name="remove" size={20} color="#666" />
+              <Ionicons name="remove" size={20} color={COLORS.textSecondary} />
             </TouchableOpacity>
 
             <View style={styles.weightInputContainer}>
@@ -556,48 +532,44 @@ const FoodDetailsScreen = () => {
               onPress={increaseWeight}
               disabled={isLoading}
             >
-              <Ionicons name="add" size={20} color="#666" />
+              <Ionicons name="add" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Birim seçici — ortalı modal (OptionPicker) */}
+            <TouchableOpacity
+              style={styles.unitSelector}
+              onPress={() => setShowUnitDropdown(true)}
+              disabled={isLoading}
+            >
+              <Text style={styles.unitText} numberOfLines={1}>
+                {selectedUnit}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
-
-          {/* Unit Dropdown */}
-          <TouchableOpacity
-            style={styles.unitSelector}
-            onPress={() => setShowUnitDropdown(!showUnitDropdown)}
-            disabled={isLoading}
-          >
-            <Text style={styles.unitText}>{selectedUnit}</Text>
-            <Ionicons
-              name={showUnitDropdown ? "chevron-up" : "chevron-down"}
-              size={18}
-              color="#666"
-            />
-          </TouchableOpacity>
-
-          {/* Unit Dropdown Menu */}
-          {showUnitDropdown && (
-            <View style={styles.unitDropdown}>
-              {unitOptions.map((unit, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.unitOption}
-                  onPress={() => selectUnit(unit)}
-                >
-                  <Text style={styles.unitOptionText}>{unit}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
+
+        <OptionPicker
+          visible={showUnitDropdown}
+          title="Select Unit"
+          options={unitOptions}
+          selected={selectedUnit}
+          onSelect={selectUnit}
+          onClose={() => setShowUnitDropdown(false)}
+        />
 
         {/* Save Button */}
         <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+          style={[
+            styles.saveButton,
+            { bottom: Math.max(insets.bottom, 16) },
+            isLoading && styles.saveButtonDisabled,
+          ]}
           onPress={handleSave}
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={COLORS.surface} />
           ) : (
             <Text style={styles.saveButtonText}>
               {isInCurrentMeal ? "Update" : "Save"}
@@ -612,17 +584,17 @@ const FoodDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -634,7 +606,7 @@ const styles = StyleSheet.create({
   },
   inMealBadge: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     fontStyle: "italic",
     fontWeight: "normal",
   },
@@ -661,13 +633,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   customBadge: {
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   customBadgeText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 12,
     fontWeight: "500",
   },
@@ -690,7 +662,7 @@ const styles = StyleSheet.create({
   },
   caloriesUnit: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   nutritionContainer: {
     marginHorizontal: 16,
@@ -714,11 +686,11 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   macroValue: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   additionalNutritionContainer: {
     marginHorizontal: 16,
@@ -729,19 +701,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   nutritionLabel: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   nutritionValue: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   weightContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     marginHorizontal: 16,
     marginBottom: 24,
@@ -749,28 +719,31 @@ const styles = StyleSheet.create({
   },
   weightLabel: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-    width: 70,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    marginBottom: 12,
+  },
+  portionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   weightSelector: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
   },
   quantityButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
     justifyContent: "center",
     alignItems: "center",
   },
   weightInputContainer: {
-    marginHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
-    width: 60,
+    width: 56,
   },
   weightInput: {
     fontSize: 18,
@@ -784,20 +757,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    width: 130,
+    minWidth: 120,
     justifyContent: "space-between",
   },
   unitText: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   unitDropdown: {
     position: "absolute",
     top: 70,
     right: 10,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
@@ -810,18 +783,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   unitOptionText: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   saveButton: {
     position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     padding: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -830,7 +803,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#cccccc",
   },
   saveButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

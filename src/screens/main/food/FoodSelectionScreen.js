@@ -9,20 +9,26 @@ import {
   FlatList,
   TouchableWithoutFeedback,
   Keyboard,
-  SafeAreaView,
   Modal,
   ActivityIndicator,
-  Alert,
+  Alert
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import { useMeals } from "../../../context/MealsContext";
+import { showToast } from "../../../components/AppToast";
 import usdaFoodApiService from "../../../services/UsdaFoodApiService";
 import NutritionService from "../../../services/NutritionService";
+import { COLORS } from "../../../theme";
 
 // Popüler yemek önerileri
 const popularFoodSuggestions = {
@@ -35,6 +41,7 @@ const popularFoodSuggestions = {
 const FoodSelectionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
 
   // Context'ten tüm gerekli state ve fonksiyonları al
   const {
@@ -76,6 +83,166 @@ const FoodSelectionScreen = () => {
 
   // Quick Log state variables
   const [showQuickLogModal, setShowQuickLogModal] = useState(false);
+
+  // AI yemek fotoğrafı tanıma
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+
+  const handleAiPhotoPress = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        showToast("Camera permission denied", "error");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.4, // base64 boyutunu küçük tut
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.[0]?.base64) return;
+
+      setAiAnalyzing(true);
+      const data = await NutritionService.analyzeFoodPhoto(
+        result.assets[0].base64
+      );
+
+      if (!data || data.confidence === 0) {
+        showToast("Couldn't recognize any food in the photo", "error");
+        return;
+      }
+
+      if (data.confidence < 0.4) {
+        // Düşük güven: Quick Log'u doldur, kullanıcı doğrulasın
+        setQuickLogName(data.name);
+        setQuickLogCalories(String(data.calories));
+        setShowQuickLogModal(true);
+        showToast("Low confidence — please verify the values", "info");
+        return;
+      }
+
+      navigation.navigate("FoodDetails", {
+        food: {
+          id: `ai-${Date.now()}`,
+          name: data.name,
+          calories: data.calories,
+          carbs: data.carbs,
+          protein: data.protein,
+          fat: data.fat,
+          weight: data.portionGrams || 100,
+          mealType,
+          icon: "✨",
+        },
+      });
+    } catch (error) {
+      const msg = error.message?.includes("AI not configured")
+        ? "AI is not configured on the server"
+        : "Photo analysis failed — try again";
+      showToast(msg, "error");
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
+  // Kayıtlı öğünler (Meals tab)
+  const [savedMeals, setSavedMeals] = useState([]);
+  const [yesterdayItems, setYesterdayItems] = useState([]);
+  const [mealsLoading, setMealsLoading] = useState(false);
+  const [loggingMeal, setLoggingMeal] = useState(false);
+
+  const loadSavedMealsTab = async () => {
+    try {
+      setMealsLoading(true);
+      const [meals, yesterdayData] = await Promise.all([
+        NutritionService.getSavedMeals(),
+        (async () => {
+          try {
+            const d = new Date();
+            d.setDate(d.getDate() - 1);
+            return await NutritionService.getDailyNutrition(d);
+          } catch (e) {
+            return null;
+          }
+        })(),
+      ]);
+      setSavedMeals(meals);
+
+      // Dünün bu öğününe ait yemekleri kısayol için hazırla
+      const entries = (yesterdayData?.foodEntries || []).filter(
+        (e) => (e.meal_type || "").toLowerCase() === mealType.toLowerCase()
+      );
+      setYesterdayItems(
+        entries.map((e) => {
+          const t = NutritionService.transformBackendFood(e);
+          return {
+            name: t.name,
+            calories: t.calories,
+            carbs: t.carbs,
+            protein: t.protein,
+            fat: t.fat,
+            portionSize: t.portionSize,
+            portionUnit: t.portionUnit,
+          };
+        })
+      );
+    } finally {
+      setMealsLoading(false);
+    }
+  };
+
+  // Tab "Meals" olduğunda şablonları yükle
+  useEffect(() => {
+    if (localActiveTab === "Meals") {
+      loadSavedMealsTab();
+    }
+  }, [localActiveTab]);
+
+  // Şablondaki tüm item'ları sırayla logla (paralel istek MealsContext
+  // toplamlarında yarış yaratır — bilinçli olarak sequential)
+  const confirmLogItems = (items, label) => {
+    Alert.alert(
+      "Log meal",
+      `Add ${items.length} item(s) to ${mealType}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Add",
+          onPress: async () => {
+            try {
+              setLoggingMeal(true);
+              for (const item of items) {
+                await addFood({ ...item, mealType });
+              }
+              showToast(`${label} logged to ${mealType}`, "success");
+              navigation.navigate("MealDetails", { mealType });
+            } catch (error) {
+              showToast("Failed to log some items", "error");
+            } finally {
+              setLoggingMeal(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteSavedMeal = (meal) => {
+    Alert.alert("Delete saved meal", `Delete "${meal.name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await NutritionService.deleteSavedMeal(meal.id);
+            setSavedMeals((prev) => prev.filter((m) => m.id !== meal.id));
+            showToast("Saved meal deleted", "info");
+          } catch (error) {
+            showToast("Failed to delete", "error");
+          }
+        },
+      },
+    ]);
+  };
   const [quickLogName, setQuickLogName] = useState("");
   const [quickLogCalories, setQuickLogCalories] = useState("");
   const [quickLogMealType, setQuickLogMealType] = useState(mealType);
@@ -396,7 +563,7 @@ const FoodSelectionScreen = () => {
         // Eğer yemek zaten öğünde varsa ve FoodDetails'den güncellenmiş halde geliyorsa
         if (isExistingFood && existingFoodId) {
           // Bu durumda FoodDetailsScreen'de zaten güncellendi, ana sayfaya dön
-          navigation.navigate("Home");
+          navigation.navigate("MainTabs", { screen: "Home" });
           return;
         }
 
@@ -459,12 +626,19 @@ const FoodSelectionScreen = () => {
         navigation.setParams({ refreshPersonal: false });
       }
 
+      // Barkod bulunamadığında manuel giriş için Quick Log'u aç
+      if (route.params?.openQuickLog) {
+        setShowQuickLogModal(true);
+        navigation.setParams({ openQuickLog: false });
+      }
+
       return () => {};
     }, [
       route.params?.activeTab,
       route.params?.selectedPortion,
       route.params?.isExistingFood,
       route.params?.refreshPersonal,
+      route.params?.openQuickLog,
       selectedFoods,
     ])
   );
@@ -517,10 +691,8 @@ const FoodSelectionScreen = () => {
       setQuickLogCalories("");
       setShowQuickLogModal(false);
 
-      // Show success message
-      Alert.alert("Success", "Food logged successfully!", [
-        { text: "OK", onPress: () => navigation.navigate("Home") },
-      ]);
+      showToast("Food logged successfully", "success");
+      navigation.navigate("MainTabs", { screen: "Home" });
     } catch (error) {
       Alert.alert("Error", "Failed to log food. Please try again.", [
         { text: "OK" },
@@ -705,12 +877,11 @@ const FoodSelectionScreen = () => {
         await addFood(foodToAdd);
       }
 
-      // Success message
-      Alert.alert(
-        "Success",
-        `${selectedFoods.length} food(s) added to ${mealType}!`,
-        [{ text: "OK", onPress: () => navigation.navigate("Home") }]
+      showToast(
+        `${selectedFoods.length} food(s) added to ${mealType}`,
+        "success"
       );
+      navigation.navigate("MainTabs", { screen: "Home" });
     } catch (error) {
       Alert.alert("Error", "Failed to add foods to meal. Please try again.", [
         { text: "OK" },
@@ -774,9 +945,9 @@ const FoodSelectionScreen = () => {
             disabled={isAlreadyInMeal}
           >
             {isSelected ? (
-              <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={20} color={COLORS.surface} />
             ) : (
-              <Ionicons name="add" size={20} color="#A1CE50" />
+              <Ionicons name="add" size={20} color={COLORS.success} />
             )}
           </TouchableOpacity>
           <View style={styles.foodItemInfo}>
@@ -809,7 +980,7 @@ const FoodSelectionScreen = () => {
             });
           }}
         >
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textTertiary} />
         </TouchableOpacity>
       </View>
     );
@@ -825,7 +996,7 @@ const FoodSelectionScreen = () => {
     if (tabSpecificLoading) {
       return (
         <View style={styles.emptyListContainer}>
-          <ActivityIndicator size="large" color="#A1CE50" />
+          <ActivityIndicator size="large" color={COLORS.success} />
           <Text style={styles.loadingText}>
             Loading {localActiveTab.toLowerCase()} foods...
           </Text>
@@ -884,7 +1055,7 @@ const FoodSelectionScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <TouchableWithoutFeedback
         onPress={() => {
           Keyboard.dismiss();
@@ -950,7 +1121,7 @@ const FoodSelectionScreen = () => {
             <Ionicons
               name="search"
               size={20}
-              color="#999"
+              color={COLORS.textTertiary}
               style={styles.searchIcon}
             />
             <TextInput
@@ -961,8 +1132,14 @@ const FoodSelectionScreen = () => {
               editable={!isLoading}
             />
 
-            <TouchableOpacity style={styles.scanButton} disabled={isLoading}>
-              <Ionicons name="scan-outline" size={20} color="#999" />
+            <TouchableOpacity
+              style={styles.scanButton}
+              disabled={isLoading}
+              onPress={() =>
+                navigation.navigate("BarcodeScanner", { mealType })
+              }
+            >
+              <Ionicons name="scan-outline" size={20} color={COLORS.success} />
             </TouchableOpacity>
           </View>
 
@@ -973,8 +1150,10 @@ const FoodSelectionScreen = () => {
               onPress={handleQuickLogPress}
               disabled={isLoading}
             >
-              <Ionicons name="flash" size={18} color="#333" />
-              <Text style={styles.quickLogText}>Quick Log</Text>
+              <Ionicons name="flash" size={16} color={COLORS.textPrimary} />
+              <Text style={styles.quickLogText} numberOfLines={1}>
+                Quick Log
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -982,8 +1161,27 @@ const FoodSelectionScreen = () => {
               onPress={handleCreateFoodPress}
               disabled={isLoading}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#333" />
-              <Text style={styles.createFoodText}>Create Food</Text>
+              <Ionicons name="add-circle-outline" size={16} color={COLORS.textPrimary} />
+              <Text style={styles.createFoodText} numberOfLines={1}>
+                Create Food
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.aiPhotoButton}
+              onPress={handleAiPhotoPress}
+              disabled={isLoading || aiAnalyzing}
+            >
+              {aiAnalyzing ? (
+                <ActivityIndicator size="small" color={COLORS.surface} />
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={16} color={COLORS.surface} />
+                  <Text style={styles.aiPhotoText} numberOfLines={1}>
+                    AI Photo
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1061,9 +1259,118 @@ const FoodSelectionScreen = () => {
                 Personal
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                localActiveTab === "Meals" && styles.activeTab,
+              ]}
+              onPress={() => setLocalActiveTab("Meals")}
+              disabled={isLoading}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  localActiveTab === "Meals" && styles.activeTabText,
+                ]}
+              >
+                Meals
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Food List */}
+          {localActiveTab === "Meals" ? (
+            /* Kayıtlı öğün şablonları */
+            <FlatList
+              style={styles.foodList}
+              data={savedMeals}
+              keyExtractor={(item) => `meal_${item.id}`}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.foodListContent,
+                savedMeals.length === 0 && styles.emptyListContentContainer,
+              ]}
+              refreshing={mealsLoading}
+              onRefresh={loadSavedMealsTab}
+              ListHeaderComponent={
+                yesterdayItems.length > 0 ? (
+                  <TouchableOpacity
+                    style={styles.savedMealRow}
+                    onPress={() =>
+                      confirmLogItems(
+                        yesterdayItems,
+                        `Yesterday's ${mealType}`
+                      )
+                    }
+                    disabled={loggingMeal}
+                  >
+                    <View style={styles.savedMealIcon}>
+                      <Ionicons name="time-outline" size={22} color={COLORS.success} />
+                    </View>
+                    <View style={styles.savedMealInfo}>
+                      <Text style={styles.savedMealName}>
+                        Yesterday's {mealType}
+                      </Text>
+                      <Text style={styles.savedMealMeta}>
+                        {yesterdayItems.length} item(s) ·{" "}
+                        {Math.round(
+                          yesterdayItems.reduce(
+                            (s, i) => s + (i.calories || 0),
+                            0
+                          )
+                        )}{" "}
+                        kcal
+                      </Text>
+                    </View>
+                    <Ionicons name="repeat" size={20} color={COLORS.success} />
+                  </TouchableOpacity>
+                ) : null
+              }
+              ListEmptyComponent={
+                <View style={styles.savedMealsEmpty}>
+                  <Ionicons name="bookmark-outline" size={48} color="#ccc" />
+                  <Text style={styles.savedMealsEmptyTitle}>
+                    No saved meals yet
+                  </Text>
+                  <Text style={styles.savedMealsEmptyText}>
+                    Open a meal's details and tap the bookmark icon to save it
+                    as a reusable template.
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const items = Array.isArray(item.items) ? item.items : [];
+                const totalKcal = Math.round(
+                  items.reduce((s, i) => s + (i.calories || 0), 0)
+                );
+                return (
+                  <TouchableOpacity
+                    style={styles.savedMealRow}
+                    onPress={() => confirmLogItems(items, item.name)}
+                    disabled={loggingMeal}
+                  >
+                    <View style={styles.savedMealIcon}>
+                      <Ionicons name="restaurant" size={20} color={COLORS.success} />
+                    </View>
+                    <View style={styles.savedMealInfo}>
+                      <Text style={styles.savedMealName}>{item.name}</Text>
+                      <Text style={styles.savedMealMeta}>
+                        {items.length} item(s) · {totalKcal} kcal
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      onPress={() => handleDeleteSavedMeal(item)}
+                      disabled={loggingMeal}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          ) : (
+          /* Food List */
           <FlatList
             style={styles.foodList}
             data={foodItems}
@@ -1084,17 +1391,23 @@ const FoodSelectionScreen = () => {
             ListFooterComponent={
               isLoading && foodItems.length > 0 ? (
                 <View style={styles.loadingFooter}>
-                  <ActivityIndicator size="small" color="#A1CE50" />
+                  <ActivityIndicator size="small" color={COLORS.success} />
                   <Text style={styles.loadingText}>Loading more...</Text>
                 </View>
               ) : null
             }
             extraData={[selectedFoods, selectedPortion, existingMealFoods]}
           />
+          )}
 
           {/* Selected Foods Summary & Add Button */}
           {selectedFoods.length > 0 && (
-            <View style={styles.selectedFoodsSummary}>
+            <View
+              style={[
+                styles.selectedFoodsSummary,
+                { paddingBottom: Math.max(insets.bottom, 16) },
+              ]}
+            >
               <View style={styles.caloriesCounter}>
                 <Text style={styles.totalCalories}>{totalCalories}</Text>
                 <Text style={styles.kcalLabel}> kcal</Text>
@@ -1109,7 +1422,7 @@ const FoodSelectionScreen = () => {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={COLORS.surface} />
                 ) : (
                   <Text style={styles.addSelectedButtonText}>
                     {selectedFoods.length === 1
@@ -1201,7 +1514,7 @@ const FoodSelectionScreen = () => {
                         disabled={isLoading}
                       >
                         {isLoading ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
+                          <ActivityIndicator size="small" color={COLORS.surface} />
                         ) : (
                           <Text style={styles.saveButtonText}>Save</Text>
                         )}
@@ -1221,21 +1534,20 @@ const FoodSelectionScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 24,
+    backgroundColor: COLORS.surface,
+    paddingTop: 8,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
-    marginTop: 20,
+    backgroundColor: COLORS.surface,
   },
   backButton: {
     width: 48,
@@ -1262,7 +1574,7 @@ const styles = StyleSheet.create({
     top: 110,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderRadius: 8,
     marginHorizontal: 20,
     shadowColor: "#000",
@@ -1276,23 +1588,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   mealTypeMenuItemActive: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   mealTypeMenuItemText: {
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   mealTypeMenuItemTextActive: {
     fontWeight: "600",
-    color: "#A1CE50",
+    color: COLORS.success,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 10,
     marginHorizontal: 20,
     marginTop: 10,
@@ -1305,57 +1617,76 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   scanButton: {
     padding: 8,
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
     marginHorizontal: 20,
     marginTop: 16,
+    gap: 8,
   },
   quickLogButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    width: "48%",
+    paddingHorizontal: 6,
   },
   quickLogText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
-    marginLeft: 8,
+    marginLeft: 5,
+    flexShrink: 1,
   },
   createFoodButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    width: "48%",
+    paddingHorizontal: 6,
+  },
+  aiPhotoButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+  },
+  aiPhotoText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.surface,
+    marginLeft: 5,
+    flexShrink: 1,
   },
   createFoodText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
-    marginLeft: 8,
+    marginLeft: 5,
+    flexShrink: 1,
   },
   createFoodPromptButton: {
     marginTop: 16,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: "center",
   },
   createFoodPromptText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 14,
     fontWeight: "500",
   },
@@ -1363,7 +1694,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
     alignItems: "center",
   },
   tab: {
@@ -1372,7 +1703,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   activeTab: {
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     borderRadius: 4,
     marginHorizontal: 4,
   },
@@ -1383,10 +1714,10 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   activeTabText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
   },
   clearText: {
@@ -1396,12 +1727,61 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   clearTextActive: {
-    color: "#fff",
+    color: COLORS.surface,
     opacity: 0.7,
   },
   foodList: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
+  },
+  savedMealRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 16,
+    marginTop: 10,
+  },
+  savedMealIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F4FAEA",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  savedMealInfo: {
+    flex: 1,
+  },
+  savedMealName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+  },
+  savedMealMeta: {
+    fontSize: 12,
+    color: COLORS.textTertiary,
+    marginTop: 2,
+  },
+  savedMealsEmpty: {
+    alignItems: "center",
+    paddingTop: 60,
+    paddingHorizontal: 40,
+  },
+  savedMealsEmptyTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginTop: 12,
+  },
+  savedMealsEmptyText: {
+    fontSize: 13,
+    color: COLORS.textTertiary,
+    textAlign: "center",
+    marginTop: 6,
   },
   foodListContent: {
     padding: 16,
@@ -1411,7 +1791,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
@@ -1426,15 +1806,15 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#A1CE50",
+    borderColor: COLORS.success,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   selectedButton: {
-    backgroundColor: "#A1CE50",
-    borderColor: "#A1CE50",
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
   },
   alreadyInMealButton: {
     backgroundColor: "#cccccc",
@@ -1447,23 +1827,23 @@ const styles = StyleSheet.create({
   foodItemName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   personalBadge: {
     fontSize: 12,
-    color: "#A1CE50",
+    color: COLORS.success,
     fontWeight: "normal",
   },
   alreadyAddedBadge: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     fontWeight: "normal",
     fontStyle: "italic",
   },
   foodItemDetails: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   detailsButton: {
     width: 36,
@@ -1477,14 +1857,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -1497,16 +1877,16 @@ const styles = StyleSheet.create({
   },
   kcalLabel: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginRight: 4,
   },
   totalCalories: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   addSelectedButton: {
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -1518,7 +1898,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#cccccc",
   },
   addSelectedButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -1531,7 +1911,7 @@ const styles = StyleSheet.create({
   },
   emptyListText: {
     fontSize: 16,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
   },
   emptyListContentContainer: {
@@ -1547,12 +1927,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: 8,
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   suggestionsTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginTop: 16,
     marginBottom: 8,
     textAlign: "center",
@@ -1565,14 +1945,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   suggestionButton: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     margin: 4,
   },
   suggestionText: {
-    color: "#333",
+    color: COLORS.textPrimary,
     fontSize: 14,
   },
   modalOverlay: {
@@ -1597,7 +1977,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 16,
     textAlign: "center",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   modalInput: {
     borderWidth: 1,
@@ -1611,7 +1991,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 8,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   mealTypeSelectorContainer: {
     flexDirection: "row",
@@ -1624,19 +2004,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     alignItems: "center",
     marginBottom: 10,
   },
   mealTypeOptionActive: {
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
   },
   mealTypeOptionText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   mealTypeOptionTextActive: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
   },
   modalButtons: {
@@ -1647,19 +2027,19 @@ const styles = StyleSheet.create({
   cancelButton: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
     width: "48%",
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: "500",
   },
   saveButton: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     width: "48%",
     alignItems: "center",
   },
@@ -1667,7 +2047,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#cccccc",
   },
   saveButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

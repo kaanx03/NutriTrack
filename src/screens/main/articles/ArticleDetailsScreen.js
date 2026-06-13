@@ -6,16 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Share,
   Alert,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getArticleById } from "../../../data/articlesData";
 import { useBookmarks } from "../../../context/BookmarkContext";
-import ShareModal from "../../../components/ShareModal";
 import BottomNavigation from "../../../components/BottomNavigation";
+import { COLORS } from "../../../theme";
 
 const ArticleDetailsScreen = () => {
   const navigation = useNavigation();
@@ -23,12 +23,11 @@ const ArticleDetailsScreen = () => {
   const { articleId } = route.params;
 
   const article = getArticleById(articleId);
-  const [showShareModal, setShowShareModal] = useState(false);
   const { isBookmarked, toggleBookmark } = useBookmarks();
 
   if (!article) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Article not found</Text>
           <TouchableOpacity
@@ -42,8 +41,19 @@ const ArticleDetailsScreen = () => {
     );
   }
 
-  const handleShare = () => {
-    setShowShareModal(true);
+  // Gerçek native paylaşım sayfası — sahte kişiler yerine OS'un kendi
+  // paylaşım ekranı (tüm kurulu uygulamalar + kişiler) açılır.
+  const handleShare = async () => {
+    try {
+      const title = article.title || article.shortTitle || "NutriTrack";
+      const intro = article.introduction ? `\n\n${article.introduction}` : "";
+      await Share.share({
+        title,
+        message: `${title}${intro}\n\nShared from NutriTrack`,
+      });
+    } catch (error) {
+      // Kullanıcı iptal etti veya paylaşım başarısız — sessiz geç
+    }
   };
 
   const handleBookmark = async () => {
@@ -51,14 +61,14 @@ const ArticleDetailsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
@@ -69,12 +79,12 @@ const ArticleDetailsScreen = () => {
             <Ionicons
               name={isBookmarked(articleId) ? "bookmark" : "bookmark-outline"}
               size={24}
-              color={isBookmarked(articleId) ? "#63A4F4" : "#333"}
+              color={isBookmarked(articleId) ? COLORS.primary : COLORS.textPrimary}
             />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
-            <Ionicons name="share-outline" size={24} color="#333" />
+            <Ionicons name="share-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -144,13 +154,6 @@ const ArticleDetailsScreen = () => {
 
       {/* Bottom Navigation - Updated to use component */}
       <BottomNavigation activeTab="Articles" />
-
-      {/* Share Modal */}
-      <ShareModal
-        visible={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        article={article}
-      />
     </SafeAreaView>
   );
 };
@@ -158,7 +161,7 @@ const ArticleDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -166,9 +169,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -180,11 +183,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   articleHeader: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     padding: 20,
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   categoryBadge: {
     paddingHorizontal: 12,
@@ -199,7 +202,7 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#333",
+    color: COLORS.textPrimary,
     textAlign: "center",
     lineHeight: 32,
     marginBottom: 16,
@@ -211,7 +214,7 @@ const styles = StyleSheet.create({
   },
   publishDate: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   metaDivider: {
     width: 4,
@@ -222,7 +225,7 @@ const styles = StyleSheet.create({
   },
   readTime: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   iconContainer: {
     width: 80,
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   articleContent: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     margin: 20,
     borderRadius: 16,
     padding: 20,
@@ -246,7 +249,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 12,
   },
   sectionContent: {
@@ -265,17 +268,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
   },
   backButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

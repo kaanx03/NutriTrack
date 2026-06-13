@@ -17,6 +17,7 @@ import { useActivity } from "../../../context/ActivityContext";
 import { showToast } from "../../../components/AppToast";
 import Button from "../../../components/Button";
 import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const CreateActivityScreen = () => {
   const navigation = useNavigation();
@@ -350,7 +351,7 @@ const CreateActivityScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   header: {
     flexDirection: "row",
@@ -360,7 +361,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -391,7 +392,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginBottom: 8,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   required: {
     color: "#ff4d4f",
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   inputError: {
     borderColor: "#ff4d4f",
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "right",
     marginTop: 4,
   },
@@ -435,62 +436,62 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     marginRight: 8,
     marginBottom: 8,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   optionButtonActive: {
-    backgroundColor: "#FDCD55",
-    borderColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
+    borderColor: COLORS.warning,
   },
   optionButtonText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 14,
   },
   optionButtonTextActive: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
   },
   previewContainer: {
     marginTop: 20,
     padding: 16,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 12,
   },
   previewTitle: {
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   previewCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#FDCD55",
+    borderColor: COLORS.warning,
   },
   previewActivityName: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   previewDetails: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 8,
   },
   previewCaloriesPerMin: {
     fontSize: 12,
-    color: "#FDCD55",
+    color: COLORS.warning,
     fontWeight: "500",
   },
   buttonContainer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
   },
   createButton: {
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -507,7 +508,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   createButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 18,
     fontWeight: "600",
   },

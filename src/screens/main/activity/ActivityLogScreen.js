@@ -6,16 +6,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Alert,
-  SafeAreaView,
-} from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+  Alert} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const ActivityLogScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
 
   // Context'ten state ve fonksiyonları alın
   const { activities, deleteActivity } = useActivity();
@@ -135,7 +137,7 @@ const ActivityLogScreen = () => {
             style={styles.editButton}
             onPress={() => handleEditActivity(item)}
           >
-            <Ionicons name="create-outline" size={20} color="#63A4F4" />
+            <Ionicons name="create-outline" size={20} color={COLORS.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -150,18 +152,8 @@ const ActivityLogScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <TouchableOpacity
-        style={styles.headerTouchable}
-        onPress={() => navigation.goBack()}
-      >
-        <View style={styles.header}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-          <Text style={styles.headerTitle}>Activity Log</Text>
-          <View style={styles.headerRight} />
-        </View>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      <ScreenHeader title="Activity Log" onBack={() => navigation.goBack()} />
 
       {/* Total calories */}
       <View style={styles.totalCaloriesContainer}>
@@ -184,22 +176,25 @@ const ActivityLogScreen = () => {
 
       {/* Add button */}
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: "#FDCD55" }]}
+        style={[
+          styles.addButton,
+          { backgroundColor: COLORS.warning, marginBottom: Math.max(insets.bottom, 16) },
+        ]}
         onPress={handleAddActivity}
       >
         <Text style={styles.addButtonText}>Add Activity</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   headerTouchable: {
-    paddingTop: 50, // Başlığı aşağıya taşımak için üst boşluk eklendi
+    paddingTop: 8,
   },
   header: {
     flexDirection: "row",
@@ -208,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16, // Daha fazla dikey boşluk eklendi
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -227,7 +222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   totalLabel: {
     fontSize: 16,
@@ -247,7 +242,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   activityItemLeft: {
     flexDirection: "row",
@@ -266,7 +261,7 @@ const styles = StyleSheet.create({
   activityIconText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#FDCD55",
+    color: COLORS.warning,
   },
   activityIconEmoji: {
     fontSize: 20,
@@ -277,12 +272,12 @@ const styles = StyleSheet.create({
   activityName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   activityDetails: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   activityItemRight: {
     flexDirection: "row",
@@ -301,21 +296,21 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   addButton: {
     position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     paddingVertical: 14,
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
   },
   addButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

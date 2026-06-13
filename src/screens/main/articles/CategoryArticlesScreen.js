@@ -6,13 +6,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
+  Dimensions
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getArticlesByCategory } from "../../../data/articlesData";
 import BottomNavigation from "../../../components/BottomNavigation";
+import { COLORS } from "../../../theme";
 
 const { width } = Dimensions.get("window");
 
@@ -25,7 +26,7 @@ const CategoryArticlesScreen = () => {
 
   if (!categoryData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Category not found</Text>
           <TouchableOpacity
@@ -75,20 +76,20 @@ const CategoryArticlesScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>{categoryData.title}</Text>
 
         <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="search" size={24} color="#333" />
+          <Ionicons name="search" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -129,7 +130,7 @@ const CategoryArticlesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -137,9 +138,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -147,13 +148,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   categoryInfo: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   categoryDescription: {
     fontSize: 16,
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   },
   articleCount: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   scrollView: {
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   articleCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -198,13 +199,13 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     lineHeight: 22,
     marginBottom: 8,
   },
   articleDescription: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
   },
   publishDate: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   metaDivider: {
     width: 4,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
   },
   readTime: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   iconContainer: {
     width: 50,
@@ -248,17 +249,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
   },
   backButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

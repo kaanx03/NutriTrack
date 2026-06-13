@@ -1,5 +1,5 @@
 // src/screens/main/HomeScreen.js - Backend Integration
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useNavigation,
   useRoute,
@@ -24,6 +24,7 @@ import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
 import BottomNavigation from "../../components/BottomNavigation";
 import Svg, { Circle } from "react-native-svg";
+import { COLORS } from "../../theme";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -60,26 +61,22 @@ const HomeScreen = () => {
   useEffect(() => {
     if (registerActivitySync && syncWithDate) {
       registerActivitySync(syncWithDate);
-      console.log("HomeScreen - Activity sync registered");
     }
   }, [registerActivitySync, syncWithDate]);
 
   // Loading state
   const isLoading = mealsLoading || activityLoading;
 
-  // Debug için - SignUp verilerini konsola yazdır
-  useEffect(() => {
-    if (formData && formData.calculatedPlan) {
-      console.log("SignUp Calorie Data:", formData.calculatedPlan);
-      console.log("Current MealsContext Calorie Data:", calorieData);
-    }
-  }, [formData, calorieData]);
-
-  // Ekran focus olduğunda verileri yenile
+  // Ekran focus olduğunda verileri yenile — ama her tab geçişinde değil,
+  // son yenilemeden en az 30 sn geçtiyse (gereksiz API çağrılarını önler)
+  const lastFocusRefresh = useRef(0);
   useFocusEffect(
     useCallback(() => {
-      console.log("HomeScreen focused, refreshing data...");
-      handleRefresh();
+      const now = Date.now();
+      if (now - lastFocusRefresh.current > 30000) {
+        lastFocusRefresh.current = now;
+        handleRefresh();
+      }
     }, [currentDate])
   );
 
@@ -101,7 +98,6 @@ const HomeScreen = () => {
   const handleAddFoodFromRoute = async (selectedFood) => {
     try {
       await addFood(selectedFood);
-      console.log("Food added successfully from route:", selectedFood);
     } catch (error) {
       console.error("Error adding food from route:", error);
       Alert.alert("Error", "Failed to add food. Please try again.", [
@@ -114,12 +110,10 @@ const HomeScreen = () => {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      console.log("Refreshing HomeScreen data...");
 
       // Her iki context'i de yenile
       await Promise.all([refreshMealsData(), refreshActivityData()]);
 
-      console.log("HomeScreen data refreshed successfully");
     } catch (error) {
       console.error("Error refreshing data:", error);
       Alert.alert(
@@ -151,7 +145,6 @@ const HomeScreen = () => {
   };
 
   const handleDateSelect = (date) => {
-    console.log("Date selected:", date);
     changeDate(date);
     setDatePickerVisible(false);
   };
@@ -159,19 +152,16 @@ const HomeScreen = () => {
   const goToPreviousDay = () => {
     const prevDay = new Date(currentDate);
     prevDay.setDate(prevDay.getDate() - 1);
-    console.log("Going to previous day:", prevDay);
     changeDate(prevDay);
   };
 
   const goToNextDay = () => {
     const nextDay = new Date(currentDate);
     nextDay.setDate(nextDay.getDate() + 1);
-    console.log("Going to next day:", nextDay);
     changeDate(nextDay);
   };
 
   const handleAddFood = (mealType) => {
-    console.log("Adding food for meal type:", mealType);
     navigation.navigate("FoodSelection", {
       mealType,
       currentDate: currentDate.toISOString(),
@@ -179,7 +169,6 @@ const HomeScreen = () => {
   };
 
   const viewMealDetails = (mealType) => {
-    console.log("Viewing meal details for:", mealType);
     navigation.navigate("MealDetails", {
       mealType: mealType,
       mealFoods: mealFoods[mealType],
@@ -188,20 +177,23 @@ const HomeScreen = () => {
   };
 
   const handleAddActivity = () => {
-    console.log("Adding activity");
     navigation.navigate("ActivitySelection", {
       currentDate: currentDate.toISOString(),
     });
   };
 
   // Calculate calories progress percentage (consumed/total * 100)
+  // 100'ün üzeri değerler kırmızı "aşım" halkası olarak çizilir
   const getCaloriesProgressPercentage = () => {
     if (!calorieData.calories || calorieData.calories <= 0) return 0;
-    return Math.min(
-      Math.round((consumedCalories / calorieData.calories) * 100),
-      100
-    );
+    return Math.round((consumedCalories / calorieData.calories) * 100);
   };
+
+  // Hedef aşıldıysa kaç kalori aşıldığını hesapla
+  const overCalories = Math.max(
+    0,
+    Math.round(consumedCalories - (calorieData.calories || 0))
+  );
 
   // Calculate macro nutrient progress percentage
   const getMacroProgressPercentage = (consumed, target) => {
@@ -232,7 +224,7 @@ const HomeScreen = () => {
       >
         <Svg width={size} height={size}>
           <Circle
-            stroke="#f0f0f0"
+            stroke={COLORS.border}
             fill="none"
             cx={size / 2}
             cy={size / 2}
@@ -276,10 +268,9 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#A1CE50" />
+          <ActivityIndicator size="large" color={COLORS.success} />
           <Text style={styles.loadingText}>Loading your nutrition data...</Text>
         </View>
-        <BottomNavigation activeTab="Home" />
       </View>
     );
   }
@@ -304,8 +295,8 @@ const HomeScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#A1CE50"]}
-            tintColor="#A1CE50"
+            colors={[COLORS.success]}
+            tintColor={COLORS.success}
           />
         }
       >
@@ -354,12 +345,26 @@ const HomeScreen = () => {
                 size={120}
                 strokeWidth={10}
                 progress={getCaloriesProgressPercentage()}
-                color="#A1CE50"
+                color={COLORS.success}
+                overflowColor={COLORS.successDark}
               >
-                <Text style={styles.caloriesLeftValue}>
-                  {Math.round(caloriesLeft)}
-                </Text>
-                <Text style={styles.caloriesLeftUnit}>kcal left</Text>
+                {overCalories > 0 ? (
+                  <>
+                    <Text style={[styles.caloriesLeftValue, { color: COLORS.successDark }]}>
+                      {overCalories}
+                    </Text>
+                    <Text style={[styles.caloriesLeftUnit, { color: COLORS.successDark }]}>
+                      kcal over
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.caloriesLeftValue}>
+                      {Math.round(caloriesLeft)}
+                    </Text>
+                    <Text style={styles.caloriesLeftUnit}>kcal left</Text>
+                  </>
+                )}
               </CaloriesProgressCircle>
             </View>
 
@@ -410,7 +415,7 @@ const HomeScreen = () => {
                     consumedNutrients.protein,
                     calorieData.protein
                   )}
-                  color="#63A4F4"
+                  color={COLORS.primary}
                 >
                   <Text style={styles.macroValue}>
                     {formatMacroValue(consumedNutrients.protein)}
@@ -464,7 +469,7 @@ const HomeScreen = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.addFoodButton, { backgroundColor: "#FDCD55" }]}
+                style={[styles.addFoodButton, { backgroundColor: COLORS.warning }]}
                 onPress={handleAddActivity}
               >
                 <Text style={styles.addButtonText}>+</Text>
@@ -478,7 +483,10 @@ const HomeScreen = () => {
           {meals.map((meal, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.mealItem}
+              style={[
+                styles.mealItem,
+                index === meals.length - 1 && styles.mealItemLast,
+              ]}
               activeOpacity={0.7}
               onPress={() => viewMealDetails(meal.type)}
             >
@@ -518,8 +526,6 @@ const HomeScreen = () => {
         </View>
       </ScrollView>
 
-      <BottomNavigation activeTab="Home" />
-
       <DatePickerModal
         visible={isDatePickerVisible}
         onClose={() => setDatePickerVisible(false)}
@@ -533,7 +539,7 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
@@ -542,7 +548,7 @@ const styles = StyleSheet.create({
     paddingTop: 45,
     paddingHorizontal: 20,
     paddingBottom: 80,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
@@ -552,14 +558,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontStyle: "italic",
   },
   notificationButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -579,11 +585,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
   },
   mainCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     marginHorizontal: 20,
     marginBottom: 16,
@@ -601,11 +607,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   navArrow: {
     fontSize: 24,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   dateContainer: {
     flexDirection: "row",
@@ -642,16 +648,16 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   summaryValue: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   summaryUnit: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
     marginTop: 2,
   },
   caloriesLeftContainer: {
@@ -662,22 +668,22 @@ const styles = StyleSheet.create({
   caloriesLeftValue: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   caloriesLeftUnit: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   sectionContainer: {
     paddingTop: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#666",
+    color: COLORS.textSecondary,
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -697,15 +703,15 @@ const styles = StyleSheet.create({
   macroValue: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   macroUnit: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   macroLabel: {
     fontSize: 14,
-    color: "#333",
+    color: COLORS.textPrimary,
     marginTop: 4,
   },
   burnedContainer: {
@@ -715,7 +721,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   mealsCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 20,
     marginHorizontal: 20,
     marginBottom: 80,
@@ -730,10 +736,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
+  },
+  mealItemLast: {
+    borderBottomWidth: 0,
   },
   mealLeftContent: {
     flexDirection: "row",
@@ -756,24 +765,24 @@ const styles = StyleSheet.create({
   mealType: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 6,
   },
   mealCalories: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   addFoodButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     justifyContent: "center",
     alignItems: "center",
   },
   addButtonText: {
     fontSize: 24,
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontWeight: "300",
     lineHeight: 28,
   },

@@ -9,12 +9,12 @@ import {
   FlatList,
   TouchableWithoutFeedback,
   Keyboard,
-  SafeAreaView,
   Modal,
   Image,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useNavigation,
   useRoute,
@@ -22,10 +22,13 @@ import {
 } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
 import sampleActivities from "../../../data/sampleActivities";
+import ScreenHeader from "../../../components/ScreenHeader";
+import { COLORS } from "../../../theme";
 
 const ActivitySelectionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
 
   // Context'ten tüm gerekli state ve fonksiyonları al
   const {
@@ -90,7 +93,6 @@ const ActivitySelectionScreen = () => {
   // Error handling
   useEffect(() => {
     if (error) {
-      console.log("ActivitySelection - Error:", error);
       // Error'u belirli bir süre sonra temizle
       const timeout = setTimeout(() => {
         clearError();
@@ -146,7 +148,7 @@ const ActivitySelectionScreen = () => {
       setShowQuickLogModal(false);
 
       // Navigate back to home
-      navigation.navigate("Home");
+      navigation.navigate("MainTabs", { screen: "Home" });
     } catch (error) {
       console.error("Quick log error:", error);
       // Error handling - context zaten error state'i set etti
@@ -236,7 +238,7 @@ const ActivitySelectionScreen = () => {
       });
 
       // Ana ekrana dön
-      navigation.navigate("Home");
+      navigation.navigate("MainTabs", { screen: "Home" });
     } catch (error) {
       console.error("Add activity error:", error);
       // Error handling - context zaten error state'i set etti
@@ -289,7 +291,7 @@ const ActivitySelectionScreen = () => {
           }}
           disabled={operationLoading}
         >
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textTertiary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -299,7 +301,7 @@ const ActivitySelectionScreen = () => {
   const EmptyListComponent = () => (
     <View style={styles.emptyListContainer}>
       {isLoading ? (
-        <ActivityIndicator size="large" color="#FDCD55" />
+        <ActivityIndicator size="large" color={COLORS.warning} />
       ) : isSearching ? (
         <Text style={styles.emptyListText}>
           No results found for "{searchQuery}"
@@ -333,50 +335,30 @@ const ActivitySelectionScreen = () => {
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity onPress={clearError} style={styles.errorCloseButton}>
-          <Ionicons name="close" size={16} color="#fff" />
+          <Ionicons name="close" size={16} color={COLORS.surface} />
         </TouchableOpacity>
       </View>
     );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
+      <ScreenHeader
+        title="Add Activity"
+        onBack={() => navigation.goBack()}
+        rightIcon="refresh"
+        onRightPress={refreshData}
+      />
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         <View style={styles.container}>
           {/* Error Display */}
           <ErrorComponent />
-
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
-              disabled={operationLoading}
-            >
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-
-            <Text style={styles.headerTitle}>Activity Log</Text>
-
-            <TouchableOpacity
-              style={styles.refreshButton}
-              onPress={refreshData}
-              disabled={isLoading || operationLoading}
-            >
-              <Ionicons
-                name="refresh"
-                size={20}
-                color={isLoading ? "#ccc" : "#666"}
-              />
-            </TouchableOpacity>
-          </View>
 
           {/* Search Bar */}
           <View style={styles.searchContainer}>
             <Ionicons
               name="search"
               size={20}
-              color="#999"
+              color={COLORS.textTertiary}
               style={styles.searchIcon}
             />
             <TextInput
@@ -394,7 +376,7 @@ const ActivitySelectionScreen = () => {
                 }}
                 style={styles.searchClearButton}
               >
-                <Ionicons name="close-circle" size={20} color="#999" />
+                <Ionicons name="close-circle" size={20} color={COLORS.textTertiary} />
               </TouchableOpacity>
             )}
           </View>
@@ -409,7 +391,7 @@ const ActivitySelectionScreen = () => {
               onPress={handleQuickLogPress}
               disabled={operationLoading}
             >
-              <Ionicons name="flash" size={18} color="#333" />
+              <Ionicons name="flash" size={18} color={COLORS.textPrimary} />
               <Text style={styles.quickLogText}>Quick Log</Text>
             </TouchableOpacity>
 
@@ -421,7 +403,7 @@ const ActivitySelectionScreen = () => {
               onPress={handleCreateActivityPress}
               disabled={operationLoading}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#333" />
+              <Ionicons name="add-circle-outline" size={18} color={COLORS.textPrimary} />
               <Text style={styles.createActivityText}>Create Activity</Text>
             </TouchableOpacity>
           </View>
@@ -526,7 +508,12 @@ const ActivitySelectionScreen = () => {
 
           {/* Selected Activity Summary & Add Button - Only shows if activity is selected */}
           {selectedActivity && (
-            <View style={styles.selectedActivitySummary}>
+            <View
+              style={[
+                styles.selectedActivitySummary,
+                { paddingBottom: Math.max(insets.bottom, 16) },
+              ]}
+            >
               <View style={styles.durationInputContainer}>
                 <Text style={styles.durationLabel}>Duration (mins):</Text>
                 <TextInput
@@ -548,7 +535,7 @@ const ActivitySelectionScreen = () => {
                 disabled={operationLoading}
               >
                 {operationLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={COLORS.surface} />
                 ) : (
                   <Text style={styles.addSelectedButtonText}>Add</Text>
                 )}
@@ -622,7 +609,7 @@ const ActivitySelectionScreen = () => {
                         disabled={operationLoading}
                       >
                         {operationLoading ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={COLORS.surface} />
                         ) : (
                           <Text style={styles.saveButtonText}>Save</Text>
                         )}
@@ -635,19 +622,19 @@ const ActivitySelectionScreen = () => {
           </Modal>
         </View>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 24,
+    backgroundColor: COLORS.surface,
+    paddingTop: 8,
   },
   errorContainer: {
     flexDirection: "row",
@@ -661,7 +648,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 14,
     flex: 1,
   },
@@ -674,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     paddingHorizontal: 20,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginTop: 20,
   },
   backButton: {
@@ -696,7 +683,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 10,
     marginHorizontal: 20,
     marginTop: 10,
@@ -709,7 +696,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   searchClearButton: {
     padding: 4,
@@ -724,7 +711,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -739,7 +726,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -757,7 +744,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   tab: {
     flex: 1,
@@ -767,16 +754,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeTab: {
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     borderRadius: 4,
     marginHorizontal: 4,
   },
   tabText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   activeTabText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
   },
   tabBadge: {
@@ -789,13 +776,13 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   tabBadgeText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 12,
     fontWeight: "500",
   },
   activityList: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   activityListContent: {
     padding: 16,
@@ -805,7 +792,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
@@ -817,7 +804,7 @@ const styles = StyleSheet.create({
   },
   selectedActivityItem: {
     borderWidth: 2,
-    borderColor: "#FDCD55",
+    borderColor: COLORS.warning,
   },
   activityItemLeft: {
     flexDirection: "row",
@@ -834,7 +821,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -842,7 +829,7 @@ const styles = StyleSheet.create({
   activityIconText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#fff",
+    color: COLORS.surface,
   },
   activityItemInfo: {
     flex: 1,
@@ -850,12 +837,12 @@ const styles = StyleSheet.create({
   activityItemName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   activityItemDetails: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   detailsButton: {
     width: 36,
@@ -869,14 +856,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
+    borderTopColor: COLORS.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -900,7 +887,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   addSelectedButton: {
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -909,7 +896,7 @@ const styles = StyleSheet.create({
     minWidth: 100,
   },
   addSelectedButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -925,18 +912,18 @@ const styles = StyleSheet.create({
   },
   emptyListText: {
     fontSize: 16,
-    color: "#999",
+    color: COLORS.textTertiary,
     textAlign: "center",
     marginBottom: 16,
   },
   emptyActionButton: {
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
   },
   emptyActionButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontWeight: "500",
   },
   emptyListContentContainer: {
@@ -965,7 +952,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 16,
     textAlign: "center",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   modalInput: {
     borderWidth: 1,
@@ -983,24 +970,24 @@ const styles = StyleSheet.create({
   cancelButton: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: COLORS.border,
     width: "48%",
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#666",
+    color: COLORS.textSecondary,
     fontSize: 16,
     fontWeight: "500",
   },
   saveButton: {
     padding: 12,
     borderRadius: 8,
-    backgroundColor: "#FDCD55",
+    backgroundColor: COLORS.warning,
     width: "48%",
     alignItems: "center",
   },
   saveButtonText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },

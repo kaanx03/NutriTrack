@@ -7,21 +7,30 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useNavigation,
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
+import NutritionService from "../../../services/NutritionService";
+import { showToast } from "../../../components/AppToast";
+import { COLORS } from "../../../theme";
 
 const MealDetailsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { mealType } = route.params;
 
   // Context'ten state ve fonksiyonları alın
@@ -35,12 +44,56 @@ const MealDetailsScreen = () => {
   });
   const [foods, setFoods] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // "Save as meal" modalı
+  const [saveMealVisible, setSaveMealVisible] = useState(false);
+  const [saveMealName, setSaveMealName] = useState("");
+  const [savingMeal, setSavingMeal] = useState(false);
+
+  const openSaveMealModal = () => {
+    const shortDate = new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    setSaveMealName(`${mealType} – ${shortDate}`);
+    setSaveMealVisible(true);
+  };
+
+  const handleSaveMeal = async () => {
+    if (!saveMealName.trim()) {
+      showToast("Please enter a meal name", "error");
+      return;
+    }
+    try {
+      setSavingMeal(true);
+      const items = foods.map((f) => ({
+        name: f.name,
+        calories: f.calories || 0,
+        carbs: f.carbs || 0,
+        protein: f.protein || 0,
+        fat: f.fat || 0,
+        portionSize: f.portionSize || f.weight || 100,
+        portionUnit: f.portionUnit || "gram (g)",
+        icon: f.icon,
+      }));
+      await NutritionService.saveMealTemplate({
+        name: saveMealName.trim(),
+        mealType,
+        items,
+      });
+      setSaveMealVisible(false);
+      showToast("Meal saved — find it in the Meals tab", "success");
+    } catch (error) {
+      showToast("Failed to save meal", "error");
+    } finally {
+      setSavingMeal(false);
+    }
+  };
   const [refreshing, setRefreshing] = useState(false);
   const [deletingFoodId, setDeletingFoodId] = useState(null); // Hangi yemek silinirken loading göstermek için
 
   // Meal data'yı güncelleyen ana fonksiyon
   const updateMealData = useCallback(() => {
-    console.log("Updating meal data for:", mealType);
 
     // Context'ten ilgili öğün yemeklerini al
     const currentFoods = mealFoods[mealType] || [];
@@ -64,7 +117,6 @@ const MealDetailsScreen = () => {
       fat: Math.round(totals.fat * 10) / 10,
     });
 
-    console.log(`Meal ${mealType} totals:`, totals);
   }, [mealFoods, mealType]);
 
   // İlk yükleme ve context değişiklikleri
@@ -75,7 +127,6 @@ const MealDetailsScreen = () => {
   // Ekran focus olduğunda verileri yenile
   useFocusEffect(
     useCallback(() => {
-      console.log("MealDetailsScreen focused, refreshing data");
       handleRefresh();
     }, [mealType, currentDate])
   );
@@ -84,7 +135,6 @@ const MealDetailsScreen = () => {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      console.log("Refreshing meal details data");
 
       // Backend'den güncel verileri al
       await refreshData();
@@ -92,7 +142,6 @@ const MealDetailsScreen = () => {
       // Local state'i güncelle
       updateMealData();
 
-      console.log("Meal details data refreshed successfully");
     } catch (error) {
       console.error("Error refreshing meal details:", error);
       Alert.alert(
@@ -109,13 +158,6 @@ const MealDetailsScreen = () => {
     const foodId = foodItem.id || foodItem.backendId;
     const foodName = foodItem.name || "Unknown Food";
 
-    console.log("Delete food called with:", {
-      foodId,
-      foodName,
-      mealType,
-      backendId: foodItem.backendId,
-      fullItem: foodItem,
-    });
 
     Alert.alert(
       "Delete Food",
@@ -130,18 +172,10 @@ const MealDetailsScreen = () => {
           onPress: async () => {
             try {
               setDeletingFoodId(foodId); // Loading state için
-              console.log("=== STARTING FOOD DELETE PROCESS ===");
-              console.log("Deleting food:", {
-                id: foodId,
-                name: foodName,
-                mealType: mealType,
-                backendId: foodItem.backendId,
-              });
 
               // Context'teki deleteFood fonksiyonunu çağır (backend entegrasyonu dahil)
               await deleteFood(foodId, mealType);
 
-              console.log("=== FOOD DELETE COMPLETED SUCCESSFULLY ===");
 
               // Success feedback
               Alert.alert(
@@ -175,7 +209,6 @@ const MealDetailsScreen = () => {
 
   // Handle add food
   const handleAddFood = () => {
-    console.log("Adding food to meal:", mealType);
     // Navigate to FoodSelectionScreen with current meal type
     navigation.navigate("FoodSelection", {
       mealType: mealType,
@@ -185,7 +218,6 @@ const MealDetailsScreen = () => {
 
   // Handle edit food (navigate to details)
   const handleEditFood = (food) => {
-    console.log("Editing food:", food.name);
     navigation.navigate("FoodDetails", {
       food: {
         ...food,
@@ -298,7 +330,7 @@ const MealDetailsScreen = () => {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             disabled={isDeleting}
           >
-            <Ionicons name="create-outline" size={20} color="#666" />
+            <Ionicons name="create-outline" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -349,18 +381,29 @@ const MealDetailsScreen = () => {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{mealType}</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={handleRefresh}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color="#666" />
-          ) : (
-            <Ionicons name="refresh-outline" size={24} color="#666" />
+        <View style={styles.headerActions}>
+          {foods.length > 0 && (
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={openSaveMealModal}
+              hitSlop={{ top: 15, bottom: 15, left: 8, right: 8 }}
+            >
+              <Ionicons name="bookmark-outline" size={22} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+            hitSlop={{ top: 15, bottom: 15, left: 8, right: 15 }}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={COLORS.textSecondary} />
+            ) : (
+              <Ionicons name="refresh-outline" size={24} color={COLORS.textSecondary} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary Card */}
@@ -416,8 +459,8 @@ const MealDetailsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={["#A1CE50"]}
-              tintColor="#A1CE50"
+              colors={[COLORS.success]}
+              tintColor={COLORS.success}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -427,13 +470,57 @@ const MealDetailsScreen = () => {
 
       {/* Add Button */}
       <TouchableOpacity
-        style={styles.addButton}
+        style={[styles.addButton, { bottom: Math.max(insets.bottom, 16) }]}
         onPress={handleAddFood}
         activeOpacity={0.8}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Ionicons name="add" size={24} color={COLORS.surface} />
         <Text style={styles.addButtonText}>Add Food</Text>
       </TouchableOpacity>
+
+      {/* Save-as-meal modalı */}
+      <Modal
+        visible={saveMealVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSaveMealVisible(false)}
+      >
+        <View style={styles.saveMealOverlay}>
+          <View style={styles.saveMealCard}>
+            <Text style={styles.saveMealTitle}>Save Meal</Text>
+            <Text style={styles.saveMealSubtitle}>
+              Save these {foods.length} food(s) as a reusable meal
+            </Text>
+            <TextInput
+              style={styles.saveMealInput}
+              value={saveMealName}
+              onChangeText={setSaveMealName}
+              placeholder="Meal name"
+              autoFocus
+            />
+            <View style={styles.saveMealButtons}>
+              <TouchableOpacity
+                style={styles.saveMealCancel}
+                onPress={() => setSaveMealVisible(false)}
+                disabled={savingMeal}
+              >
+                <Text style={styles.saveMealCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveMealConfirm}
+                onPress={handleSaveMeal}
+                disabled={savingMeal}
+              >
+                {savingMeal ? (
+                  <ActivityIndicator size="small" color={COLORS.surface} />
+                ) : (
+                  <Text style={styles.saveMealConfirmText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -441,18 +528,18 @@ const MealDetailsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 8,
@@ -464,8 +551,78 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  saveMealOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  saveMealCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 20,
+  },
+  saveMealTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    textAlign: "center",
+  },
+  saveMealSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  saveMealInput: {
+    borderWidth: 1,
+    borderColor: COLORS.disabled,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+  saveMealButtons: {
+    flexDirection: "row",
+    marginTop: 16,
+  },
+  saveMealCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: COLORS.border,
+    marginRight: 8,
+  },
+  saveMealCancelText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: COLORS.textSecondary,
+  },
+  saveMealConfirm: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: COLORS.success,
+    marginLeft: 8,
+  },
+  saveMealConfirmText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.surface,
+  },
   summaryCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
@@ -486,11 +643,11 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   summaryDate: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   summaryContent: {
     alignItems: "center",
@@ -501,13 +658,13 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   summaryMainValue: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#A1CE50",
+    color: COLORS.success,
   },
   summaryMacros: {
     flexDirection: "row",
@@ -519,17 +676,17 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   macroValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   listContainer: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
@@ -538,11 +695,11 @@ const styles = StyleSheet.create({
   listTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     padding: 16,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   listContent: {
     paddingBottom: 80,
@@ -558,7 +715,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   foodItemLeft: {
     flexDirection: "row",
@@ -569,7 +726,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -583,22 +740,22 @@ const styles = StyleSheet.create({
   foodName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   customBadge: {
     fontSize: 12,
-    color: "#A1CE50",
+    color: COLORS.success,
     fontWeight: "normal",
   },
   foodDetails: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 2,
   },
   nutritionalDetails: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   foodItemRight: {
     flexDirection: "row",
@@ -624,7 +781,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
@@ -632,25 +789,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 8,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
   },
   emptyAddButton: {
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   emptyAddButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "500",
   },
@@ -659,7 +816,7 @@ const styles = StyleSheet.create({
     bottom: 24,
     left: 16,
     right: 16,
-    backgroundColor: "#A1CE50",
+    backgroundColor: COLORS.success,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -672,7 +829,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,

@@ -6,14 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
+  Dimensions
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useBookmarks } from "../../../context/BookmarkContext";
 import { getArticleById } from "../../../data/articlesData";
 import BottomNavigation from "../../../components/BottomNavigation";
+import { COLORS } from "../../../theme";
 
 const { width } = Dimensions.get("window");
 
@@ -81,7 +82,7 @@ const SavedArticlesScreen = () => {
             style={styles.removeButton}
             onPress={() => handleRemoveBookmark(article.id)}
           >
-            <Ionicons name="bookmark" size={20} color="#63A4F4" />
+            <Ionicons name="bookmark" size={20} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -100,7 +101,7 @@ const SavedArticlesScreen = () => {
       </Text>
       <TouchableOpacity
         style={styles.exploreButton}
-        onPress={() => navigation.navigate("Articles")}
+        onPress={() => navigation.navigate("MainTabs", { screen: "Articles" })}
       >
         <Text style={styles.exploreButtonText}>Explore Articles</Text>
       </TouchableOpacity>
@@ -108,14 +109,14 @@ const SavedArticlesScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#333" />
+          <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>Saved Articles</Text>
@@ -159,7 +160,7 @@ const SavedArticlesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: COLORS.surfaceMuted,
   },
   header: {
     flexDirection: "row",
@@ -167,9 +168,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   headerButton: {
     padding: 8,
@@ -178,18 +179,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   statsContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: COLORS.border,
   },
   statsText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   scrollView: {
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   articleCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -236,13 +237,13 @@ const styles = StyleSheet.create({
   articleTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     lineHeight: 22,
     marginBottom: 8,
   },
   articleDescription: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   },
   publishDate: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   metaDivider: {
     width: 4,
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   },
   readTime: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   rightContent: {
     alignItems: "center",
@@ -294,25 +295,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginBottom: 12,
     textAlign: "center",
   },
   emptyDescription: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 32,
   },
   exploreButton: {
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
   },
   exploreButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
   },

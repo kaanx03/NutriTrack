@@ -14,11 +14,14 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import { useWater } from "../../context/WaterContext";
 import { useWeight } from "../../context/WeightContext";
 import BottomNavigation from "../../components/BottomNavigation";
+import ScreenHeader from "../../components/ScreenHeader";
+import { showToast } from "../../components/AppToast";
+import { hapticLight } from "../../utils/haptics";
+import { COLORS } from "../../theme";
 
 const TrackerScreen = () => {
   const navigation = useNavigation();
@@ -124,17 +127,17 @@ const TrackerScreen = () => {
   // Su içme fonksiyonları - UPDATED
   const decreaseWater = async () => {
     try {
-      console.log("TrackerScreen - Decrease water button pressed");
+      hapticLight();
       await contextDecreaseWater(waterIncrement);
     } catch (error) {
       console.error("TrackerScreen - Decrease water error:", error);
-      Alert.alert("Hata", "Su kaydı silinemedi. Tekrar deneyin.");
+      Alert.alert("Error", "Failed to delete water log. Please try again.");
     }
   };
 
   const increaseWater = async () => {
     try {
-      console.log("TrackerScreen - Increase water button pressed");
+      hapticLight();
       const wasGoalReached = isGoalReached();
       await contextIncreaseWater(waterIncrement);
 
@@ -161,26 +164,21 @@ const TrackerScreen = () => {
 
         setTimeout(() => setShowCelebration(false), 2000);
 
-        // Başarı mesajı
-        Alert.alert("🎉 Tebrikler!", "Günlük su hedefine ulaştınız!", [
-          { text: "Harika!", style: "default" },
-        ]);
+        showToast("🎉 You've reached your daily water goal!", "success");
       }
     } catch (error) {
       console.error("TrackerScreen - Increase water error:", error);
       Alert.alert(
-        "Hata",
-        "Su kaydı eklenemedi. İnternet bağlantınızı kontrol edin."
+        "Error",
+        "Failed to add water log. Please check your internet connection."
       );
     }
   };
 
   // Manual refresh function - ADDED
   const handleRefresh = async () => {
-    console.log("TrackerScreen - Manual refresh triggered");
     try {
-      await refreshData(); // Water data refresh
-      // Add weight data refresh if you have it
+      await refreshData();
     } catch (error) {
       console.error("TrackerScreen - Refresh error:", error);
     }
@@ -198,8 +196,8 @@ const TrackerScreen = () => {
 
     if (isNaN(weight) || weight <= 0 || weight > 500) {
       Alert.alert(
-        "Hata",
-        "Lütfen 1-500 kg arası geçerli bir kilo değeri giriniz."
+        "Error",
+        "Please enter a valid weight between 1 and 500 kg."
       );
       return;
     }
@@ -209,13 +207,11 @@ const TrackerScreen = () => {
       await updateWeight(weight, newWeightNotes);
       setIsWeightModalVisible(false);
 
-      Alert.alert("Başarılı", "Kilonuz başarıyla güncellendi.", [
-        { text: "Tamam", style: "default" },
-      ]);
+      showToast("Weight updated successfully", "success");
     } catch (error) {
       Alert.alert(
-        "Hata",
-        error.message || "Kilo güncellenemedi. Tekrar deneyin."
+        "Error",
+        error.message || "Failed to update weight. Please try again."
       );
     } finally {
       setIsUpdatingWeight(false);
@@ -226,12 +222,12 @@ const TrackerScreen = () => {
   const getBmiSegments = () => {
     return [
       { color: "#3F51B2", flex: 1 },
-      { color: "#1A96F0", flex: 1 },
+      { color: COLORS.water, flex: 1 },
       { color: "#00A9F1", flex: 2 },
       { color: "#4AAF57", flex: 4 },
       { color: "#FFC02D", flex: 3 },
       { color: "#FF981F", flex: 2 },
-      { color: "#FF5726", flex: 1 },
+      { color: COLORS.weight, flex: 1 },
       { color: "#F54336", flex: 1 },
     ];
   };
@@ -261,36 +257,37 @@ const TrackerScreen = () => {
     return (currentPosition / totalFlex) * 100;
   };
 
-  const weightChange = getWeightChange();
-  const goalProgress = getGoalProgress();
-
   // Loading gösterimi
   if (waterLoading || weightLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#03A9F4" />
-        <Text style={styles.loadingText}>Veriler yükleniyor...</Text>
+        <Text style={styles.loadingText}>Loading data...</Text>
       </View>
     );
   }
 
+  const weightChange = getWeightChange?.() ?? {
+    value: "0.0",
+    isPositive: false,
+    isNegative: false,
+    percentage: "0.0",
+  };
+  const goalProgress = getGoalProgress?.() ?? {
+    percentage: 0,
+    remaining: "0.0",
+    isAchieved: false,
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f5f5f5" barStyle="dark-content" />
+      <StatusBar backgroundColor={COLORS.background} barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tracker</Text>
-        <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title="Tracker" />
 
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -298,27 +295,27 @@ const TrackerScreen = () => {
             onRefresh={handleRefresh} // UPDATED THIS LINE
             colors={["#03A9F4"]}
             tintColor="#03A9F4"
-            title="Veriler yenileniyor..."
-            titleColor="#666"
+            title="Refreshing data..."
+            titleColor={COLORS.textSecondary}
           />
         }
       >
         {/* Water Section */}
         <View style={styles.sectionCard}>
           <View style={styles.waterHeader}>
-            <View>
+            <View style={styles.waterHeaderLeft}>
               <Text style={styles.sectionTitle}>Water</Text>
               <View style={styles.waterStats}>
                 <Text style={styles.waterIntakeText}>{waterIntake} mL</Text>
-                <Text style={styles.waterTarget}>/ {waterGoal} mL</Text>
+                <Text style={styles.waterTarget}> / {waterGoal} mL</Text>
               </View>
               <Text style={styles.waterSubInfo}>
                 {getRemainingWater() > 0
-                  ? `${getRemainingWater()} mL kaldı`
-                  : "🎉 Hedef tamamlandı!"}
+                  ? `${getRemainingWater()} mL left`
+                  : "🎉 Goal completed!"}
               </Text>
               <Text style={styles.waterLogCount}>
-                Bugün {getTodayLogCount()} kayıt
+                {getTodayLogCount()} logs today
               </Text>
             </View>
             <View style={styles.waterIncrementContainer}>
@@ -425,7 +422,7 @@ const TrackerScreen = () => {
                   style={[
                     styles.waterPercentage,
                     {
-                      color: getWaterPercentage() > 50 ? "#FFFFFF" : "#0288D1",
+                      color: getWaterPercentage() > 50 ? COLORS.surface : "#0288D1",
                     },
                   ]}
                 >
@@ -496,7 +493,7 @@ const TrackerScreen = () => {
               disabled={isUpdatingWeight}
             >
               {isUpdatingWeight ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={COLORS.surface} />
               ) : (
                 <Text style={styles.updateButtonText}>Update</Text>
               )}
@@ -527,7 +524,7 @@ const TrackerScreen = () => {
                       ? "#10B981"
                       : weightChange.isPositive
                       ? "#EF4444"
-                      : "#666",
+                      : COLORS.textSecondary,
                   },
                 ]}
               >
@@ -553,15 +550,16 @@ const TrackerScreen = () => {
             </View>
             <View style={styles.progressLabels}>
               <Text style={styles.progressLabel}>
-                Başlangıç {initialWeight.toFixed(1)} kg
+                Start {initialWeight.toFixed(1)} kg
               </Text>
               <Text style={styles.progressLabel}>
-                Hedef {goalWeight.toFixed(1)} kg
+                Goal {goalWeight.toFixed(1)} kg
               </Text>
             </View>
             <Text style={styles.progressInfo}>
-              Hedefe {goalProgress.remaining} kg{" "}
-              {goalProgress.remaining > 0 ? "var" : "geçildi"}
+              {goalProgress.remaining > 0
+                ? `${goalProgress.remaining} kg to goal`
+                : "Goal reached"}
             </Text>
           </View>
         </View>
@@ -579,7 +577,7 @@ const TrackerScreen = () => {
 
           <View style={styles.bmiInfo}>
             <Text style={styles.bmiInfoText}>
-              Boy: {height} cm | Kilo: {currentWeight.toFixed(1)} kg
+              Height: {height} cm | Weight: {currentWeight.toFixed(1)} kg
             </Text>
           </View>
 
@@ -621,15 +619,15 @@ const TrackerScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Kilo Güncelle</Text>
-            <Text style={styles.modalSubtitle}>Güncel kilonuzu giriniz</Text>
+            <Text style={styles.modalTitle}>Update Weight</Text>
+            <Text style={styles.modalSubtitle}>Enter your current weight</Text>
 
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.weightInput}
                 value={newWeight}
                 onChangeText={setNewWeight}
-                placeholder="Kilo"
+                placeholder="Weight"
                 keyboardType="numeric"
                 autoFocus={true}
               />
@@ -641,7 +639,7 @@ const TrackerScreen = () => {
                 style={[styles.weightInput, styles.notesInput]}
                 value={newWeightNotes}
                 onChangeText={setNewWeightNotes}
-                placeholder="Not (opsiyonel)"
+                placeholder="Notes (optional)"
                 multiline={true}
                 numberOfLines={2}
               />
@@ -653,7 +651,7 @@ const TrackerScreen = () => {
                 onPress={() => setIsWeightModalVisible(false)}
                 disabled={isUpdatingWeight}
               >
-                <Text style={styles.cancelButtonText}>İptal</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -665,9 +663,9 @@ const TrackerScreen = () => {
                 disabled={isUpdatingWeight}
               >
                 {isUpdatingWeight ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={COLORS.surface} />
                 ) : (
-                  <Text style={styles.saveButtonText}>Kaydet</Text>
+                  <Text style={styles.saveButtonText}>Save</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -676,7 +674,6 @@ const TrackerScreen = () => {
       </Modal>
 
       {/* Bottom Navigation */}
-      <BottomNavigation activeTab="Tracker" />
     </View>
   );
 };
@@ -684,7 +681,7 @@ const TrackerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     justifyContent: "center",
@@ -693,28 +690,18 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: "#666",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
-    backgroundColor: "#f5f5f5",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
+    color: COLORS.textSecondary,
   },
   scrollView: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   sectionCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -741,10 +728,15 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 16,
   },
+  waterHeaderLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
   waterStats: {
     flexDirection: "row",
     alignItems: "baseline",
     marginTop: 4,
+    flexWrap: "wrap",
   },
   waterIntakeText: {
     fontSize: 24,
@@ -753,7 +745,7 @@ const styles = StyleSheet.create({
   },
   waterTarget: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginLeft: 4,
     fontWeight: "500",
   },
@@ -765,7 +757,7 @@ const styles = StyleSheet.create({
   },
   waterLogCount: {
     fontSize: 11,
-    color: "#999",
+    color: COLORS.textTertiary,
     marginTop: 2,
   },
   waterControlsContainer: {
@@ -834,7 +826,7 @@ const styles = StyleSheet.create({
     borderColor: "#03A9F4",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     shadowColor: "#03A9F4",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -850,11 +842,12 @@ const styles = StyleSheet.create({
   waterIncrementContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
+    backgroundColor: COLORS.background,
     borderRadius: 20,
     padding: 3,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: COLORS.disabled,
+    flexShrink: 0,
   },
   incrementButton: {
     paddingHorizontal: 12,
@@ -872,11 +865,11 @@ const styles = StyleSheet.create({
   },
   incrementText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "600",
   },
   activeIncrementText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
   },
 
   // Weight Styles
@@ -893,7 +886,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   updateButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 14,
     fontWeight: "500",
   },
@@ -909,7 +902,7 @@ const styles = StyleSheet.create({
   },
   weightUnit: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginLeft: 4,
   },
   weightChange: {
@@ -948,11 +941,11 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   progressInfo: {
     fontSize: 11,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginTop: 4,
   },
@@ -978,7 +971,7 @@ const styles = StyleSheet.create({
   },
   bmiInfoText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   bmiBarContainer: {
     flexDirection: "row",
@@ -1006,7 +999,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 8,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: "#333",
+    borderBottomColor: COLORS.textPrimary,
   },
 
   // Modal Styles
@@ -1017,7 +1010,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 24,
     width: "80%",
@@ -1031,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginBottom: 24,
   },
   inputContainer: {
@@ -1056,7 +1049,7 @@ const styles = StyleSheet.create({
   },
   inputUnit: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginLeft: 8,
   },
   modalButtons: {
@@ -1075,19 +1068,19 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   saveButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     alignItems: "center",
   },
   saveButtonText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontWeight: "500",
   },
 });

@@ -10,15 +10,18 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
 import BottomNavigation from "../../components/BottomNavigation";
+import ScreenHeader from "../../components/ScreenHeader";
 import { useInsights } from "../../context/InsightsContext";
 import { useAuth } from "../../context/AuthContext";
+import { COLORS } from "../../theme";
 
 const { width } = Dimensions.get("window");
-const chartWidth = width - 40;
+// Kart içi net genişlik: ekran - 2*20 margin - 2*16 padding
+const chartWidth = width - 72;
 
 const InsightsScreen = () => {
   const navigation = useNavigation();
@@ -47,13 +50,10 @@ const InsightsScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // FIXED: Bugünün indeksini düzgün hesapla - timezone fix
+  // Bugünün indeksini hesapla (sadece weekly görünümde anlamlı)
   const today = new Date().getDate();
   const days = getChartDays();
-  console.log("🔍 Today:", today, "Days array:", days);
-
   const todayIndex = days.findIndex((day) => parseInt(day) === today);
-  console.log("🔍 Today index:", todayIndex);
 
   const [selectedCalorieDay, setSelectedCalorieDay] = useState(
     todayIndex >= 0 ? todayIndex : 0
@@ -77,46 +77,19 @@ const InsightsScreen = () => {
     return waterData.chart.map((item) => parseFloat(item.consumed) || 0);
   }, [waterData]);
 
-  // FIXED: Weight chart data - NULL handling for empty days
+  // Weight chart data - boş günler için null
   const weightChartData = React.useMemo(() => {
-    if (!weightData?.chart) {
-      console.log("❌ No weight data available");
-      return [];
-    }
+    if (!weightData?.chart) return [];
 
-    console.log("🏋️ Weight data from backend:", weightData.chart);
-
-    return weightData.chart.map((item, index) => {
+    return weightData.chart.map((item) => {
       const weight = item.weight;
-      console.log(
-        `📊 Day ${
-          item.day || item.date
-        }: weight = ${weight} (type: ${typeof weight})`
-      );
 
-      // CRITICAL: Backend'den null/undefined geliyorsa null döndür
-      if (weight === null || weight === undefined) {
-        console.log(`❌ No weight data for day ${item.day} - returning null`);
-        return null;
-      }
-
-      // CRITICAL: String olarak "null" gelirse de null döndür
-      if (weight === "null" || weight === "") {
-        console.log(
-          `❌ String null/empty for day ${item.day} - returning null`
-        );
-        return null;
-      }
+      if (weight === null || weight === undefined) return null;
+      if (weight === "null" || weight === "") return null;
 
       const parsedWeight = parseFloat(weight);
-      if (isNaN(parsedWeight) || parsedWeight <= 0) {
-        console.log(
-          `❌ Invalid weight value for day ${item.day}: ${weight} - returning null`
-        );
-        return null;
-      }
+      if (isNaN(parsedWeight) || parsedWeight <= 0) return null;
 
-      console.log(`✅ Valid weight for day ${item.day}: ${parsedWeight}kg`);
       return parsedWeight;
     });
   }, [weightData]);
@@ -140,13 +113,6 @@ const InsightsScreen = () => {
     setRefreshing(true);
     try {
       await refreshData();
-      // DEBUG: Weight chart data'yı kontrol et
-      console.log(
-        "🔍 DEBUG: Weight chart data after refresh:",
-        weightChartData
-      );
-      console.log("🔍 DEBUG: Days:", days);
-      console.log("🔍 DEBUG: Today:", today, "Today index:", todayIndex);
     } finally {
       setRefreshing(false);
     }
@@ -156,7 +122,7 @@ const InsightsScreen = () => {
   if (authLoading || (isAuthenticated && loading)) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#63A4F4" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading insights...</Text>
       </View>
     );
@@ -173,7 +139,7 @@ const InsightsScreen = () => {
         </Text>
         <TouchableOpacity
           style={styles.retryButton}
-          onPress={() => navigation.navigate("Login")}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: "Login" }] })}
         >
           <Text style={styles.retryButtonText}>Go to Login</Text>
         </TouchableOpacity>
@@ -199,9 +165,7 @@ const InsightsScreen = () => {
       );
     }
 
-    console.log(`📊 Chart data for ${unit}:`, data);
-
-    // FIXED: null değerleri filtrele maxValue hesaplanırken
+    // null değerleri filtrele maxValue hesaplanırken
     const validData = data.filter(
       (value) =>
         value !== null && value !== undefined && !isNaN(value) && value > 0
@@ -212,6 +176,8 @@ const InsightsScreen = () => {
 
     return (
       <View style={styles.chartContainer}>
+        {/* Svg ile dokunma alanlarını aynı koordinat sistemine sabitle */}
+        <View style={{ width: chartWidth, height: 220 }}>
         <Svg width={chartWidth} height={220}>
           {/* Goal line */}
           {goal > 0 && (
@@ -235,17 +201,15 @@ const InsightsScreen = () => {
               value > 0;
             const displayValue = hasData ? value : 0;
 
-            const barHeight =
+            // Min 6px yükseklik: küçük değerler de kolon gibi görünsün
+            const rawBarHeight =
               maxValue > 0 && hasData ? (displayValue / maxValue) * 120 : 0;
+            const barHeight = hasData ? Math.max(6, rawBarHeight) : 0;
             const x = 30 + index * barWidth + barWidth * 0.2;
             const y = 170 - barHeight;
             const isSelected = index === selectedDay;
             const isToday = parseInt(days[index]) === today;
             const barWidthActual = barWidth * 0.6;
-
-            console.log(
-              `📊 Bar ${index}: hasData=${hasData}, value=${value}, displayValue=${displayValue}`
-            );
 
             // IMPROVED: Renk mantığı - bugün + seçili + veri varlığı
             let barColor;
@@ -256,35 +220,32 @@ const InsightsScreen = () => {
             } else if (hasData) {
               barColor = secondaryColor; // Sadece verisi var - açık renk
             } else {
-              barColor = "#F0F0F0"; // Veri yok - çok açık gri
+              barColor = COLORS.border; // Veri yok - çok açık gri
             }
 
             return (
               <React.Fragment key={index}>
-                {/* FIXED: Sadece veri varsa bar çiz */}
+                {/* Sadece veri varsa bar çiz — üst köşeler yuvarlak, alt köşeler düz */}
                 {hasData ? (
-                  <>
-                    <Rect
-                      x={x}
-                      y={y + barWidthActual / 2}
-                      width={barWidthActual}
-                      height={Math.max(2, barHeight - barWidthActual / 2)} // Min 2px yükseklik
-                      fill={barColor}
-                    />
-                    <Circle
-                      cx={x + barWidthActual / 2}
-                      cy={y + barWidthActual / 2}
-                      r={barWidthActual / 2}
-                      fill={barColor}
-                    />
-                  </>
+                  <Path
+                    d={(() => {
+                      const r = Math.min(barWidthActual / 2, barHeight / 2);
+                      const right = x + barWidthActual;
+                      return `M ${x} 170 L ${x} ${y + r} Q ${x} ${y} ${
+                        x + r
+                      } ${y} L ${right - r} ${y} Q ${right} ${y} ${right} ${
+                        y + r
+                      } L ${right} 170 Z`;
+                    })()}
+                    fill={barColor}
+                  />
                 ) : (
                   // Veri yoksa sadece küçük bir placeholder göster
                   <Circle
                     cx={x + barWidthActual / 2}
                     cy={165}
                     r="2"
-                    fill="#E0E0E0"
+                    fill={COLORS.disabled}
                   />
                 )}
 
@@ -327,29 +288,23 @@ const InsightsScreen = () => {
                   </>
                 )}
 
-                {/* IMPROVED: Today indicator - bugünü göster */}
-                {isToday && (
-                  <Circle
-                    cx={x + barWidthActual / 2}
-                    cy={185}
-                    r="3"
-                    fill={primaryColor}
-                  />
-                )}
               </React.Fragment>
             );
           })}
 
-          {/* IMPROVED: X-axis labels - bugün koyu, diğerleri normal */}
+          {/* X-axis labels — etiket fontu bar sayısına göre küçülür
+              (yearly'de 12 ay sığsın, üst üste binmesin) */}
           {days.slice(0, data.length).map((day, index) => {
             const isToday = parseInt(day) === today;
+            const labelFont =
+              data.length > 8 ? 9 : data.length > 5 ? 11 : 12;
             return (
               <SvgText
                 key={index}
                 x={30 + index * barWidth + barWidth * 0.5}
                 y="195"
-                fontSize="12"
-                fill={isToday ? "#333" : "#666"}
+                fontSize={labelFont}
+                fill={isToday ? COLORS.textPrimary : COLORS.textSecondary}
                 textAnchor="middle"
                 fontWeight={isToday ? "bold" : "normal"}
               >
@@ -361,14 +316,14 @@ const InsightsScreen = () => {
           {/* Y-axis labels */}
           {maxValue > 0 && (
             <>
-              <SvgText x="25" y="55" fontSize="10" fill="#666" textAnchor="end">
+              <SvgText x="25" y="55" fontSize="10" fill={COLORS.textSecondary} textAnchor="end">
                 {Math.round(maxValue)}
               </SvgText>
               <SvgText
                 x="25"
                 y="110"
                 fontSize="10"
-                fill="#666"
+                fill={COLORS.textSecondary}
                 textAnchor="end"
               >
                 {Math.round(maxValue / 2)}
@@ -377,7 +332,7 @@ const InsightsScreen = () => {
                 x="25"
                 y="175"
                 fontSize="10"
-                fill="#666"
+                fill={COLORS.textSecondary}
                 textAnchor="end"
               >
                 0
@@ -386,21 +341,23 @@ const InsightsScreen = () => {
           )}
         </Svg>
 
-        {/* Touchable overlay - sadece veri varsa tıklanabilir */}
+        {/* Touchable overlay - kolonun tamamı tıklanabilir */}
         {data.map((value, index) => {
-          const x = 30 + index * barWidth + barWidth * 0.2;
-          const barWidthActual = barWidth * 0.6;
           const hasData =
             value !== null && value !== undefined && !isNaN(value) && value > 0;
 
           return (
             <TouchableOpacity
               key={`touch-${index}`}
-              style={[styles.barTouchArea, { left: x, width: barWidthActual }]}
-              onPress={() => hasData && onDaySelect(index)} // Sadece veri varsa seçilebilir
+              style={[
+                styles.barTouchArea,
+                { left: 30 + index * barWidth, width: barWidth },
+              ]}
+              onPress={() => hasData && onDaySelect(index)}
             />
           );
         })}
+        </View>
       </View>
     );
   };
@@ -432,16 +389,11 @@ const InsightsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Insights</Text>
-        <TouchableOpacity onPress={refreshData}>
-          <Ionicons name="refresh" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Insights"
+        rightIcon="refresh"
+        onRightPress={refreshData}
+      />
 
       <ScrollView
         style={styles.scrollView}
@@ -449,7 +401,7 @@ const InsightsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#63A4F4"]}
+            colors={[COLORS.primary]}
           />
         }
       >
@@ -490,7 +442,7 @@ const InsightsScreen = () => {
             onPress={() => changeDate("previous")}
             style={styles.dateNavButton}
           >
-            <Ionicons name="chevron-back" size={20} color="#666" />
+            <Ionicons name="chevron-back" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <View style={styles.dateTextContainer}>
             <Text style={styles.dateText}>{getDateNavigationLabel()}</Text>
@@ -508,7 +460,7 @@ const InsightsScreen = () => {
             onPress={() => changeDate("next")}
             style={styles.dateNavButton}
           >
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -529,7 +481,7 @@ const InsightsScreen = () => {
           <BarChart
             data={calorieChartData}
             goal={calorieGoal}
-            primaryColor="#A1CE50"
+            primaryColor={COLORS.success}
             secondaryColor="#D4E5A7"
             unit="kcal"
             selectedDay={selectedCalorieDay}
@@ -548,7 +500,7 @@ const InsightsScreen = () => {
           <BarChart
             data={waterChartData}
             goal={waterGoal}
-            primaryColor="#1A96F0"
+            primaryColor={COLORS.water}
             secondaryColor="#91CDF8"
             unit="ml"
             selectedDay={selectedWaterDay}
@@ -567,7 +519,7 @@ const InsightsScreen = () => {
           <BarChart
             data={weightChartData}
             goal={goalWeight}
-            primaryColor="#FF5726"
+            primaryColor={COLORS.weight}
             secondaryColor="#FFAE97"
             unit="kg"
             selectedDay={selectedWeightDay}
@@ -576,7 +528,6 @@ const InsightsScreen = () => {
         </View>
       </ScrollView>
 
-      <BottomNavigation activeTab="Insights" />
     </View>
   );
 };
@@ -584,7 +535,7 @@ const InsightsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     justifyContent: "center",
@@ -593,7 +544,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#666",
+    color: COLORS.textSecondary,
   },
   errorContainer: {
     justifyContent: "center",
@@ -603,45 +554,26 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   errorMessage: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontSize: 16,
     fontWeight: "600",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
   },
   scrollView: {
     flex: 1,
@@ -664,7 +596,7 @@ const styles = StyleSheet.create({
   },
   periodContainer: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 20,
     marginTop: 16,
     borderRadius: 12,
@@ -682,15 +614,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedPeriodButton: {
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
   },
   periodText: {
     fontSize: 14,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   selectedPeriodText: {
-    color: "#FFFFFF",
+    color: COLORS.surface,
     fontWeight: "600",
   },
   dateNav: {
@@ -703,7 +635,7 @@ const styles = StyleSheet.create({
   dateNavButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: COLORS.surfaceMuted,
   },
   dateTextContainer: {
     alignItems: "center",
@@ -711,11 +643,11 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   dateSubText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   todayIndicator: {
@@ -730,16 +662,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#63A4F4",
+    backgroundColor: COLORS.primary,
     marginRight: 6,
   },
   todayText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   chartSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.surface,
     marginHorizontal: 20,
     marginBottom: 16,
     borderRadius: 12,
@@ -759,29 +691,29 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: COLORS.textPrimary,
   },
   goalInfo: {
-    backgroundColor: "#F8F9FA",
+    backgroundColor: COLORS.surfaceMuted,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   goalText: {
     fontSize: 12,
-    color: "#666",
+    color: COLORS.textSecondary,
     fontWeight: "500",
   },
   noDataContainer: {
     height: 220,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8F9FA",
+    backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
   },
   noDataText: {
     fontSize: 14,
-    color: "#999",
+    color: COLORS.textTertiary,
   },
   chartContainer: {
     alignItems: "center",
