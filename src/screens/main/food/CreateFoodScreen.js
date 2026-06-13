@@ -219,7 +219,7 @@ const CreateFoodScreen = () => {
           onPress={() => navigation.goBack()}
           disabled={isLoading}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Food</Text>
         <View style={styles.headerRight} />
@@ -388,7 +388,7 @@ const CreateFoodScreen = () => {
               style={styles.closeButton}
               onPress={() => setShowIconSelector(false)}
             >
-              <Ionicons name="close" size={24} color="#000" />
+              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
   },
   selectedIconEmoji: {
     fontSize: 40,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   formInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     zIndex: 1000,
     elevation: 3,
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addButtonDisabled: {
-    backgroundColor: "#cccccc",
+    backgroundColor: COLORS.borderStrong,
   },
   addButtonText: {
     color: COLORS.surface,

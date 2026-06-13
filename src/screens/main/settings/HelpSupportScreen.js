@@ -54,7 +54,7 @@ const HelpSupportScreen = () => {
       activeOpacity={0.7}
     >
       <Text style={styles.optionTitle}>{option.title}</Text>
-      <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+      <Ionicons name="chevron-forward" size={20} color={COLORS.disabledText} />
     </TouchableOpacity>
   );
 
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,

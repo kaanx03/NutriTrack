@@ -21,7 +21,7 @@ import BottomNavigation from "../../components/BottomNavigation";
 import ScreenHeader from "../../components/ScreenHeader";
 import { showToast } from "../../components/AppToast";
 import { hapticLight } from "../../utils/haptics";
-import { COLORS } from "../../theme";
+import { COLORS, CHART } from "../../theme";
 
 const TrackerScreen = () => {
   const navigation = useNavigation();
@@ -228,7 +228,7 @@ const TrackerScreen = () => {
       { color: "#FFC02D", flex: 3 },
       { color: "#FF981F", flex: 2 },
       { color: COLORS.weight, flex: 1 },
-      { color: "#F54336", flex: 1 },
+      { color: CHART.carbs, flex: 1 },
     ];
   };
 
@@ -261,7 +261,7 @@ const TrackerScreen = () => {
   if (waterLoading || weightLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#03A9F4" />
+        <ActivityIndicator size="large" color={COLORS.info} />
         <Text style={styles.loadingText}>Loading data...</Text>
       </View>
     );
@@ -293,8 +293,8 @@ const TrackerScreen = () => {
           <RefreshControl
             refreshing={waterLoading || weightLoading}
             onRefresh={handleRefresh} // UPDATED THIS LINE
-            colors={["#03A9F4"]}
-            tintColor="#03A9F4"
+            colors={[COLORS.info]}
+            tintColor={COLORS.info}
             title="Refreshing data..."
             titleColor={COLORS.textSecondary}
           />
@@ -364,7 +364,7 @@ const TrackerScreen = () => {
               disabled={waterLoading || waterIntake === 0}
             >
               {waterLoading ? (
-                <ActivityIndicator size="small" color="#03A9F4" />
+                <ActivityIndicator size="small" color={COLORS.info} />
               ) : (
                 <Text style={styles.waterButtonText}>−</Text>
               )}
@@ -472,7 +472,7 @@ const TrackerScreen = () => {
               disabled={waterLoading}
             >
               {waterLoading ? (
-                <ActivityIndicator size="small" color="#03A9F4" />
+                <ActivityIndicator size="small" color={COLORS.info} />
               ) : (
                 <Text style={styles.waterButtonText}>+</Text>
               )}
@@ -509,10 +509,10 @@ const TrackerScreen = () => {
                   styles.weightDot,
                   {
                     backgroundColor: weightChange.isNegative
-                      ? "#10B981"
+                      ? COLORS.success
                       : weightChange.isPositive
-                      ? "#EF4444"
-                      : "#9CA3AF",
+                      ? COLORS.danger
+                      : COLORS.textTertiary,
                   },
                 ]}
               />
@@ -521,9 +521,9 @@ const TrackerScreen = () => {
                   styles.weightChangeText,
                   {
                     color: weightChange.isNegative
-                      ? "#10B981"
+                      ? COLORS.success
                       : weightChange.isPositive
-                      ? "#EF4444"
+                      ? COLORS.danger
                       : COLORS.textSecondary,
                   },
                 ]}
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#000",
+    color: COLORS.textPrimary,
     marginBottom: 16,
   },
   disabledButton: {
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   waterIntakeText: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   waterTarget: {
     fontSize: 16,
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
   },
   waterSubInfo: {
     fontSize: 12,
-    color: "#03A9F4",
+    color: COLORS.info,
     marginTop: 4,
     fontWeight: "500",
   },
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#03A9F4",
+    shadowColor: COLORS.info,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#03A9F4",
+    backgroundColor: COLORS.info,
     borderBottomLeftRadius: 50,
     borderBottomRightRadius: 50,
   },
@@ -816,18 +816,18 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#03A9F4",
+    backgroundColor: COLORS.info,
   },
   waterButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: "#03A9F4",
+    borderColor: COLORS.info,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.surface,
-    shadowColor: "#03A9F4",
+    shadowColor: COLORS.info,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   },
   waterButtonText: {
     fontSize: 24,
-    color: "#03A9F4",
+    color: COLORS.info,
     fontWeight: "300",
     lineHeight: 24,
   },
@@ -856,8 +856,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 1,
   },
   activeIncrementButton: {
-    backgroundColor: "#03A9F4",
-    shadowColor: "#03A9F4",
+    backgroundColor: COLORS.info,
+    shadowColor: COLORS.info,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -898,7 +898,7 @@ const styles = StyleSheet.create({
   weightValue: {
     fontSize: 32,
     fontWeight: "600",
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   weightUnit: {
     fontSize: 16,
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: COLORS.border,
     borderRadius: 4,
     overflow: "hidden",
   },
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   bmiValue: {
     fontSize: 32,
     fontWeight: "600",
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   bmiCategory: {
     fontSize: 16,
@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#000",
+    color: COLORS.textPrimary,
     marginBottom: 8,
   },
   modalSubtitle: {
@@ -1031,7 +1031,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     paddingVertical: 12,
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   notesInput: {
     minHeight: 60,
@@ -1063,7 +1063,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.border,
     alignItems: "center",
   },
   cancelButtonText: {

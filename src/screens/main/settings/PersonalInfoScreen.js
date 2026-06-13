@@ -464,16 +464,16 @@ const PersonalInfoScreen = () => {
             </Text>
 
             {editable && (field === "gender" || field === "activityLevel") && (
-              <Ionicons name="chevron-down" size={20} color="#C7C7CC" />
+              <Ionicons name="chevron-down" size={20} color={COLORS.disabledText} />
             )}
             {editable && field === "dateOfBirth" && (
-              <Ionicons name="calendar-outline" size={20} color="#C7C7CC" />
+              <Ionicons name="calendar-outline" size={20} color={COLORS.disabledText} />
             )}
             {editable &&
               field !== "gender" &&
               field !== "activityLevel" &&
               field !== "dateOfBirth" && (
-                <Ionicons name="create-outline" size={20} color="#C7C7CC" />
+                <Ionicons name="create-outline" size={20} color={COLORS.disabledText} />
               )}
           </TouchableOpacity>
         )}
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
+    borderColor: COLORS.borderStrong,
     minHeight: 50,
   },
   fieldIcon: {
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingVertical: 20,
     elevation: 10,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 5,
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
+    borderColor: COLORS.borderStrong,
   },
   dropdownCloseText: {
     fontSize: 16,
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
+    borderColor: COLORS.borderStrong,
   },
   saveButton: {
     flex: 1,

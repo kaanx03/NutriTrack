@@ -92,7 +92,7 @@ const SavedArticlesScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="bookmark-outline" size={64} color="#ccc" />
+        <Ionicons name="bookmark-outline" size={64} color={COLORS.borderStrong} />
       </View>
       <Text style={styles.emptyTitle}>No Saved Articles</Text>
       <Text style={styles.emptyDescription}>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#ccc",
+    backgroundColor: COLORS.borderStrong,
     marginHorizontal: 8,
   },
   readTime: {

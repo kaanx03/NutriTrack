@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#ccc",
+    backgroundColor: COLORS.borderStrong,
     marginHorizontal: 8,
   },
   readTime: {
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   sectionContent: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#555",
+    color: COLORS.textSecondary,
   },
   bottomSpacing: {
     height: 20,

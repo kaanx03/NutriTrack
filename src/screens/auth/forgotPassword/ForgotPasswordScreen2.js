@@ -102,7 +102,7 @@ const ForgotPasswordScreen2 = () => {
         <TouchableOpacity
           style={[
             styles.verifyButton,
-            { backgroundColor: isCodeComplete ? "#474545" : "#AEAEAE" },
+            { backgroundColor: isCodeComplete ? COLORS.textSecondary : COLORS.disabledText },
           ]}
           onPress={handleVerify}
           disabled={!isCodeComplete}
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: "#777",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: 32,
   },
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
     width: BOX_SIZE,
     height: BOX_SIZE,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     textAlign: "center",
     fontSize: 20,
     marginRight: BOX_MARGIN,
   },
   codeInputFilled: {
-    borderColor: "#474545",
+    borderColor: COLORS.textSecondary,
   },
   verifyButton: {
     width: "100%",

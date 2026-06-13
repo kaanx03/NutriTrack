@@ -24,7 +24,7 @@ import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
 import BottomNavigation from "../../components/BottomNavigation";
 import Svg, { Circle } from "react-native-svg";
-import { COLORS } from "../../theme";
+import { COLORS, CHART } from "../../theme";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -264,7 +264,7 @@ const HomeScreen = () => {
             style={styles.notificationButton}
             onPress={() => navigation.navigate("Notifications")}
           >
-            <Ionicons name="notifications-outline" size={24} color="#000" />
+            <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContent}>
@@ -285,7 +285,7 @@ const HomeScreen = () => {
           style={styles.notificationButton}
           onPress={() => navigation.navigate("Notifications")}
         >
-          <Ionicons name="notifications-outline" size={24} color="#000" />
+          <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -396,7 +396,7 @@ const HomeScreen = () => {
                     consumedNutrients.carbs,
                     calorieData.carbs
                   )}
-                  color="#F54336"
+                  color={CHART.carbs}
                 >
                   <Text style={styles.macroValue}>
                     {formatMacroValue(consumedNutrients.carbs)}
@@ -434,7 +434,7 @@ const HomeScreen = () => {
                     consumedNutrients.fat,
                     calorieData.fat
                   )}
-                  color="#FE9820"
+                  color={CHART.fat}
                 >
                   <Text style={styles.macroValue}>
                     {formatMacroValue(consumedNutrients.fat)}
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 16,
     paddingBottom: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 80,
     paddingVertical: 8,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

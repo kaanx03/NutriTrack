@@ -54,7 +54,7 @@ const SignUpScreen3 = () => {
         value={formData.lastName}
         onChangeText={(text) => updateFormData("lastName", text)}
         placeholder="Enter your surname"
-        placeholderTextColor="#ccc"
+        placeholderTextColor={COLORS.borderStrong}
         textAlign="center"
         textAlignVertical="center"
         multiline
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 6,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 3,
     overflow: "hidden",
     marginBottom: 4,
@@ -115,16 +115,16 @@ const styles = StyleSheet.create({
     width: 361,
     height: 129,
     borderWidth: 1,
-    borderColor: "#000",
+    borderColor: COLORS.textPrimary,
     borderRadius: 10,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: COLORS.surfaceMuted,
     fontSize: 30,
     fontFamily: "Roboto-Medium",
     textAlign: "center",
     textAlignVertical: "center",
     padding: 0,
     alignSelf: "center",
-    color: "#000",
+    color: COLORS.textPrimary,
     marginBottom: 40,
   },
 });

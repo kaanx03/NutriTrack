@@ -14,7 +14,7 @@ import { useSignUp } from "../../context/SignUpContext";
 import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/AuthService";
 import { showToast } from "../../components/AppToast";
-import { COLORS } from "../../theme";
+import { COLORS, CHART } from "../../theme";
 
 const size = 240;
 const strokeWidth = 25;
@@ -311,7 +311,7 @@ const SignUpScreen10 = () => {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#474747" />
+        <ActivityIndicator size="large" color={COLORS.textSecondary} />
         <Text style={styles.loadingText}>Creating your account...</Text>
         <Text style={styles.loadingSubText}>
           Please wait while we set up your personalized nutrition plan.
@@ -337,7 +337,7 @@ const SignUpScreen10 = () => {
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#F44336"
+              stroke={COLORS.danger}
               strokeWidth={strokeWidth}
               strokeDasharray={`${circumference * 0.5}, ${circumference}`}
               rotation="-90"
@@ -348,7 +348,7 @@ const SignUpScreen10 = () => {
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#2196F3"
+              stroke={COLORS.info}
               strokeWidth={strokeWidth}
               strokeDasharray={`${circumference * 0.3}, ${circumference}`}
               strokeDashoffset={-circumference * 0.5}
@@ -360,7 +360,7 @@ const SignUpScreen10 = () => {
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke="#FF9800"
+              stroke={CHART.fat}
               strokeWidth={strokeWidth}
               strokeDasharray={`${circumference * 0.2}, ${circumference}`}
               strokeDashoffset={-(circumference * 0.8)}
@@ -378,19 +378,19 @@ const SignUpScreen10 = () => {
         <View style={styles.legendContainer}>
           <View style={styles.legendItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#F44336" }]}
+              style={[styles.legendColor, { backgroundColor: COLORS.danger }]}
             />
             <Text>Carbs: 250g</Text>
           </View>
           <View style={styles.legendItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#2196F3" }]}
+              style={[styles.legendColor, { backgroundColor: COLORS.info }]}
             />
             <Text>Protein: 150g</Text>
           </View>
           <View style={styles.legendItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#FF9800" }]}
+              style={[styles.legendColor, { backgroundColor: CHART.fat }]}
             />
             <Text>Fat: 55g</Text>
           </View>
@@ -410,7 +410,7 @@ const SignUpScreen10 = () => {
   if (!calorieData) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#474747" />
+        <ActivityIndicator size="large" color={COLORS.textSecondary} />
         <Text style={styles.loadingText}>
           Calculating your personalized plan...
         </Text>
@@ -436,7 +436,7 @@ const SignUpScreen10 = () => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#F44336"
+            stroke={COLORS.danger}
             strokeWidth={strokeWidth}
             strokeDasharray={`${carbsLength}, ${circumference}`}
             rotation="-90"
@@ -447,7 +447,7 @@ const SignUpScreen10 = () => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#2196F3"
+            stroke={COLORS.info}
             strokeWidth={strokeWidth}
             strokeDasharray={`${proteinLength}, ${circumference}`}
             strokeDashoffset={-carbsLength}
@@ -459,7 +459,7 @@ const SignUpScreen10 = () => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#FF9800"
+            stroke={CHART.fat}
             strokeWidth={strokeWidth}
             strokeDasharray={`${fatLength}, ${circumference}`}
             strokeDashoffset={-(carbsLength + proteinLength)}
@@ -479,13 +479,13 @@ const SignUpScreen10 = () => {
         <View style={styles.macroRow}>
           <View style={styles.macroItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#F44336" }]}
+              style={[styles.legendColor, { backgroundColor: COLORS.danger }]}
             />
             <Text style={styles.macroText}>Carbs: {calorieData.carbs}g</Text>
           </View>
           <View style={styles.macroItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#2196F3" }]}
+              style={[styles.legendColor, { backgroundColor: COLORS.info }]}
             />
             <Text style={styles.macroText}>
               Protein: {calorieData.protein}g
@@ -493,7 +493,7 @@ const SignUpScreen10 = () => {
           </View>
           <View style={styles.macroItem}>
             <View
-              style={[styles.legendColor, { backgroundColor: "#FF9800" }]}
+              style={[styles.legendColor, { backgroundColor: CHART.fat }]}
             />
             <Text style={styles.macroText}>Fat: {calorieData.fat}g</Text>
           </View>
@@ -522,13 +522,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: 30,
   },
   errorText: {
     fontSize: 16,
-    color: "#F44336",
+    color: COLORS.danger,
     textAlign: "center",
     marginBottom: 20,
   },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   kcalText: {
     fontSize: 16,
-    color: "#777",
+    color: COLORS.textSecondary,
   },
   macroDetailsContainer: {
     alignItems: "center",
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   continueButton: {
-    backgroundColor: "#474747",
+    backgroundColor: COLORS.textSecondary,
     height: 50,
     borderRadius: 8,
     justifyContent: "center",

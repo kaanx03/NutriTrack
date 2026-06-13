@@ -24,7 +24,7 @@ import { useMeals } from "../../../context/MealsContext";
 import { showToast } from "../../../components/AppToast";
 import OptionPicker from "../../../components/OptionPicker";
 import NutritionService from "../../../services/NutritionService";
-import { COLORS } from "../../../theme";
+import { COLORS, CHART } from "../../../theme";
 
 const FoodDetailsScreen = () => {
   const navigation = useNavigation();
@@ -368,7 +368,7 @@ const FoodDetailsScreen = () => {
             onPress={() => navigation.goBack()}
             disabled={isLoading}
           >
-            <Ionicons name="close" size={24} color="#000" />
+            <Ionicons name="close" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {food.name}
@@ -389,7 +389,7 @@ const FoodDetailsScreen = () => {
                 <Ionicons
                   name={isFavorite ? "heart" : "heart-outline"}
                   size={24}
-                  color={isFavorite ? "#ff4d4f" : "#000"}
+                  color={isFavorite ? COLORS.danger : COLORS.textPrimary}
                 />
               )}
             </TouchableOpacity>
@@ -401,7 +401,7 @@ const FoodDetailsScreen = () => {
                 onPress={handleDeleteFood}
                 disabled={isLoading}
               >
-                <Ionicons name="trash-outline" size={20} color="#ff4d4f" />
+                <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
               </TouchableOpacity>
             )}
           </View>
@@ -437,7 +437,7 @@ const FoodDetailsScreen = () => {
           <View style={styles.nutritionItem}>
             <View style={styles.nutritionHeader}>
               <View
-                style={[styles.macroIndicator, { backgroundColor: "#F54336" }]}
+                style={[styles.macroIndicator, { backgroundColor: CHART.carbs }]}
               />
               <Text style={styles.macroLabel}>Carbs</Text>
             </View>
@@ -463,7 +463,7 @@ const FoodDetailsScreen = () => {
           <View style={styles.nutritionItem}>
             <View style={styles.nutritionHeader}>
               <View
-                style={[styles.macroIndicator, { backgroundColor: "#FE9820" }]}
+                style={[styles.macroIndicator, { backgroundColor: CHART.fat }]}
               />
               <Text style={styles.macroLabel}>Fat</Text>
             </View>
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 8,
-    borderColor: "#FE9820",
+    borderColor: CHART.fat,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   },
   weightInputContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: COLORS.borderStrong,
     width: 56,
   },
   weightInput: {
@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     right: 10,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     width: 150,
     maxHeight: 200,
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonDisabled: {
-    backgroundColor: "#cccccc",
+    backgroundColor: COLORS.borderStrong,
   },
   saveButtonText: {
     color: COLORS.surface,

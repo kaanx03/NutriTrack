@@ -343,9 +343,9 @@ const MealDetailsScreen = () => {
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <ActivityIndicator size="small" color="#ff4d4f" />
+              <ActivityIndicator size="small" color={COLORS.danger} />
             ) : (
-              <Ionicons name="trash-outline" size={20} color="#ff4d4f" />
+              <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
             )}
           </TouchableOpacity>
         </View>
@@ -357,7 +357,7 @@ const MealDetailsScreen = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="restaurant-outline" size={48} color="#ccc" />
+        <Ionicons name="restaurant-outline" size={48} color={COLORS.borderStrong} />
       </View>
       <Text style={styles.emptyTitle}>No foods added yet</Text>
       <Text style={styles.emptyText}>
@@ -378,7 +378,7 @@ const MealDetailsScreen = () => {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{mealType}</Text>
         <View style={styles.headerActions}>
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 12,
     padding: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

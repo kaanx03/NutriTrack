@@ -196,7 +196,7 @@ const WaterTrackerScreen = () => {
       <View style={styles.settingRight}>
         <Text style={styles.settingValue}>{value}</Text>
         {hasArrow && onPress && (
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.disabledText} />
         )}
       </View>
     </TouchableOpacity>
@@ -208,7 +208,7 @@ const WaterTrackerScreen = () => {
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#E5E5E5", true: "#4ECDC4" }}
+        trackColor={{ false: COLORS.borderStrong, true: COLORS.water }}
         thumbColor={value ? COLORS.surface : COLORS.surface}
       />
     </View>
@@ -307,7 +307,7 @@ const WaterTrackerScreen = () => {
         {/* Info Section */}
         <View style={styles.infoSection}>
           <View style={styles.infoHeader}>
-            <Ionicons name="information-circle" size={24} color="#4ECDC4" />
+            <Ionicons name="information-circle" size={24} color={COLORS.water} />
             <Text style={styles.infoTitle}>Water Intake Tips</Text>
           </View>
           <Text style={styles.infoText}>
@@ -468,13 +468,13 @@ const styles = StyleSheet.create({
   },
   volumeTrack: {
     height: 4,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 2,
     position: "relative",
   },
   volumeFill: {
     height: "100%",
-    backgroundColor: "#4ECDC4",
+    backgroundColor: COLORS.water,
     borderRadius: 2,
   },
   volumeThumb: {
@@ -482,11 +482,11 @@ const styles = StyleSheet.create({
     top: -8,
     width: 20,
     height: 20,
-    backgroundColor: "#4ECDC4",
+    backgroundColor: COLORS.water,
     borderRadius: 10,
     borderWidth: 3,
     borderColor: COLORS.surface,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
     margin: 20,
     width: "85%",
     maxWidth: 400,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#4ECDC4",
+    borderColor: COLORS.water,
     borderRadius: 10,
     paddingHorizontal: 15,
     marginBottom: 10,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   saveButton: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: COLORS.water,
   },
   cancelButtonText: {
     fontSize: 16,

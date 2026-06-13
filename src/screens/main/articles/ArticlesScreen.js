@@ -65,7 +65,7 @@ const ArticlesScreen = () => {
         </Text>
         {filteredArticles.length === 0 ? (
           <View style={styles.noResultsContainer}>
-            <Ionicons name="search-outline" size={48} color="#ccc" />
+            <Ionicons name="search-outline" size={48} color={COLORS.borderStrong} />
             <Text style={styles.noResultsText}>No articles found</Text>
             <Text style={styles.noResultsSubtext}>
               Try searching with different keywords
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,

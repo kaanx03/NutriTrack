@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -148,13 +148,13 @@ const styles = StyleSheet.create({
   progressBackground: {
     flex: 1,
     height: 4,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 2,
     marginRight: 10,
   },
   progressFill: {
     height: 4,
-    backgroundColor: "#4285F4",
+    backgroundColor: COLORS.brandGoogle,
     borderRadius: 2,
   },
   progressText: {
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: 30,
   },
@@ -178,17 +178,17 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#4285F4",
+    borderColor: COLORS.brandGoogle,
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 10,
   },
   activeUnitButton: {
-    backgroundColor: "#4285F4",
+    backgroundColor: COLORS.brandGoogle,
   },
   unitText: {
     fontSize: 16,
-    color: "#4285F4",
+    color: COLORS.brandGoogle,
   },
   activeUnitText: {
     color: COLORS.surface,
@@ -201,12 +201,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "baseline",
     borderBottomWidth: 2,
-    borderColor: "#ccc",
+    borderColor: COLORS.borderStrong,
   },
   input: {
     fontSize: 36,
     fontWeight: "bold",
-    color: "#000",
+    color: COLORS.textPrimary,
     paddingVertical: 10,
     paddingHorizontal: 0,
     minWidth: 80,
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   unitDisplay: {
     fontSize: 28,
     marginLeft: 4,
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   buttonWrapper: {
     position: "absolute",
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     right: 20,
   },
   continueButton: {
-    backgroundColor: "#474747",
+    backgroundColor: COLORS.textSecondary,
     height: 50,
     borderRadius: 8,
     justifyContent: "center",

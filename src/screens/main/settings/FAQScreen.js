@@ -223,7 +223,7 @@ const FAQScreen = () => {
             filteredFAQs.map((item) => renderFAQItem(item))
           ) : (
             <View style={styles.noResultsContainer}>
-              <Ionicons name="help-circle-outline" size={48} color="#ccc" />
+              <Ionicons name="help-circle-outline" size={48} color={COLORS.borderStrong} />
               <Text style={styles.noResultsText}>No FAQs found</Text>
               <Text style={styles.noResultsSubtext}>
                 Try adjusting your search or category filter
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: "#E5E5E5",
+    borderColor: COLORS.borderStrong,
   },
   selectedCategoryButton: {
     backgroundColor: COLORS.success,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     overflow: "hidden",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,

@@ -73,7 +73,7 @@ const ForgotPasswordScreen1 = () => {
         <TouchableOpacity
           style={[
             styles.resetButton,
-            { backgroundColor: isValid ? "#474545" : "#AEAEAE" },
+            { backgroundColor: isValid ? COLORS.textSecondary : COLORS.disabledText },
           ]}
           onPress={handleResetPassword}
           disabled={!isValid}
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: "#777",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: 40,
   },
@@ -125,14 +125,14 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 16,
-    color: "#555",
+    color: COLORS.textSecondary,
     marginBottom: 8,
   },
   input: {
     width: "100%",
     height: 50,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
   },
   errorText: {
-    color: "#f44336",
+    color: COLORS.danger,
     fontSize: 14,
     marginTop: 4,
   },

@@ -1071,7 +1071,7 @@ const FoodSelectionScreen = () => {
               hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
               disabled={isLoading}
             >
-              <Ionicons name="close" size={24} color="#000" />
+              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1084,7 +1084,7 @@ const FoodSelectionScreen = () => {
               <Ionicons
                 name={showMealTypeMenu ? "chevron-up" : "chevron-down"}
                 size={18}
-                color="#000"
+                color={COLORS.textPrimary}
               />
             </TouchableOpacity>
 
@@ -1328,7 +1328,7 @@ const FoodSelectionScreen = () => {
               }
               ListEmptyComponent={
                 <View style={styles.savedMealsEmpty}>
-                  <Ionicons name="bookmark-outline" size={48} color="#ccc" />
+                  <Ionicons name="bookmark-outline" size={48} color={COLORS.borderStrong} />
                   <Text style={styles.savedMealsEmptyTitle}>
                     No saved meals yet
                   </Text>
@@ -1577,7 +1577,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: 8,
     marginHorizontal: 20,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1722,7 +1722,7 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 12,
-    color: "#ff6b6b",
+    color: COLORS.danger,
     fontWeight: "400",
     opacity: 0.8,
   },
@@ -1817,8 +1817,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success,
   },
   alreadyInMealButton: {
-    backgroundColor: "#cccccc",
-    borderColor: "#cccccc",
+    backgroundColor: COLORS.borderStrong,
+    borderColor: COLORS.borderStrong,
     opacity: 0.7,
   },
   foodItemInfo: {
@@ -1865,7 +1865,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1895,7 +1895,7 @@ const styles = StyleSheet.create({
     minWidth: 140,
   },
   addSelectedButtonDisabled: {
-    backgroundColor: "#cccccc",
+    backgroundColor: COLORS.borderStrong,
   },
   addSelectedButtonText: {
     color: COLORS.surface,
@@ -1966,7 +1966,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 12,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1981,7 +1981,7 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
@@ -2044,7 +2044,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonDisabled: {
-    backgroundColor: "#cccccc",
+    backgroundColor: COLORS.borderStrong,
   },
   saveButtonText: {
     color: COLORS.surface,

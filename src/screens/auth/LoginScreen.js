@@ -263,7 +263,7 @@ const LoginScreen = () => {
         value={email}
         onChangeText={setEmail}
         placeholder="Email"
-        placeholderTextColor="#A0A0A0"
+        placeholderTextColor={COLORS.textTertiary}
         style={styles.input}
         autoCapitalize="none"
         keyboardType="email-address"
@@ -275,7 +275,7 @@ const LoginScreen = () => {
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
-        placeholderTextColor="#A0A0A0"
+        placeholderTextColor={COLORS.textTertiary}
         secureTextEntry
         style={styles.input}
         editable={!isLoading}
@@ -365,14 +365,14 @@ const styles = StyleSheet.create({
   },
   subHeader: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textTertiary,
     textAlign: "center",
     marginBottom: 32,
   },
   input: {
     height: 50,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: COLORS.borderStrong,
     marginBottom: 20,
     fontSize: 16,
     paddingHorizontal: 4,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     height: BUTTON_HEIGHT,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 6,

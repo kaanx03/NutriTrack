@@ -55,7 +55,7 @@ const SignUpScreen2 = () => {
         value={formData.firstName}
         onChangeText={(text) => updateFormData("firstName", text)}
         placeholder="Enter your name"
-        placeholderTextColor="#ccc"
+        placeholderTextColor={COLORS.borderStrong}
         textAlign="center"
         textAlignVertical="center"
         multiline
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 6,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 3,
     overflow: "hidden",
     marginBottom: 4,
@@ -116,13 +116,13 @@ const styles = StyleSheet.create({
     width: 361,
     height: 129,
     borderWidth: 1,
-    borderColor: "#000",
+    borderColor: COLORS.textPrimary,
     borderRadius: 10,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: COLORS.surfaceMuted,
     fontSize: 30,
     fontFamily: "Roboto-Medium",
     alignSelf: "center",
-    color: "#000",
+    color: COLORS.textPrimary,
     marginBottom: 40,
     textAlign: "center", // caret ortalama
     textAlignVertical: "center", // dikey ortalama

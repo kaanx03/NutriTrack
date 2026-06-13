@@ -200,7 +200,7 @@ const CalorieCounterScreen = () => {
       <View style={styles.settingRight}>
         <Text style={styles.settingValue}>{value}</Text>
         {hasArrow && onPress && (
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.disabledText} />
         )}
       </View>
     </TouchableOpacity>
@@ -212,7 +212,7 @@ const CalorieCounterScreen = () => {
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#E5E5E5", true: COLORS.success }}
+        trackColor={{ false: COLORS.borderStrong, true: COLORS.success }}
         thumbColor={value ? COLORS.surface : COLORS.surface}
       />
     </View>
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   volumeTrack: {
     height: 4,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 2,
     position: "relative",
   },
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 3,
     borderColor: COLORS.surface,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     margin: 20,
     width: "85%",
     maxWidth: 400,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,

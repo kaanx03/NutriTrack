@@ -190,7 +190,7 @@ const ProgressPhotosScreen = () => {
         columnWrapperStyle={styles.gridRow}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="images-outline" size={56} color="#ccc" />
+            <Ionicons name="images-outline" size={56} color={COLORS.borderStrong} />
             <Text style={styles.emptyTitle}>No progress photos yet</Text>
             <Text style={styles.emptyText}>
               Tap + to add your first photo. Your current weight is attached
@@ -249,7 +249,7 @@ const ProgressPhotosScreen = () => {
                 style={styles.viewerButton}
                 onPress={() => handleDelete(viewer)}
               >
-                <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+                <Ionicons name="trash-outline" size={24} color={COLORS.danger} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.viewerButton}
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB * 1.25,
     borderRadius: RADIUS.md,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
   },
   thumbSelected: {
     position: "absolute",

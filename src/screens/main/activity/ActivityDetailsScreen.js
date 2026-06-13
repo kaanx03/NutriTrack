@@ -184,12 +184,12 @@ const ActivityDetailsScreen = () => {
             disabled={operationLoading}
           >
             {operationLoading ? (
-              <ActivityIndicator size="small" color="#ff4d4f" />
+              <ActivityIndicator size="small" color={COLORS.danger} />
             ) : (
               <Ionicons
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={24}
-                color={isFavorite ? "#ff4d4f" : "#000"}
+                color={isFavorite ? COLORS.danger : COLORS.textPrimary}
               />
             )}
           </TouchableOpacity>
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   durationInput: {
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: COLORS.borderStrong,
     width: 80,
     fontSize: 24,
     textAlign: "center",
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,

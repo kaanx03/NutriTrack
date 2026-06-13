@@ -196,7 +196,7 @@ const AICoachScreen = () => {
             onPress={send}
             disabled={!input.trim() || thinking}
           >
-            <Ionicons name="send" size={18} color="#fff" />
+            <Ionicons name="send" size={18} color={COLORS.surface} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   userText: {
-    color: "#fff",
+    color: COLORS.surface,
     fontSize: 15,
     lineHeight: 21,
   },

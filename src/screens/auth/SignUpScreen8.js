@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -126,13 +126,13 @@ const styles = StyleSheet.create({
   progressBackground: {
     flex: 1,
     height: 4,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 2,
     marginRight: 10,
   },
   progressFill: {
     height: 4,
-    backgroundColor: "#4285F4",
+    backgroundColor: COLORS.brandGoogle,
     borderRadius: 2,
   },
   progressText: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#000",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginBottom: 30,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
   },
   goalLabel: {
     fontSize: 16,
-    color: "#000",
+    color: COLORS.textPrimary,
   },
   checkIcon: {
     marginLeft: 10,
   },
   continueButton: {
-    backgroundColor: "#474747",
+    backgroundColor: COLORS.textSecondary,
     height: 50,
     borderRadius: 8,
     justifyContent: "center",

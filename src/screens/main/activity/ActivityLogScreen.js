@@ -144,7 +144,7 @@ const ActivityLogScreen = () => {
             style={styles.deleteButton}
             onPress={() => handleDeleteActivity(item.id)}
           >
-            <Ionicons name="trash-outline" size={20} color="#ff4d4f" />
+            <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
           </TouchableOpacity>
         </View>
       </View>

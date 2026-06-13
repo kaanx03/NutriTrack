@@ -132,7 +132,7 @@ const InsightsScreen = () => {
   if (!isAuthenticated) {
     return (
       <View style={[styles.container, styles.errorContainer]}>
-        <Ionicons name="warning" size={48} color="#FF6B6B" />
+        <Ionicons name="warning" size={48} color={COLORS.danger} />
         <Text style={styles.errorTitle}>Authentication Required</Text>
         <Text style={styles.errorMessage}>
           Please login to view your insights
@@ -408,7 +408,7 @@ const InsightsScreen = () => {
         {/* Error Banner */}
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="warning" size={16} color="#FF6B6B" />
+            <Ionicons name="warning" size={16} color={COLORS.danger} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   errorText: {
     marginLeft: 8,
     fontSize: 12,
-    color: "#FF6B6B",
+    color: COLORS.danger,
     flex: 1,
   },
   periodContainer: {
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 12,
     padding: 4,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

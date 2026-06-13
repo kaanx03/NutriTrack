@@ -63,7 +63,7 @@ const SignUpScreen4 = () => {
           <FontAwesome5
             name="mars"
             size={40}
-            color={formData.gender === "male" ? COLORS.surface : "#474545"}
+            color={formData.gender === "male" ? COLORS.surface : COLORS.textSecondary}
           />
         </TouchableOpacity>
 
@@ -81,7 +81,7 @@ const SignUpScreen4 = () => {
           <FontAwesome5
             name="venus"
             size={40}
-            color={formData.gender === "female" ? COLORS.surface : "#474545"}
+            color={formData.gender === "female" ? COLORS.surface : COLORS.textSecondary}
           />
         </TouchableOpacity>
       </View>
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   progressBackground: {
     height: 6,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 3,
     overflow: "hidden",
     marginBottom: 4,
@@ -152,16 +152,16 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: COLORS.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#484646",
+    borderColor: COLORS.textSecondary,
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 10,
   },
   preferText: {
     textAlign: "center",
-    color: "#474545",
+    color: COLORS.textSecondary,
     fontFamily: "Roboto-Regular",
     fontSize: 16,
     marginBottom: 40,

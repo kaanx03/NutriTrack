@@ -111,7 +111,7 @@ const ForgotPasswordScreen3 = () => {
         <TouchableOpacity
           style={[
             styles.updateButton,
-            { backgroundColor: passwordsMatch ? "#474545" : "#AEAEAE" },
+            { backgroundColor: passwordsMatch ? COLORS.textSecondary : COLORS.disabledText },
           ]}
           onPress={handleUpdate}
           disabled={!passwordsMatch}
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: "#777",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: 32,
   },
@@ -179,14 +179,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#555",
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     backgroundColor: COLORS.surface,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   error: {
-    color: "#f44336",
+    color: COLORS.danger,
     fontSize: 14,
     marginBottom: 12,
     textAlign: "center",
@@ -237,14 +237,14 @@ const styles = StyleSheet.create({
   },
   modalMessage: {
     fontSize: 14,
-    color: "#555",
+    color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: 24,
   },
   modalButton: {
     width: "100%",
     height: 44,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     borderRadius: 6,
     justifyContent: "center",
     alignItems: "center",

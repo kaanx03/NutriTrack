@@ -86,12 +86,12 @@ const SignUpScreen1 = () => {
         <MaterialIcons
           name="email"
           size={20}
-          color="#A0A0A0"
+          color={COLORS.textTertiary}
           style={styles.icon}
         />
         <TextInput
           placeholder="Email"
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={COLORS.textTertiary}
           style={styles.input}
           value={formData.email}
           onChangeText={(text) => {
@@ -109,12 +109,12 @@ const SignUpScreen1 = () => {
         <FontAwesome
           name="lock"
           size={20}
-          color="#A0A0A0"
+          color={COLORS.textTertiary}
           style={styles.icon}
         />
         <TextInput
           placeholder="Password"
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={COLORS.textTertiary}
           secureTextEntry={!showPassword}
           style={styles.input}
           value={formData.password}
@@ -127,7 +127,7 @@ const SignUpScreen1 = () => {
           <FontAwesome
             name={showPassword ? "eye" : "eye-slash"}
             size={20}
-            color="#A0A0A0"
+            color={COLORS.textTertiary}
           />
         </TouchableOpacity>
       </View>
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   subHeader: {
     fontSize: 14,
-    color: "#888",
+    color: COLORS.textTertiary,
     textAlign: "center",
     marginBottom: 32,
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: COLORS.borderStrong,
     borderRadius: 6,
     paddingHorizontal: 10,
     marginBottom: 10,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 1,
-    borderColor: "#C5C6CC",
+    borderColor: COLORS.disabled,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     fontSize: 14,
-    color: "#71727A",
+    color: COLORS.textTertiary,
     flex: 1,
     flexWrap: "wrap",
   },
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     height: 54,
-    backgroundColor: "#474545",
+    backgroundColor: COLORS.textSecondary,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 6,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
   loginText: {
     fontSize: 14,
-    color: "#71727A",
+    color: COLORS.textTertiary,
   },
   loginLink: {
     fontSize: 14,

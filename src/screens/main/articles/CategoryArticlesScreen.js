@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   },
   categoryDescription: {
     fontSize: 16,
-    color: "#555",
+    color: COLORS.textSecondary,
     marginBottom: 4,
   },
   articleCount: {
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#ccc",
+    backgroundColor: COLORS.borderStrong,
     marginHorizontal: 8,
   },
   readTime: {

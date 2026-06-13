@@ -175,7 +175,7 @@ const BarcodeScannerScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: COLORS.textPrimary,
   },
   center: {
     justifyContent: "center",

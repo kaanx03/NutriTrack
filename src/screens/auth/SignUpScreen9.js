@@ -65,7 +65,7 @@ const SignUpScreen9 = () => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#E5E5E5"
+            stroke={COLORS.borderStrong}
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -73,7 +73,7 @@ const SignUpScreen9 = () => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#4285F4"
+            stroke={COLORS.brandGoogle}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={`${circumference} ${circumference}`}
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     left: 30,
     width: 40,
     height: 40,
-    backgroundColor: "#EEEEEE",
+    backgroundColor: COLORS.border,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#000",
+    color: COLORS.textPrimary,
     textAlign: "center",
     marginTop: 80,
     marginBottom: 40,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: "#777",
+    color: COLORS.textSecondary,
     textAlign: "center",
     paddingHorizontal: 30,
     marginTop: 60,

@@ -208,7 +208,7 @@ const WeightTrackerScreen = () => {
       <View style={styles.settingRight}>
         <Text style={styles.settingValue}>{value}</Text>
         {hasArrow && onPress && (
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.disabledText} />
         )}
       </View>
     </TouchableOpacity>
@@ -220,7 +220,7 @@ const WeightTrackerScreen = () => {
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#E5E5E5", true: "#FF6B6B" }}
+        trackColor={{ false: COLORS.borderStrong, true: COLORS.danger }}
         thumbColor={value ? COLORS.surface : COLORS.surface}
       />
     </View>
@@ -416,7 +416,7 @@ const WeightTrackerScreen = () => {
         {/* Progress Info */}
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
-            <Ionicons name="trending-down" size={24} color="#FF6B6B" />
+            <Ionicons name="trending-down" size={24} color={COLORS.danger} />
             <Text style={styles.progressTitle}>Weight Progress</Text>
           </View>
 
@@ -449,9 +449,9 @@ const WeightTrackerScreen = () => {
                   styles.statValue,
                   {
                     color: weightChange.isNegative
-                      ? "#10B981"
+                      ? COLORS.success
                       : weightChange.isPositive
-                      ? "#EF4444"
+                      ? COLORS.danger
                       : COLORS.textSecondary,
                   },
                 ]}
@@ -477,7 +477,7 @@ const WeightTrackerScreen = () => {
               <Text
                 style={[
                   styles.statValue,
-                  { color: goalProgress.isAchieved ? "#10B981" : "#FF6B6B" },
+                  { color: goalProgress.isAchieved ? COLORS.success : COLORS.danger },
                 ]}
               >
                 {goalProgress.isAchieved ? "Achieved!" : "In Progress"}
@@ -606,13 +606,13 @@ const styles = StyleSheet.create({
   },
   volumeTrack: {
     height: 4,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     borderRadius: 2,
     position: "relative",
   },
   volumeFill: {
     height: "100%",
-    backgroundColor: "#FF6B6B",
+    backgroundColor: COLORS.danger,
     borderRadius: 2,
   },
   volumeThumb: {
@@ -620,11 +620,11 @@ const styles = StyleSheet.create({
     top: -8,
     width: 20,
     height: 20,
-    backgroundColor: "#FF6B6B",
+    backgroundColor: COLORS.danger,
     borderRadius: 10,
     borderWidth: 3,
     borderColor: COLORS.surface,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: "#E5E5E5",
+    backgroundColor: COLORS.borderStrong,
     marginHorizontal: 16,
   },
   // Modal Styles
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     margin: 20,
     width: "85%",
     maxWidth: 400,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FF6B6B",
+    borderColor: COLORS.danger,
     borderRadius: 10,
     paddingHorizontal: 15,
     marginBottom: 10,
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   saveButton: {
-    backgroundColor: "#FF6B6B",
+    backgroundColor: COLORS.danger,
   },
   cancelButtonText: {
     fontSize: 16,

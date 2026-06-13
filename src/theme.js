@@ -1,53 +1,99 @@
 // src/theme.js — NutriTrack design tokens (SINGLE SOURCE OF TRUTH).
-// Tüm ekranlar renk/boşluk/radius/gölge/tipografi değerlerini buradan almalı.
-// Sabit (hardcoded) hex / boşluk / radius KULLANMA — yeni token gerekiyorsa
-// burada tanımla.
+// İki katman: CORE (ham renk rampaları) → SEMANTIC (ekranların kullandığı
+// anlamsal tokenlar). Ekranlar yalnızca COLORS / CHART / SPACING / RADIUS /
+// TYPOGRAPHY kullanır; sabit hex KULLANMA.
+//
+// Tüm metin/zemin eşleşmeleri WCAG AA doğrulandı (gövde 4.5:1, büyük/grafik 3:1).
+// Kural: success/water/weight beyaz metin taşıyorsa *Strong* adımını kullan;
+// amber HER ZAMAN koyu metinle eşleşir (beyaz metin amber'da okunmaz).
 
+// ---------------------------------------------------------------------------
+// CORE / primitive ramps — ekranlar bunlara DOĞRUDAN referans vermez.
+// ---------------------------------------------------------------------------
+const NEUTRAL = {
+  0: "#FFFFFF",
+  50: "#F6F8FA",
+  100: "#ECEFF3",
+  200: "#DFE4EA",
+  300: "#C7CED6",
+  400: "#97A1AD",
+  500: "#646E79",
+  600: "#515B66",
+  700: "#39424B",
+  800: "#242A31",
+  900: "#13171B",
+};
+const BLUE = { 50: "#ECF2FE", 100: "#D4E2FD", 400: "#5187EB", 500: "#2C66DC", 600: "#1E51BE", 700: "#173E90" };
+const GREEN = { 50: "#E9F5E8", 100: "#CDE8C9", 400: "#57B257", 500: "#3C9A45", 600: "#2E7A37" };
+const AMBER = { 400: "#FBC52F", 500: "#F2A413", 600: "#B9790B" };
+const CYAN = { 400: "#35B6E8", 500: "#0E98D8", 600: "#0A78AC" };
+const ORANGE = { 500: "#F2511E", 600: "#C53D12" };
+const RED = { 50: "#FCEBE9", 500: "#D63A2D", 600: "#AE2C21" };
+
+// ---------------------------------------------------------------------------
+// SEMANTIC — ekranların kullandığı tokenlar (CORE'a referans verir).
+// Not: anahtar isimleri korunur; tüm ekranlar zaten COLORS.* üzerinden geçtiği
+// için değerleri burada değiştirmek paleti tek noktadan günceller.
+// ---------------------------------------------------------------------------
 export const COLORS = {
-  // --- Brand ---
-  primary: "#63A4F4", // ana mavi (nav, seçili durumlar, birincil CTA)
-  primaryDark: "#3C82DA", // basılı durum, birincil buton press state
-  primarySoft: "#E7F1FD", // açık mavi zemin (chip, ikon arkası)
+  // Brand / action
+  primary: BLUE[500], // birincil CTA, seçili nav (beyaz metin AA 5.20)
+  primaryDark: BLUE[600], // basılı durum
+  primarySoft: BLUE[50], // açık zemin (chip, ikon arkası)
+  info: BLUE[500],
 
-  // --- Semantic ---
-  success: "#A1CE50", // pozitif / kalori yeşili
-  successDark: "#4E7A1E", // kalori aşımı / koyu yeşil vurgusu
-  warning: "#FDCD55", // dikkat / aktivite sarısı
-  danger: "#E74C3C", // hata / silme / yıkıcı eylem
-  info: "#63A4F4", // bilgilendirme (= primary)
+  // Semantic state
+  success: GREEN[500], // pozitif / kalori (grafik 3:1)
+  successDark: GREEN[600], // beyaz metin/koyu vurgu (AA) — kalori aşımı
+  warning: AMBER[500], // dikkat / aktivite — DAİMA koyu metin
+  danger: RED[500],
+  dangerStrong: RED[600],
 
-  // --- Domain (alan rengi) ---
-  // Kural: her veri alanı kendi rengini kullanır; nötr/birincil eylemler
-  // `primary` kullanır. Bkz. DOMAIN.
-  water: "#1A96F0", // su
-  weight: "#FF5726", // kilo
-  activity: "#FDCD55", // aktivite (= warning tonu)
-  food: "#A1CE50", // yemek (= success tonu)
+  // Domain accents
+  water: CYAN[500],
+  waterStrong: CYAN[600], // beyaz metin taşıyan su dolguları
+  weight: ORANGE[500],
+  weightStrong: ORANGE[600],
+  activity: AMBER[500],
+  food: GREEN[500],
 
-  // --- Surfaces ---
-  background: "#f5f5f5",
-  surface: "#FFFFFF",
-  surfaceMuted: "#F8F9FA",
+  // Surfaces
+  background: NEUTRAL[50],
+  surface: NEUTRAL[0],
+  surfaceMuted: NEUTRAL[100],
 
-  // --- Text ---
-  textPrimary: "#333333",
-  textSecondary: "#666666",
-  textTertiary: "#999999",
-  textOnColor: "#FFFFFF",
+  // Text
+  textPrimary: NEUTRAL[900],
+  textSecondary: NEUTRAL[700],
+  textTertiary: NEUTRAL[500],
+  textOnColor: NEUTRAL[0],
 
-  // --- States ---
-  disabled: "#E0E0E0",
-  disabledText: "#B0B8C1",
+  // States
+  disabled: NEUTRAL[300],
+  disabledText: NEUTRAL[400],
 
-  // --- Lines & placeholders ---
-  border: "#f0f0f0",
-  divider: "#f0f0f0",
-  avatarBg: "#EDF1F5",
-  avatarIcon: "#B0B8C1",
+  // Lines & misc
+  border: NEUTRAL[200],
+  borderStrong: NEUTRAL[300],
+  divider: NEUTRAL[200],
+  avatarBg: NEUTRAL[100],
+  avatarIcon: NEUTRAL[400],
+  shadow: NEUTRAL[900],
+  overlay: "rgba(19,23,27,0.5)",
+
+  // Third-party brand (palette DIŞI — açıkça izole). Yalnızca Google girişine ait.
+  brandGoogle: "#4285F4",
 };
 
-// Alan → renk eşlemesi. Bir ekranın hangi domain rengini kullanacağına
-// karar verirken buradan oku (örn. Weight CTA = DOMAIN.weight).
+// Data-viz / grafik paleti — markadan BAĞIMSIZ ve SABİT tutulur ki grafikler
+// ve makro lejantları palet değişiminde KAYMASIN. (Protein makrosu tasarımca
+// marka mavisine bağlı olduğundan COLORS.primary kullanır; burada yok.)
+export const CHART = {
+  carbs: "#F54336", // makro: karbonhidrat
+  fat: "#FF9800", // makro: yağ (eski #FE9820 ile birleştirildi)
+};
+
+// Domain → renk eşlemesi (yardımcı erişim).
 export const DOMAIN = {
   food: COLORS.food,
   water: COLORS.water,
@@ -65,25 +111,25 @@ export const SPACING = {
 };
 
 export const RADIUS = {
-  sm: 8, // küçük input'lar
-  md: 12, // kartlar (kompakt), butonlar
-  lg: 16, // kartlar (standart)
-  pill: 999, // tam yuvarlak
+  sm: 8,
+  md: 12, // butonlar, kompakt kartlar
+  lg: 16, // standart kartlar
+  pill: 999,
 };
 
-// Minimum dokunma hedefi (erişilebilirlik) — buton/ikon-buton yüksekliği.
+// Minimum dokunma hedefi (erişilebilirlik).
 export const TOUCH_TARGET = 48;
 
 export const SHADOWS = {
   card: {
-    shadowColor: "#000",
+    shadowColor: NEUTRAL[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 3,
   },
   header: {
-    shadowColor: "#000",
+    shadowColor: NEUTRAL[900],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -102,5 +148,4 @@ export const TYPOGRAPHY = {
   caption: { fontSize: 12, color: COLORS.textSecondary },
 };
 
-// Tüm sayfalarda aynı içerik genişliği için
 export const PAGE_HORIZONTAL_PADDING = SPACING.xl;

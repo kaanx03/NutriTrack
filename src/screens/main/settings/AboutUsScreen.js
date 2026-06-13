@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     borderRadius: 16,
     padding: 20,
-    shadowColor: "#000",
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   paragraph: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#555",
+    color: COLORS.textSecondary,
     marginBottom: 16,
     textAlign: "justify",
   },
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   standForText: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#555",
+    color: COLORS.textSecondary,
   },
 });
 
