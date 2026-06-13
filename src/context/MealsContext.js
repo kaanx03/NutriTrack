@@ -1,6 +1,7 @@
 // src/context/MealsContext.js - Complete Enhanced Backend Integration with Recent Foods Database
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useSignUp } from "./SignUpContext";
+import { useAuth } from "./AuthContext";
 import NutritionService from "../services/NutritionService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -43,24 +44,31 @@ const MealsContext = createContext(initialState);
 
 export const MealsProvider = ({ children }) => {
   const { formData } = useSignUp();
+  const { isAuthenticated } = useAuth();
   const [state, setState] = useState(initialState);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // SignUp verilerine göre kalori hedeflerini güncelleme
+  // SignUp verilerine göre kalori hedeflerini güncelleme.
+  // SSOT: backend (user_daily_targets) tek kaynaktır. SignUp Mifflin değeri
+  // yalnızca backend henüz yüklenmediyse (lastSyncDate yok) geçici tohum olarak
+  // kullanılır; loadDailyData çalıştıktan sonra ASLA üzerine yazmaz — yoksa
+  // calorieData.calories iki yazıcı arasında gidip gelir (2990 ↔ 2974 yarışı).
   useEffect(() => {
-    if (formData && formData.calculatedPlan) {
+    if (formData && formData.calculatedPlan && !state.lastSyncDate) {
       const { dailyCalories, macros } = formData.calculatedPlan;
       updateCalorieGoalsFromSignup(dailyCalories, macros);
     }
   }, [formData]);
 
-  // Tarih değiştiğinde backend'den veri çek
+  // Tarih değiştiğinde backend'den veri çek — yalnızca giriş yapıldıysa
+  // (login öncesi token yok → gereksiz 401 hatalarını önler)
   useEffect(() => {
+    if (!isAuthenticated) return;
     const dateString = NutritionService.formatDate(currentDate);
     if (state.lastSyncDate !== dateString) {
       loadDailyData(currentDate);
     }
-  }, [currentDate]);
+  }, [currentDate, isAuthenticated]);
 
   // SignUp verilerinden kalori hedeflerini güncelle
   const updateCalorieGoalsFromSignup = (dailyCalories, macros) => {
@@ -108,7 +116,6 @@ export const MealsProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true }));
 
-      console.log("MealsContext - Loading daily data for date:", date);
       const dailyData = await NutritionService.getDailyNutrition(date);
 
       // Backend verisini frontend formatına çevir
@@ -121,10 +128,6 @@ export const MealsProvider = ({ children }) => {
         lastSyncDate: NutritionService.formatDate(date),
       }));
 
-      console.log(
-        "MealsContext - Daily data loaded successfully:",
-        transformedData
-      );
     } catch (error) {
       console.error("Error loading daily data:", error);
       setState((prevState) => ({ ...prevState, isLoading: false }));
@@ -274,7 +277,6 @@ export const MealsProvider = ({ children }) => {
         isLoading: false,
       }));
 
-      console.log("Calorie goal updated successfully");
     } catch (error) {
       console.error("Error updating calorie goal:", error);
       setState((prevState) => ({ ...prevState, isLoading: false }));
@@ -295,32 +297,16 @@ export const MealsProvider = ({ children }) => {
         currentDate
       );
 
-      console.log("Adding food to backend:", backendFoodData);
-
       // Backend'e gönder
       const savedFood = await NutritionService.addFood(backendFoodData);
-      console.log("Food added to backend:", savedFood);
 
       // Recent foods'a ekle (background'da, hata olursa devam et)
       try {
-        console.log("Adding food to recent foods database...");
         await NutritionService.addToRecentFoods(selectedFood);
-        console.log("Food added to recent foods database successfully");
-
-        // Recent foods listesini yenile
         setTimeout(() => {
-          loadRecentFoods().catch((error) =>
-            console.log(
-              "Recent foods reload error (non-critical):",
-              error.message
-            )
-          );
+          loadRecentFoods().catch(() => {});
         }, 500);
       } catch (recentError) {
-        console.log(
-          "Error adding to recent foods (non-critical):",
-          recentError.message
-        );
         // Recent foods hatası critical değil, devam et
       }
 
@@ -405,28 +391,11 @@ export const MealsProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true }));
 
-      console.log("=== MealsContext DELETE FOOD START ===");
-      console.log("Delete parameters:", {
-        foodId,
-        mealType,
-        typeOfFoodId: typeof foodId,
-      });
-
       // Mevcut state'i kontrol et
       if (!state.mealFoods[mealType]) {
-        console.error("Meal type not found in state:", mealType);
         setState((prevState) => ({ ...prevState, isLoading: false }));
         throw new Error(`Meal type ${mealType} not found`);
       }
-
-      console.log(
-        "Current meal foods:",
-        state.mealFoods[mealType].map((f) => ({
-          id: f.id,
-          name: f.name,
-          backendId: f.backendId,
-        }))
-      );
 
       // Local state'ten yemeği bul - ID tipini dikkate alarak
       const foodToDelete = state.mealFoods[mealType]?.find((food) => {
@@ -436,23 +405,9 @@ export const MealsProvider = ({ children }) => {
       });
 
       if (!foodToDelete) {
-        console.error(
-          "Food not found in local state. Available foods:",
-          state.mealFoods[mealType].map((f) => ({ id: f.id, name: f.name }))
-        );
         setState((prevState) => ({ ...prevState, isLoading: false }));
         throw new Error("Food not found in meal");
       }
-
-      console.log("Food to delete found:", {
-        id: foodToDelete.id,
-        name: foodToDelete.name,
-        backendId: foodToDelete.backendId,
-        calories: foodToDelete.calories,
-        carbs: foodToDelete.carbs,
-        protein: foodToDelete.protein,
-        fat: foodToDelete.fat,
-      });
 
       // Backend'den silme işlemi - ID TİP DÜZELTMESİ
       let backendDeleteSuccess = false;
@@ -460,50 +415,27 @@ export const MealsProvider = ({ children }) => {
         // Backend ID'si varsa onu kullan, yoksa normal ID'yi kullan
         let backendId = foodToDelete.backendId || foodToDelete.id;
 
-        if (!backendId) {
-          console.warn("No backend ID available, skipping backend delete");
-        } else {
-          // ID'yi integer'a çevir (PostgreSQL için önemli)
+        if (backendId) {
           const backendIdInt = parseInt(backendId, 10);
 
           if (isNaN(backendIdInt)) {
-            console.error(
-              "Invalid backend ID, cannot convert to integer:",
-              backendId
-            );
             throw new Error("Invalid backend ID format");
           }
 
-          console.log(
-            "Attempting to delete from backend with ID:",
-            backendIdInt,
-            "(type:",
-            typeof backendIdInt,
-            ")"
-          );
-
-          // Integer ID'yi backend'e gönder
           await NutritionService.deleteFood(backendIdInt);
-          console.log("Food deleted from backend successfully");
           backendDeleteSuccess = true;
         }
       } catch (backendError) {
         console.error("Backend delete error:", backendError);
-        console.log("Continuing with local delete despite backend error");
-        // Backend hatası olsa bile local state'i güncelle
       }
 
       // Local state'i güncelle
       setState((prevState) => {
-        console.log("Updating local state after delete...");
-
-        // Öğün indeksini bul
         const mealIndex = prevState.meals.findIndex(
           (meal) => meal.type === mealType
         );
 
         if (mealIndex === -1) {
-          console.error("Meal type not found in meals array:", mealType);
           return { ...prevState, isLoading: false };
         }
 
@@ -512,13 +444,6 @@ export const MealsProvider = ({ children }) => {
         const deletedCarbs = parseFloat(foodToDelete.carbs) || 0;
         const deletedProtein = parseFloat(foodToDelete.protein) || 0;
         const deletedFat = parseFloat(foodToDelete.fat) || 0;
-
-        console.log("Deleting nutrition values:", {
-          calories: deletedCalories,
-          carbs: deletedCarbs,
-          protein: deletedProtein,
-          fat: deletedFat,
-        });
 
         // Güncellenmiş öğünler array'i oluştur
         const updatedMeals = [...prevState.meals];
@@ -568,16 +493,7 @@ export const MealsProvider = ({ children }) => {
           }),
         };
 
-        console.log("Local state update values:", {
-          oldConsumedCalories: prevState.consumedCalories,
-          newConsumedCalories,
-          newCaloriesLeft,
-          newConsumedNutrients,
-          oldFoodsCount: prevState.mealFoods[mealType].length,
-          newFoodsCount: updatedMealFoods[mealType].length,
-        });
-
-        const newState = {
+        return {
           ...prevState,
           meals: updatedMeals,
           consumedCalories: newConsumedCalories,
@@ -586,29 +502,20 @@ export const MealsProvider = ({ children }) => {
           mealFoods: updatedMealFoods,
           isLoading: false,
         };
-
-        console.log("=== MealsContext DELETE FOOD LOCAL UPDATE COMPLETED ===");
-        return newState;
       });
 
       // Backend'den veriyi yenile (opsiyonel, güvenlik için)
       if (backendDeleteSuccess) {
         setTimeout(async () => {
           try {
-            console.log("Refreshing data after successful backend delete");
             await refreshData();
           } catch (refreshError) {
-            console.log(
-              "Refresh after delete failed (non-critical):",
-              refreshError.message
-            );
+            // non-critical
           }
         }, 1000);
       }
-
-      console.log("=== MealsContext DELETE FOOD COMPLETED SUCCESSFULLY ===");
     } catch (error) {
-      console.error("=== MealsContext DELETE FOOD ERROR ===", error);
+      console.error("Delete food error:", error);
       setState((prevState) => ({ ...prevState, isLoading: false }));
       throw error;
     }
@@ -618,9 +525,7 @@ export const MealsProvider = ({ children }) => {
   // Favori yemekleri yükle - ENHANCED VERSION with STATE UPDATE
   const loadFavoriteFoods = async () => {
     try {
-      console.log("=== LOADING FAVORITE FOODS FROM BACKEND ===");
       const favorites = await NutritionService.getFavoriteFoods();
-      console.log("Backend favorites received:", favorites.length);
 
       // Backend verisini frontend formatına çevir
       const transformedFavorites = favorites.map((favorite) => ({
@@ -649,18 +554,14 @@ export const MealsProvider = ({ children }) => {
         created_at: favorite.created_at,
       }));
 
-      console.log("Transformed favorites:", transformedFavorites.length);
-
-      // State'i güncelle - YENİ ARRAY İLE
       setState((prevState) => ({
         ...prevState,
-        favoriteFoods: [...transformedFavorites], // Yeni array oluştur
+        favoriteFoods: [...transformedFavorites],
       }));
 
-      console.log("=== FAVORITE FOODS LOADED AND STATE UPDATED ===");
       return transformedFavorites;
     } catch (error) {
-      console.error("=== ERROR LOADING FAVORITE FOODS ===", error);
+      console.error("Error loading favorite foods:", error);
 
       // Hata durumunda boş array ile state'i güncelle
       setState((prevState) => ({
@@ -677,27 +578,13 @@ export const MealsProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true }));
 
-      console.log("=== MealsContext TOGGLE FAVORITE START ===");
-      console.log("Food to toggle:", {
-        id: food.id,
-        name: food.name,
-        currentFavorites: state.favoriteFoods.length,
-      });
-
-      // Mevcut favorite durumunu kontrol et
       const isFavorite = state.favoriteFoods.some(
         (item) => item.id === food.id || item.food_id === food.id
       );
 
-      console.log("Current favorite status:", isFavorite);
-
       if (isFavorite) {
-        console.log("Removing from favorites");
-
-        // Backend'den çıkar
         await NutritionService.removeFromFavorites(food.id);
 
-        // Local state'i güncelle - YENİ ARRAY OLUŞTUR
         setState((prevState) => ({
           ...prevState,
           favoriteFoods: prevState.favoriteFoods.filter(
@@ -705,11 +592,7 @@ export const MealsProvider = ({ children }) => {
           ),
           isLoading: false,
         }));
-
-        console.log("Removed from favorites successfully");
       } else {
-        console.log("Adding to favorites");
-
         const favoriteData = {
           foodId: food.id,
           foodName: food.name,
@@ -720,15 +603,13 @@ export const MealsProvider = ({ children }) => {
           isCustomFood: food.isPersonal || food.isCustomFood || false,
         };
 
-        // Backend'e ekle
         const savedFavorite = await NutritionService.addToFavorites(
           favoriteData
         );
 
-        // Local state'i güncelle - YENİ ARRAY OLUŞTUR
         const newFavoriteFood = {
           ...food,
-          food_id: food.id, // Backend compatibility
+          food_id: food.id,
           backendId: savedFavorite.id,
           is_custom_food: favoriteData.isCustomFood,
         };
@@ -738,13 +619,9 @@ export const MealsProvider = ({ children }) => {
           favoriteFoods: [...prevState.favoriteFoods, newFavoriteFood],
           isLoading: false,
         }));
-
-        console.log("Added to favorites successfully");
       }
-
-      console.log("=== MealsContext TOGGLE FAVORITE COMPLETED ===");
     } catch (error) {
-      console.error("=== MealsContext TOGGLE FAVORITE ERROR ===", error);
+      console.error("Toggle favorite error:", error);
       setState((prevState) => ({ ...prevState, isLoading: false }));
       throw error;
     }
@@ -753,9 +630,7 @@ export const MealsProvider = ({ children }) => {
   // Custom foods yükle
   const loadPersonalFoods = async () => {
     try {
-      console.log("Loading personal foods from backend");
       const customFoods = await NutritionService.getCustomFoods();
-      console.log("Loaded custom foods:", customFoods.length);
 
       // Backend formatından frontend formatına çevir
       const transformedFoods = customFoods.map((food) => ({
@@ -789,14 +664,7 @@ export const MealsProvider = ({ children }) => {
   // Recent foods yükle - DATABASE INTEGRATION
   const loadRecentFoods = async () => {
     try {
-      console.log("Loading recent foods from database");
-
-      // Backend'den yükle (database'den)
       const backendRecentFoods = await NutritionService.getRecentFoods();
-      console.log(
-        "Backend recent foods from database:",
-        backendRecentFoods.length
-      );
 
       // Backend verisini frontend formatına çevir
       const transformedRecentFoods = backendRecentFoods
@@ -827,11 +695,6 @@ export const MealsProvider = ({ children }) => {
         }))
         .slice(0, 10); // En fazla 10 tane
 
-      console.log(
-        "Transformed recent foods count:",
-        transformedRecentFoods.length
-      );
-
       setState((prevState) => ({
         ...prevState,
         recentFoods: transformedRecentFoods,
@@ -844,10 +707,7 @@ export const MealsProvider = ({ children }) => {
           JSON.stringify(transformedRecentFoods)
         );
       } catch (storageError) {
-        console.log(
-          "AsyncStorage save error (non-critical):",
-          storageError.message
-        );
+        // non-critical
       }
 
       return transformedRecentFoods;
@@ -859,10 +719,6 @@ export const MealsProvider = ({ children }) => {
         const storedRecents = await AsyncStorage.getItem("@recent_foods");
         if (storedRecents) {
           const localRecentFoods = JSON.parse(storedRecents);
-          console.log(
-            "Fallback to local storage recent foods:",
-            localRecentFoods.length
-          );
 
           setState((prevState) => ({
             ...prevState,
@@ -872,7 +728,7 @@ export const MealsProvider = ({ children }) => {
           return localRecentFoods;
         }
       } catch (storageError) {
-        console.log("Local storage fallback failed:", storageError.message);
+        // local storage fallback failed
       }
 
       return [];
@@ -882,8 +738,6 @@ export const MealsProvider = ({ children }) => {
   // Recent'a yemek ekleme - DEPRECATED (artık addFood içinde otomatik yapılıyor)
   const addToRecent = async (food) => {
     try {
-      // Bu fonksiyon artık sadece backward compatibility için
-      console.log("addToRecent called (now handled automatically in addFood)");
 
       setState((prevState) => {
         const filteredRecents = prevState.recentFoods.filter(
@@ -894,11 +748,10 @@ export const MealsProvider = ({ children }) => {
           ...filteredRecents,
         ].slice(0, 10);
 
-        // AsyncStorage'ı güncelle
         AsyncStorage.setItem(
           "@recent_foods",
           JSON.stringify(updatedRecents)
-        ).catch((error) => console.log("AsyncStorage save error:", error));
+        ).catch(() => {});
 
         return {
           ...prevState,
@@ -913,50 +766,29 @@ export const MealsProvider = ({ children }) => {
   // Recent foods'u temizle - DATABASE + LOCAL STORAGE
   const clearRecentFoods = async () => {
     try {
-      console.log("=== CLEARING RECENT FOODS FROM DATABASE ===");
-      console.log(
-        "Before clear - recent foods count:",
-        state.recentFoods.length
-      );
-
       setState((prevState) => ({ ...prevState, isLoading: true }));
 
-      // Backend'den temizle (database'den)
       try {
-        console.log("Calling backend clearRecentFoods for database...");
-        const backendResult = await NutritionService.clearRecentFoods();
-        console.log("Backend database clear result:", backendResult);
+        await NutritionService.clearRecentFoods();
       } catch (backendError) {
-        console.log(
-          "Backend database clear error (continuing anyway):",
-          backendError.message
-        );
+        console.error("Backend clear recent foods error:", backendError);
       }
 
-      // AsyncStorage'dan temizle (backward compatibility)
       try {
-        console.log("Clearing AsyncStorage recent foods");
         await AsyncStorage.removeItem("@recent_foods");
-        console.log("AsyncStorage recent foods cleared");
       } catch (storageError) {
-        console.log(
-          "AsyncStorage clear error (not critical):",
-          storageError.message
-        );
+        // non-critical
       }
 
-      // Local state'i temizle
-      console.log("Clearing local state recent foods...");
       setState((prevState) => ({
         ...prevState,
         recentFoods: [],
         isLoading: false,
       }));
 
-      console.log("=== RECENT FOODS CLEARED SUCCESSFULLY FROM DATABASE ===");
       return { success: true };
     } catch (error) {
-      console.error("=== CLEAR RECENT FOODS DATABASE ERROR ===", error);
+      console.error("Clear recent foods error:", error);
 
       setState((prevState) => ({
         ...prevState,
@@ -967,7 +799,7 @@ export const MealsProvider = ({ children }) => {
       try {
         await AsyncStorage.removeItem("@recent_foods");
       } catch (storageError) {
-        console.log("Storage cleanup error:", storageError.message);
+        // non-critical
       }
 
       throw error;
@@ -977,8 +809,6 @@ export const MealsProvider = ({ children }) => {
   // Kişisel yemek ekleme
   const addPersonalFood = async (food) => {
     try {
-      console.log("Adding personal food:", food.name);
-
       const customFoodData = {
         foodName: food.name,
         caloriesPer100g: food.calories,
@@ -990,7 +820,6 @@ export const MealsProvider = ({ children }) => {
       };
 
       const savedFood = await NutritionService.addCustomFood(customFoodData);
-      console.log("Personal food saved to backend:", savedFood);
 
       setState((prevState) => {
         const existingIndex = prevState.personalFoods.findIndex(
@@ -1027,15 +856,12 @@ export const MealsProvider = ({ children }) => {
   // Kişisel yemek silme
   const deletePersonalFood = async (foodId) => {
     try {
-      console.log("Deleting personal food:", foodId);
-
       const foodToDelete = state.personalFoods.find(
         (food) => food.id === foodId
       );
 
       if (foodToDelete && foodToDelete.backendId) {
         await NutritionService.deleteCustomFood(foodToDelete.backendId);
-        console.log("Personal food deleted from backend");
       }
 
       setState((prevState) => ({
@@ -1063,13 +889,6 @@ export const MealsProvider = ({ children }) => {
   ) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true }));
-
-      console.log("Updating food portion:", {
-        foodId,
-        mealType,
-        newPortionSize,
-        newCalories,
-      });
 
       setState((prevState) => {
         const mealFoods = prevState.mealFoods[mealType] || [];
@@ -1151,24 +970,28 @@ export const MealsProvider = ({ children }) => {
   // Tüm veriyi yenile
   const refreshData = async () => {
     try {
-      console.log("Refreshing all meals data");
       await loadDailyData(currentDate);
       await Promise.all([
         loadFavoriteFoods(),
         loadPersonalFoods(),
         loadRecentFoods(),
       ]);
-      console.log("All meals data refreshed successfully");
     } catch (error) {
       console.error("Error refreshing meals data:", error);
       throw error;
     }
   };
 
-  // Initialize data loading on mount
+  // Liste verilerini yükle — yalnızca giriş yapıldıktan sonra.
+  // Günlük veri [currentDate] effect'i tarafından zaten yüklenir.
   useEffect(() => {
-    refreshData();
-  }, []);
+    if (!isAuthenticated) return;
+    Promise.all([
+      loadFavoriteFoods(),
+      loadPersonalFoods(),
+      loadRecentFoods(),
+    ]).catch(() => {});
+  }, [isAuthenticated]);
 
   const contextValue = {
     ...state,

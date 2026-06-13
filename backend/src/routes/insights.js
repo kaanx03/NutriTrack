@@ -58,7 +58,7 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
     );
 
     // Build a chart entry for every day in the range
-    const chartData = [];
+    const dailyData = [];
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -74,7 +74,7 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
         (r) => r.date.toISOString().split("T")[0] === dateStr
       );
 
-      chartData.push({
+      dailyData.push({
         date: dateStr,
         day: dayNum,
         consumed: daily ? parseFloat(daily.calories) || 0 : 0,
@@ -87,9 +87,64 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
       });
     }
 
+    // Monthly görünümde haftalara, yearly görünümde aylara grupla.
+    // Tüketim metrikleri için veri olan günlerin ortalaması alınır;
+    // weight için null olmayan kayıtların ortalaması (yoksa null).
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const aggregateBy = (days, labelFn) => {
+      const groups = new Map();
+      for (const d of days) {
+        const label = labelFn(d);
+        if (!groups.has(label)) groups.set(label, []);
+        groups.get(label).push(d);
+      }
+
+      const avgPositive = (vals) => {
+        const pos = vals.filter((v) => v > 0);
+        return pos.length ? pos.reduce((s, v) => s + v, 0) / pos.length : 0;
+      };
+
+      return [...groups.entries()].map(([label, items]) => {
+        const weights = items.map((i) => i.weight).filter((w) => w !== null);
+        return {
+          date: items[0].date,
+          day: label,
+          consumed: Math.round(avgPositive(items.map((i) => i.consumed))),
+          burned:   Math.round(avgPositive(items.map((i) => i.burned))),
+          water:    Math.round(avgPositive(items.map((i) => i.water))),
+          weight:   weights.length
+            ? Math.round((weights.reduce((s, w) => s + w, 0) / weights.length) * 10) / 10
+            : null,
+          protein:  Math.round(avgPositive(items.map((i) => i.protein))),
+          carbs:    Math.round(avgPositive(items.map((i) => i.carbs))),
+          fat:      Math.round(avgPositive(items.map((i) => i.fat))),
+        };
+      });
+    };
+
+    let chartData = dailyData;
+    if (period === "monthly") {
+      // Ayı her zaman 4 haftaya böl — son birkaç gün (29-31) 4. haftaya katılır.
+      chartData = aggregateBy(
+        dailyData,
+        (d) =>
+          `Week ${Math.min(
+            4,
+            Math.floor((new Date(d.date).getDate() - 1) / 7) + 1
+          )}`
+      );
+    } else if (period === "yearly") {
+      chartData = aggregateBy(
+        dailyData,
+        (d) => MONTH_NAMES[new Date(d.date).getMonth()]
+      );
+    }
+
     // BMI info
     const userInfo = await db.query(
-      `SELECT u.weight, u.height, dt.goal_weight
+      `SELECT u.weight, u.height, dt.goal_weight, dt.daily_calories
        FROM users u
        LEFT JOIN user_daily_targets dt ON u.id = dt.user_id
        WHERE u.id = $1`,
@@ -100,12 +155,12 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
     const bmi = calculateBMI(user.weight, user.height);
 
     const avgGoal =
-      chartData.reduce((s, d) => {
-        const daily = rawData.rows.find(
-          (r) => r.date.toISOString().split("T")[0] === d.date
-        );
-        return s + (daily ? parseInt(daily.calorie_goal) || 2000 : 2000);
-      }, 0) / chartData.length;
+      rawData.rows.length > 0
+        ? rawData.rows.reduce(
+            (s, r) => s + (parseInt(r.calorie_goal) || 2000),
+            0
+          ) / rawData.rows.length
+        : 2000;
 
     const response = {
       success: true,
@@ -123,7 +178,10 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
             average_consumed: Math.round(
               chartData.reduce((s, d) => s + d.consumed, 0) / chartData.length
             ),
-            average_goal: Math.round(avgGoal),
+            // SSOT: "Goal" = kullanıcının güncel kalori hedefi (user_daily_targets),
+            // haftanın günlük hedeflerinin ortalaması DEĞİL. Hedef yoksa eski
+            // ortalamaya düş.
+            average_goal: parseInt(user.daily_calories) || Math.round(avgGoal),
             max_consumed: Math.max(...chartData.map((d) => d.consumed)),
             min_consumed: Math.min(...chartData.map((d) => d.consumed)),
           },

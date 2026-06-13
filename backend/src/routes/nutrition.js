@@ -46,11 +46,17 @@ router.get("/daily/:date", authenticateToken, async (req, res) => {
         water_target: 2500,
       };
 
-      // Yeni günlük veri oluştur
+      // Yeni günlük veri oluştur.
+      // ON CONFLICT: MealsContext + ActivityContext aynı anda bu endpoint'i
+      // çağırdığında ikisi de "satır yok" görüp INSERT deniyordu → UNIQUE
+      // ihlali → 500. Upsert ile yarış güvenli hale geldi; satır zaten varsa
+      // RETURNING * mevcut satırı döndürür.
       const insertResult = await db.query(
-        `INSERT INTO user_daily_data (user_id, date, daily_calorie_goal, 
+        `INSERT INTO user_daily_data (user_id, date, daily_calorie_goal,
          daily_protein_goal, daily_carbs_goal, daily_fat_goal, daily_water_goal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id, date) DO UPDATE SET updated_at = NOW()
+         RETURNING *`,
         [
           userId,
           date,
@@ -89,7 +95,33 @@ router.get("/daily/:date", authenticateToken, async (req, res) => {
       [userId, date]
     );
 
-    const dailyRecord = dailyData.rows[0];
+    let dailyRecord = dailyData.rows[0];
+
+    // SSOT: kalori/makro hedefi tek kaynaktan gelmeli — user_daily_targets.
+    // Kilo değişince hedef yeniden hesaplanır ama bugünün satırı eski (donmuş)
+    // değerde kalıyordu → Home/Profile/Insights farklı sayı gösteriyordu.
+    // Bugünün (veya ileri tarihli) satırını güncel hedefe senkronla.
+    // GEÇMİŞ GÜNLERE DOKUNMA: `d.date >= CURRENT_DATE` koşulu o tarihte geçerli
+    // olan hedefi korur; yalnızca farklıysa yazar (gereksiz UPDATE yok).
+    const synced = await db.query(
+      `UPDATE user_daily_data d
+          SET daily_calorie_goal = t.daily_calories,
+              daily_protein_goal = t.daily_protein,
+              daily_carbs_goal   = t.daily_carbs,
+              daily_fat_goal     = t.daily_fat,
+              updated_at         = NOW()
+         FROM user_daily_targets t
+        WHERE d.user_id = $1 AND d.date = $2
+          AND d.date >= CURRENT_DATE
+          AND t.user_id = $1
+          AND (d.daily_calorie_goal IS DISTINCT FROM t.daily_calories
+            OR d.daily_protein_goal IS DISTINCT FROM t.daily_protein
+            OR d.daily_carbs_goal   IS DISTINCT FROM t.daily_carbs
+            OR d.daily_fat_goal     IS DISTINCT FROM t.daily_fat)
+        RETURNING d.*`,
+      [userId, date]
+    );
+    if (synced.rows.length > 0) dailyRecord = synced.rows[0];
 
     res.json({
       success: true,
