@@ -6,17 +6,19 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   Modal,
   ScrollView,
   FlatList,
   Image,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
+import { showToast } from "../../../components/AppToast";
+import Button from "../../../components/Button";
 import NutritionService from "../../../services/NutritionService";
 
 const CreateFoodScreen = () => {
@@ -130,11 +132,9 @@ const CreateFoodScreen = () => {
         } icon`,
       };
 
-      console.log("Creating custom food with data:", customFoodData);
 
       // Save to backend - SADECE BU İSTEK YAPILACAK
       const savedFood = await NutritionService.addCustomFood(customFoodData);
-      console.log("Custom food saved to backend:", savedFood);
 
       // Backend'den gelen veriyi frontend formatına çevir
       const newFood = {
@@ -157,51 +157,26 @@ const CreateFoodScreen = () => {
 
       // SADECE CONTEXT'E EKLE - Backend'e tekrar istek GÖNDERME
       // addPersonalFood yerine sadece context'i güncelle
-      console.log(
-        "Adding food to context only (no backend request):",
-        newFood.name
-      );
-
-      // MealsContext'teki setPersonalFoods'u direkt kullan
-      // veya refreshData() ile personal foods'u yenile
       await refreshData();
 
-      Alert.alert("Success", "Custom food created successfully!", [
-        {
-          text: "OK",
-          onPress: () => {
-            // Navigate back to food selection with Personal tab active
-            navigation.navigate("FoodSelection", {
-              activeTab: "Personal",
-              refreshPersonal: true,
-            });
-          },
-        },
-      ]);
+      showToast("Custom food created", "success");
+      navigation.navigate("FoodSelection", {
+        activeTab: "Personal",
+        refreshPersonal: true,
+      });
     } catch (error) {
       console.error("Error creating custom food:", error);
 
       // Handle specific error cases
       if (error.message && error.message.includes("Food already exists")) {
         // Eğer duplicate error ise, muhtemelen yemek oluşturulmuştur
-        // Personal foods'u yenile ve kontrol et
         try {
           await refreshData();
-          Alert.alert(
-            "Food Created",
-            "Your custom food has been created successfully!",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  navigation.navigate("FoodSelection", {
-                    activeTab: "Personal",
-                    refreshPersonal: true,
-                  });
-                },
-              },
-            ]
-          );
+          showToast("Custom food created", "success");
+          navigation.navigate("FoodSelection", {
+            activeTab: "Personal",
+            refreshPersonal: true,
+          });
         } catch (refreshError) {
           Alert.alert(
             "Food Already Exists",
@@ -391,20 +366,12 @@ const CreateFoodScreen = () => {
       </ScrollView>
 
       {/* Add Button */}
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          (!isFormValid() || isLoading) && styles.addButtonDisabled,
-        ]}
+      <Button
+        title="Create Food"
         onPress={handleSave}
-        disabled={!isFormValid() || isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={styles.addButtonText}>Create Food</Text>
-        )}
-      </TouchableOpacity>
+        loading={isLoading}
+        disabled={!isFormValid()}
+      />
 
       {/* Icon Selector Modal */}
       <Modal
@@ -462,7 +429,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",

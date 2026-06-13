@@ -1,38 +1,84 @@
-// src/screens/main/settings/ProfileScreen.js - Updated with SignUp Data
-import React from "react";
+// src/screens/main/settings/ProfileScreen.js
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Image,
   Alert,
+  Image,
+  Switch,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useSignUp } from "../../../context/SignUpContext";
-import BottomNavigation from "../../../components/BottomNavigation";
+import { useAuth } from "../../../context/AuthContext";
+import { useMeals } from "../../../context/MealsContext";
+import ScreenHeader from "../../../components/ScreenHeader";
+import Card from "../../../components/Card";
+import ListRow from "../../../components/ListRow";
+import SectionHeader from "../../../components/SectionHeader";
+import { showToast } from "../../../components/AppToast";
+import PhotoStorage from "../../../services/PhotoStorage";
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from "../../../theme";
+
+const BIOMETRIC_KEY = "biometricEnabled";
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { formData } = useSignUp();
+  const { user } = useAuth();
+  // Ana sayfayla aynı kaynak: backend ile senkronize kalori hedefleri (SSOT)
+  const { calorieData } = useMeals();
+
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Foto PersonalInfo'da değişebilir — her focus'ta tazele
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        PhotoStorage.getProfilePhoto(user.id).then(setProfilePhoto);
+      }
+      AsyncStorage.getItem(BIOMETRIC_KEY).then((v) =>
+        setBiometricEnabled(v === "1")
+      );
+    }, [user?.id])
+  );
+
+  const toggleBiometric = async (value) => {
+    if (value) {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !enrolled) {
+        showToast("No biometrics enrolled on this device", "error");
+        return;
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Confirm to enable biometric login",
+      });
+      if (!result.success) return;
+      await AsyncStorage.setItem(BIOMETRIC_KEY, "1");
+      setBiometricEnabled(true);
+      showToast("Biometric login enabled", "success");
+    } else {
+      await AsyncStorage.removeItem(BIOMETRIC_KEY);
+      setBiometricEnabled(false);
+      showToast("Biometric login disabled", "info");
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
+      { text: "Cancel", style: "cancel" },
       {
         text: "Logout",
         style: "destructive",
         onPress: () => {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          });
+          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         },
       },
     ]);
@@ -43,256 +89,180 @@ const ProfileScreen = () => {
       "Rate Us",
       "Thank you for using our app! Please rate us on the App Store.",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Rate Now",
-          onPress: () => {
-            console.log("Opening app store rating...");
-          },
-        },
+        { text: "Cancel", style: "cancel" },
+        { text: "Rate Now", onPress: () => {} },
       ]
     );
   };
 
-  // SignUp verilerinden kullanıcı bilgilerini oluştur
   const getUserName = () => {
     if (formData && (formData.firstName || formData.lastName)) {
       return `${formData.firstName || ""} ${formData.lastName || ""}`.trim();
     }
-    return "User Name"; // Default fallback
+    return "User Name";
   };
 
-  const getUserEmail = () => {
-    return formData?.email || "user@example.com"; // Default fallback
-  };
+  const getUserEmail = () => formData?.email || "user@example.com";
 
-  const profileOption = {
-    id: "personal-info",
-    title: getUserName(),
-    subtitle: getUserEmail(),
-    hasProfileImage: true,
-    route: "PersonalInfo",
-  };
+  const stats = calorieData
+    ? [
+        { label: "Daily Calories", value: `${calorieData.calories}` },
+        { label: "Carbs", value: `${calorieData.carbs}g` },
+        { label: "Protein", value: `${calorieData.protein}g` },
+        { label: "Fat", value: `${calorieData.fat}g` },
+      ]
+    : [];
 
+  // Ayar satırları — tek tip ListRow ile
   const settingsOptions = [
-    {
-      id: "calorie-counter",
-      title: "Calorie Counter",
-      icon: "🔥",
-      route: "CalorieCounter",
-    },
-    {
-      id: "water-tracker",
-      title: "Water Tracker",
-      icon: "💧",
-      route: "WaterTracker",
-    },
-    {
-      id: "weight-tracker",
-      title: "Weight Tracker",
-      icon: "⚖️",
-      route: "WeightTracker",
-    },
-    {
-      id: "help-support",
-      title: "Help & Support",
-      icon: "💬",
-      route: "HelpSupport",
-    },
-    {
-      id: "rate-us",
-      title: "Rate Us",
-      icon: "⭐",
-      action: handleRateUs,
-    },
-    {
-      id: "logout",
-      title: "Logout",
-      hasCustomIcon: true,
-      action: handleLogout,
-      isDestructive: true,
-    },
+    { id: "calorie-counter", title: "Calorie Counter", emoji: "🔥", route: "CalorieCounter" },
+    { id: "water-tracker", title: "Water Tracker", emoji: "💧", route: "WaterTracker" },
+    { id: "weight-tracker", title: "Weight Tracker", emoji: "⚖️", route: "WeightTracker" },
+    { id: "biometric-login", title: "Biometric Login", emoji: "🔒", hasSwitch: true },
+    { id: "help-support", title: "Help & Support", emoji: "💬", route: "HelpSupport" },
+    { id: "rate-us", title: "Rate Us", emoji: "⭐", action: handleRateUs },
+    { id: "logout", title: "Logout", ioniconName: "log-out-outline", action: handleLogout, destructive: true },
   ];
 
-  const renderOption = (option) => {
-    const handlePress = () => {
-      if (option.action) {
-        option.action();
-      } else if (option.route) {
-        navigation.navigate(option.route);
-      }
-    };
-
-    return (
-      <TouchableOpacity
-        style={styles.optionItem}
-        onPress={handlePress}
-        activeOpacity={0.7}
-      >
-        <View style={styles.optionLeft}>
-          {option.hasProfileImage ? (
-            <View style={styles.profileImageContainer}>
-              <Image
-                source={{
-                  uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-                }}
-                style={styles.profileImage}
-              />
-            </View>
-          ) : option.hasCustomIcon ? (
-            <View style={styles.iconContainer}>
-              <Ionicons name="log-out-outline" size={24} color="#E74C3C" />
-            </View>
-          ) : (
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconEmoji}>{option.icon}</Text>
-            </View>
-          )}
-
-          <View style={styles.optionContent}>
-            <Text
-              style={[
-                styles.optionTitle,
-                option.isDestructive && styles.destructiveText,
-              ]}
-            >
-              {option.title}
-            </Text>
-            {option.subtitle && (
-              <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
-            )}
-          </View>
-        </View>
-
-        {!option.isDestructive && (
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Account Details</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Account Details" />
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile Section - Ayrı blok */}
-        <View style={styles.profileSection}>{renderOption(profileOption)}</View>
-
-        {/* User Stats Section - Yeni eklenen */}
-        {formData && formData.calculatedPlan && (
-          <View style={styles.statsSection}>
-            <Text style={styles.sectionTitle}>Your Plan</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formData.calculatedPlan.dailyCalories}
-                </Text>
-                <Text style={styles.statLabel}>Daily Calories</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formData.calculatedPlan.macros.carbs}g
-                </Text>
-                <Text style={styles.statLabel}>Carbs</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formData.calculatedPlan.macros.protein}g
-                </Text>
-                <Text style={styles.statLabel}>Protein</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {formData.calculatedPlan.macros.fat}g
-                </Text>
-                <Text style={styles.statLabel}>Fat</Text>
-              </View>
+        {/* Profile header (avatar custom — ListRow image avatar desteklemiyor) */}
+        <Card padded={false} style={styles.block}>
+          <TouchableOpacity
+            style={styles.profileRow}
+            onPress={() => navigation.navigate("PersonalInfo")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.avatarWrap}>
+              {profilePhoto ? (
+                <Image
+                  source={{ uri: `${profilePhoto.uri}?t=${profilePhoto.updatedAt}` }}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={28} color={COLORS.avatarIcon} />
+                </View>
+              )}
             </View>
-          </View>
+            <View style={styles.profileText}>
+              <Text style={styles.profileName}>{getUserName()}</Text>
+              <Text style={styles.profileEmail}>{getUserEmail()}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.avatarIcon} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* Your Plan — MealsContext (ana sayfayla aynı SSOT) */}
+        {calorieData && (
+          <Card style={styles.block}>
+            <SectionHeader title="Your Plan" center />
+            <View style={styles.statsGrid}>
+              {stats.map((s) => (
+                <View key={s.label} style={styles.statItem}>
+                  <Text style={styles.statValue}>{s.value}</Text>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
         )}
 
-        {/* Settings Section - Ayrı blok */}
-        <View style={styles.settingsSection}>
-          {settingsOptions.map((option, index) => (
-            <View key={option.id}>
-              {renderOption(option)}
+        {/* Settings */}
+        <Card padded={false} style={styles.block}>
+          {settingsOptions.map((opt, index) => (
+            <View key={opt.id}>
+              <ListRow
+                title={opt.title}
+                emoji={opt.emoji}
+                ioniconName={opt.ioniconName}
+                destructive={opt.destructive}
+                showChevron={!opt.hasSwitch}
+                onPress={
+                  opt.hasSwitch
+                    ? undefined
+                    : opt.action
+                    ? opt.action
+                    : () => navigation.navigate(opt.route)
+                }
+                right={
+                  opt.hasSwitch ? (
+                    <Switch
+                      value={biometricEnabled}
+                      onValueChange={toggleBiometric}
+                      trackColor={{ false: COLORS.disabled, true: COLORS.primarySoft }}
+                      thumbColor={biometricEnabled ? COLORS.primary : "#f4f3f4"}
+                    />
+                  ) : undefined
+                }
+              />
               {index < settingsOptions.length - 1 && (
                 <View style={styles.separator} />
               )}
             </View>
           ))}
-        </View>
+        </Card>
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <BottomNavigation activeTab="Profile" />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: "#f8f9fa",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
+    backgroundColor: COLORS.surfaceMuted,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
-  profileSection: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+  block: {
+    marginHorizontal: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
-  statsSection: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
   },
-  sectionTitle: {
+  avatarWrap: {
+    marginRight: SPACING.lg,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.avatarBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  profileText: {
+    flex: 1,
+  },
+  profileName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
-    textAlign: "center",
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  profileEmail: {
+    ...TYPOGRAPHY.caption,
   },
   statsGrid: {
     flexDirection: "row",
@@ -301,84 +271,26 @@ const styles = StyleSheet.create({
   },
   statItem: {
     width: "48%",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: COLORS.surfaceMuted,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   statValue: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#A1CE50",
-    marginBottom: 4,
+    color: COLORS.success,
+    marginBottom: SPACING.xs,
   },
   statLabel: {
-    fontSize: 12,
-    color: "#666",
+    ...TYPOGRAPHY.caption,
     textAlign: "center",
-  },
-  settingsSection: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  optionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  optionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  profileImageContainer: {
-    marginRight: 16,
-  },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  iconEmoji: {
-    fontSize: 24,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 2,
-  },
-  optionSubtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  destructiveText: {
-    color: "#E74C3C",
   },
   separator: {
     height: 1,
-    backgroundColor: "#f0f0f0",
-    marginLeft: 86,
+    backgroundColor: COLORS.divider,
+    marginLeft: SPACING.xl + 40 + SPACING.lg,
   },
 });
 

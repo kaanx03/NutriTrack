@@ -6,17 +6,21 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Alert,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
+import { showToast } from "../../../components/AppToast";
+import Button from "../../../components/Button";
+import ScreenHeader from "../../../components/ScreenHeader";
 
 const CreateActivityScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   // ActivityContext'ten fonksiyonları al
   const { addPersonalActivity, isLoading, error, clearError } = useActivity();
@@ -110,21 +114,11 @@ const CreateActivityScreen = () => {
       // Add to personal activities in the context (this will save to backend)
       await addPersonalActivity(newActivity);
 
-      // Show success message
-      Alert.alert(
-        "Activity Created",
-        `${activityName} has been added to your personal activities.`,
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              navigation.navigate("ActivitySelection", {
-                activeTab: "Personal",
-                refresh: true,
-              }),
-          },
-        ]
-      );
+      showToast(`${activityName} added to your personal activities`, "success");
+      navigation.navigate("ActivitySelection", {
+        activeTab: "Personal",
+        refresh: true,
+      });
     } catch (error) {
       console.error("Create activity error:", error);
       Alert.alert("Error", "Failed to create activity. Please try again.");
@@ -161,19 +155,8 @@ const CreateActivityScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleCancel}
-          disabled={saving}
-        >
-          <Ionicons name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Activity</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Create Activity" onBack={handleCancel} />
 
       <ScrollView
         style={styles.scrollView}
@@ -347,23 +330,20 @@ const CreateActivityScreen = () => {
       </ScrollView>
 
       {/* Create Button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.createButton,
-            (!isFormValid() || saving) && styles.createButtonDisabled,
-          ]}
+      <View
+        style={[
+          styles.buttonContainer,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
+      >
+        <Button
+          title="Create Activity"
           onPress={handleSave}
-          disabled={!isFormValid() || saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.createButtonText}>Create Activity</Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!isFormValid()}
+        />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -377,7 +357,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",

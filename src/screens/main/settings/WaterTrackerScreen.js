@@ -1,25 +1,34 @@
 // src/screens/main/settings/WaterTrackerScreen.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Switch,
   Alert,
   TextInput,
   Modal,
+  LayoutAnimation
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import Slider from "@react-native-community/slider";
 import BottomNavigation from "../../../components/BottomNavigation";
+import OptionPicker from "../../../components/OptionPicker";
+import { showToast } from "../../../components/AppToast";
+import Button from "../../../components/Button";
 import { useWater } from "../../../context/WaterContext";
+import NotificationService, {
+  WATER_SETTINGS_KEY,
+} from "../../../services/NotificationService";
 
 const WaterTrackerScreen = () => {
   const navigation = useNavigation();
-  const { waterGoal, setWaterGoal } = useWater();
+  const { waterGoal, updateWaterGoal } = useWater();
 
   const [settings, setSettings] = useState({
     waterIntakeGoal: waterGoal.toString(),
@@ -36,11 +45,83 @@ const WaterTrackerScreen = () => {
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [tempGoalValue, setTempGoalValue] = useState(waterGoal.toString());
 
+  // Ayarları kalıcı yap — yoksa ekrandan çıkınca sıfırlanıyordu
+  useEffect(() => {
+    AsyncStorage.getItem(WATER_SETTINGS_KEY).then((raw) => {
+      if (raw) {
+        try {
+          setSettings((prev) => ({ ...prev, ...JSON.parse(raw) }));
+        } catch (e) {
+          // bozuk kayıt — varsayılanlarla devam
+        }
+      }
+    });
+  }, []);
+
   const handleSettingChange = (key, value) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    // Açılır/kapanır bölümler (ör. Drink Reminder) yumuşak geçsin
+    if (key === "drinkReminder") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    const next = { ...settings, [key]: value };
+    setSettings(next);
+    AsyncStorage.setItem(WATER_SETTINGS_KEY, JSON.stringify(next)).catch(
+      () => {}
+    );
+
+    const reminderOptions = {
+      intervalHours: 2,
+      ringtone: next.ringtone,
+      soundEnabled: next.volume > 0,
+      vibrationEnabled: next.vibration,
+    };
+
+    // Hatırlatıcıyı gerçek yerel bildirimlere bağla
+    if (key === "drinkReminder") {
+      if (value) {
+        NotificationService.scheduleWaterReminder(reminderOptions).then(
+          (result) => {
+            if (result.success) {
+              showToast("Water reminders enabled (every 2 hours)", "success");
+            } else if (result.reason === "permission") {
+              showToast("Notification permission denied", "error");
+            } else {
+              showToast(
+                "Notifications are not supported in this environment",
+                "info"
+              );
+            }
+          }
+        );
+      } else {
+        NotificationService.cancelWaterReminders();
+        showToast("Water reminders disabled", "info");
+      }
+    }
+
+    // Ses, zil sesi veya titreşim değiştiyse hatırlatıcıyı yeni ayarlarla yeniden kur
+    if (
+      ["volume", "ringtone", "vibration"].includes(key) &&
+      next.drinkReminder
+    ) {
+      NotificationService.scheduleWaterReminder(reminderOptions);
+    }
+  };
+
+  // Bildirimi anında test etmek için
+  const handleTestNotification = async () => {
+    const result = await NotificationService.sendTestNotification({
+      ringtone: settings.ringtone,
+      soundEnabled: settings.volume > 0,
+      vibrationEnabled: settings.vibration,
+    });
+    if (result.success) {
+      showToast("Test notification will arrive in 5 seconds", "success");
+    } else if (result.reason === "permission") {
+      showToast("Notification permission denied", "error");
+    } else {
+      showToast("Notifications are not supported in this environment", "info");
+    }
   };
 
   const showGoalPicker = () => {
@@ -64,92 +145,44 @@ const WaterTrackerScreen = () => {
     const formattedValue = numericValue.toLocaleString() + " mL";
     handleSettingChange("waterIntakeGoal", formattedValue);
 
-    // WaterContext'i güncelle
-    setWaterGoal(numericValue);
+    // WaterContext'i güncelle (backend'e de kaydeder)
+    updateWaterGoal(numericValue);
 
     setGoalModalVisible(false);
 
-    Alert.alert(
-      "Goal Updated",
-      `Your daily water goal has been set to ${numericValue} mL`
-    );
+    showToast(`Daily water goal set to ${numericValue} mL`, "success");
   };
 
-  const showUnitsPicker = () => {
-    const units = ["mL", "L", "fl oz", "cups"];
-    Alert.alert(
-      "Select Units",
-      "",
-      units
-        .map((unit) => ({
-          text: unit,
-          onPress: () => handleSettingChange("cupUnits", unit),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  // Ortalanmış tema-uyumlu seçim modalı (OptionPicker) için ortak state
+  const [picker, setPicker] = useState(null); // { key, title, options }
 
-  const showRepeatPicker = () => {
-    const options = ["Everyday", "Weekdays", "Weekends", "Custom"];
-    Alert.alert(
-      "Repeat",
-      "",
-      options
-        .map((option) => ({
-          text: option,
-          onPress: () => handleSettingChange("repeat", option),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showUnitsPicker = () =>
+    setPicker({
+      key: "cupUnits",
+      title: "Select Units",
+      options: ["mL", "L", "fl oz", "cups"],
+    });
 
-  const showReminderModePicker = () => {
-    const modes = ["Static", "Smart", "Adaptive"];
-    Alert.alert(
-      "Reminder Mode",
-      "",
-      modes
-        .map((mode) => ({
-          text: mode,
-          onPress: () => handleSettingChange("reminderMode", mode),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showRepeatPicker = () =>
+    setPicker({
+      key: "repeat",
+      title: "Repeat",
+      options: ["Everyday", "Weekdays", "Weekends", "Custom"],
+    });
 
-  const showRingtonePicker = () => {
-    const ringtones = ["Harmony", "Droplet", "Ocean", "Rain", "Classic"];
-    Alert.alert(
-      "Select Ringtone",
-      "",
-      ringtones
-        .map((ringtone) => ({
-          text: ringtone,
-          onPress: () => handleSettingChange("ringtone", ringtone),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showReminderModePicker = () =>
+    setPicker({
+      key: "reminderMode",
+      title: "Reminder Mode",
+      options: ["Static", "Smart", "Adaptive"],
+    });
+
+  const showRingtonePicker = () =>
+    setPicker({
+      key: "ringtone",
+      title: "Select Ringtone",
+      options: ["Harmony", "Droplet", "Ocean", "Rain", "Classic"],
+    });
 
   const renderSettingItem = (label, value, onPress, hasArrow = true) => (
     <TouchableOpacity
@@ -183,25 +216,22 @@ const WaterTrackerScreen = () => {
   const renderVolumeSlider = () => (
     <View style={styles.volumeContainer}>
       <Ionicons name="volume-low" size={20} color="#666" />
-      <View style={styles.volumeSlider}>
-        <View style={styles.volumeTrack}>
-          <View
-            style={[styles.volumeFill, { width: `${settings.volume * 100}%` }]}
-          />
-          <View
-            style={[
-              styles.volumeThumb,
-              { left: `${settings.volume * 100 - 2}%` },
-            ]}
-          />
-        </View>
-      </View>
+      <Slider
+        style={styles.volumeSlider}
+        minimumValue={0}
+        maximumValue={1}
+        value={settings.volume}
+        onSlidingComplete={(value) => handleSettingChange("volume", value)}
+        minimumTrackTintColor="#1A96F0"
+        maximumTrackTintColor="#E0E0E0"
+        thumbTintColor="#1A96F0"
+      />
       <Ionicons name="volume-high" size={20} color="#666" />
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -262,6 +292,12 @@ const WaterTrackerScreen = () => {
                 "Stop When 100%",
                 settings.stopWhenComplete,
                 (value) => handleSettingChange("stopWhenComplete", value)
+              )}
+
+              {renderSettingItem(
+                "Test Notification",
+                "Send now",
+                handleTestNotification
               )}
             </>
           )}
@@ -325,23 +361,33 @@ const WaterTrackerScreen = () => {
             </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                fullWidth={false}
+                style={styles.modalBtn}
                 onPress={() => setGoalModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+              />
+              <Button
+                title="Save Goal"
+                fullWidth={false}
+                style={styles.modalBtn}
                 onPress={handleGoalSave}
-              >
-                <Text style={styles.saveButtonText}>Save Goal</Text>
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* Ortalanmış seçim modalı */}
+      <OptionPicker
+        visible={!!picker}
+        title={picker?.title}
+        options={picker?.options || []}
+        selected={picker ? settings[picker.key] : null}
+        onSelect={(value) => handleSettingChange(picker.key, value)}
+        onClose={() => setPicker(null)}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation activeTab="Profile" />
@@ -375,6 +421,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingTop: 16,
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -549,6 +596,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
   },
   modalButton: {
     flex: 1,

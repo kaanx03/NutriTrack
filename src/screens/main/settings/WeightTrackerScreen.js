@@ -6,16 +6,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Switch,
   Alert,
   TextInput,
-  Modal,
+  Modal
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
 import { useWeight } from "../../../context/WeightContext";
+import { showToast } from "../../../components/AppToast";
+import OptionPicker from "../../../components/OptionPicker";
+import Button from "../../../components/Button";
 
 const WeightTrackerScreen = () => {
   const navigation = useNavigation();
@@ -80,7 +83,7 @@ const WeightTrackerScreen = () => {
 
     updateWeight(weight);
     setWeightModalVisible(false);
-    Alert.alert("Success", `Weight updated to ${weight} kg`);
+    showToast(`Weight updated to ${weight} kg`, "success");
   };
 
   // Goal weight modal handlers
@@ -101,7 +104,7 @@ const WeightTrackerScreen = () => {
 
     updateGoalWeight(goal);
     setGoalModalVisible(false);
-    Alert.alert("Success", `Goal weight updated to ${goal} kg`);
+    showToast(`Goal weight updated to ${goal} kg`, "success");
   };
 
   // Height modal handlers
@@ -122,65 +125,32 @@ const WeightTrackerScreen = () => {
 
     updateHeight(heightValue);
     setHeightModalVisible(false);
-    Alert.alert("Success", `Height updated to ${heightValue} cm`);
+    showToast(`Height updated to ${heightValue} cm`, "success");
   };
 
-  const showWeightUnitsPicker = () => {
-    const units = ["kg", "lbs", "st"];
-    Alert.alert(
-      "Weight Units",
-      "",
-      units
-        .map((unit) => ({
-          text: unit,
-          onPress: () => handleSettingChange("weightUnits", unit),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  // Ortalanmış tema-uyumlu seçim modalı için ortak state
+  const [picker, setPicker] = useState(null); // { key, title, options }
 
-  const showHeightUnitsPicker = () => {
-    const units = ["cm", "ft", "in"];
-    Alert.alert(
-      "Height Units",
-      "",
-      units
-        .map((unit) => ({
-          text: unit,
-          onPress: () => handleSettingChange("heightUnits", unit),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showWeightUnitsPicker = () =>
+    setPicker({
+      key: "weightUnits",
+      title: "Weight Units",
+      options: ["kg", "lbs", "st"],
+    });
 
-  const showRepeatPicker = () => {
-    const options = ["Everyday", "Weekly", "Bi-weekly", "Monthly"];
-    Alert.alert(
-      "Repeat",
-      "",
-      options
-        .map((option) => ({
-          text: option,
-          onPress: () => handleSettingChange("repeat", option),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showHeightUnitsPicker = () =>
+    setPicker({
+      key: "heightUnits",
+      title: "Height Units",
+      options: ["cm", "ft", "in"],
+    });
+
+  const showRepeatPicker = () =>
+    setPicker({
+      key: "repeat",
+      title: "Repeat",
+      options: ["Everyday", "Weekly", "Bi-weekly", "Monthly"],
+    });
 
   const showTimePicker = () => {
     Alert.alert(
@@ -316,19 +286,19 @@ const WeightTrackerScreen = () => {
           </View>
 
           <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
+            <Button
+              title="Cancel"
+              variant="secondary"
+              fullWidth={false}
+              style={styles.modalBtn}
               onPress={onClose}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.saveButton]}
+            />
+            <Button
+              title="Save"
+              fullWidth={false}
+              style={styles.modalBtn}
               onPress={onSave}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </View>
@@ -339,7 +309,7 @@ const WeightTrackerScreen = () => {
   const goalProgress = getGoalProgress();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -384,6 +354,13 @@ const WeightTrackerScreen = () => {
             "Height Units",
             settings.heightUnits,
             showHeightUnitsPicker
+          )}
+        </View>
+
+        {/* Progress Photos */}
+        <View style={styles.section}>
+          {renderSettingItem("Progress Photos", "View & add", () =>
+            navigation.navigate("ProgressPhotos")
           )}
         </View>
 
@@ -540,6 +517,16 @@ const WeightTrackerScreen = () => {
         "cm"
       )}
 
+      {/* Ortalanmış seçim modalı */}
+      <OptionPicker
+        visible={!!picker}
+        title={picker?.title}
+        options={picker?.options || []}
+        selected={picker ? settings[picker.key] : null}
+        onSelect={(value) => handleSettingChange(picker.key, value)}
+        onClose={() => setPicker(null)}
+      />
+
       {/* Bottom Navigation */}
       <BottomNavigation activeTab="Profile" />
     </SafeAreaView>
@@ -572,6 +559,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingTop: 16,
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -761,6 +749,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
   },
   modalButton: {
     flex: 1,

@@ -6,15 +6,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Switch,
   Alert,
   TextInput,
-  Modal,
+  Modal
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import BottomNavigation from "../../../components/BottomNavigation";
+import OptionPicker from "../../../components/OptionPicker";
+import Button from "../../../components/Button";
 import { useMeals } from "../../../context/MealsContext";
 import { useSignUp } from "../../../context/SignUpContext";
 
@@ -146,81 +148,45 @@ const CalorieCounterScreen = () => {
     }
   };
 
-  const showUnitsPicker = () => {
-    const units = ["kcal", "kJ"];
-    Alert.alert(
-      "Select Units",
-      "",
-      units
-        .map((unit) => ({
-          text: unit,
-          onPress: () => handleSettingChange("units", unit),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  // Ortalanmış tema-uyumlu seçim modalı için ortak state
+  const [picker, setPicker] = useState(null); // { key, title, options }
 
-  const showRepeatPicker = () => {
-    const options = ["Everyday", "Weekdays", "Weekends", "Custom"];
-    Alert.alert(
-      "Repeat",
-      "",
-      options
-        .map((option) => ({
-          text: option,
-          onPress: () => handleSettingChange("repeat", option),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showUnitsPicker = () =>
+    setPicker({
+      key: "units",
+      title: "Select Units",
+      options: ["kcal", "kJ"],
+    });
 
-  const showTimePicker = () => {
-    Alert.alert(
-      "Reminder Time",
-      "In a real app, this would open a time picker",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Set Time",
-          onPress: () => {
-            handleSettingChange("reminderTime", "09:00 AM");
-          },
-        },
-      ]
-    );
-  };
+  const showRepeatPicker = () =>
+    setPicker({
+      key: "repeat",
+      title: "Repeat",
+      options: ["Everyday", "Weekdays", "Weekends", "Custom"],
+    });
 
-  const showRingtonePicker = () => {
-    const ringtones = ["Lollipop", "Classic", "Bell", "Chime", "Digital"];
-    Alert.alert(
-      "Select Ringtone",
-      "",
-      ringtones
-        .map((ringtone) => ({
-          text: ringtone,
-          onPress: () => handleSettingChange("ringtone", ringtone),
-        }))
-        .concat([
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ])
-    );
-  };
+  const showTimePicker = () =>
+    setPicker({
+      key: "reminderTime",
+      title: "Reminder Time",
+      options: [
+        "07:00 AM",
+        "08:00 AM",
+        "09:00 AM",
+        "12:00 PM",
+        "03:00 PM",
+        "06:00 PM",
+        "08:00 PM",
+        "09:00 PM",
+      ],
+    });
+
+  const showRingtonePicker = () =>
+    setPicker({
+      key: "ringtone",
+      title: "Select Ringtone",
+      options: ["Lollipop", "Classic", "Bell", "Chime", "Digital"],
+    });
 
   const renderSettingItem = (label, value, onPress, hasArrow = true) => (
     <TouchableOpacity
@@ -280,7 +246,7 @@ const CalorieCounterScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -446,23 +412,33 @@ const CalorieCounterScreen = () => {
             </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+              <Button
+                title="Cancel"
+                variant="secondary"
+                fullWidth={false}
+                style={styles.modalBtn}
                 onPress={() => setGoalModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
+              />
+              <Button
+                title="Save Goal"
+                fullWidth={false}
+                style={styles.modalBtn}
                 onPress={handleGoalSave}
-              >
-                <Text style={styles.saveButtonText}>Save Goal</Text>
-              </TouchableOpacity>
+              />
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* Ortalanmış seçim modalı */}
+      <OptionPicker
+        visible={!!picker}
+        title={picker?.title}
+        options={picker?.options || []}
+        selected={picker ? settings[picker.key] : null}
+        onSelect={(value) => handleSettingChange(picker.key, value)}
+        onClose={() => setPicker(null)}
+      />
 
       {/* Bottom Navigation */}
       <BottomNavigation activeTab="Profile" />
@@ -496,6 +472,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingTop: 16,
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -722,6 +699,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
   },
   modalButton: {
     flex: 1,
