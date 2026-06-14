@@ -132,9 +132,11 @@ router.put("/", authenticateToken, async (req, res) => {
 
 // Belirli kategori ayarlarını güncelle
 router.put("/:category", authenticateToken, async (req, res) => {
+  // category'yi try DIŞINDA tanımla — yoksa catch bloğu erişemiyor ve gerçek
+  // hatayı maskeleyen "ReferenceError: category is not defined" fırlatıyordu.
+  const { category } = req.params;
   try {
     const userId = req.userId;
-    const { category } = req.params;
     const updates = req.body;
 
     let allowedFields = [];

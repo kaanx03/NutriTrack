@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend (lint + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Lint (frontend + backend)
+        run: npm run lint
+      - name: Test (jest-expo + RNTL)
+        run: npm test -- --ci
+
+  backend:
+    name: Backend (supertest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nutritrack_dev
+          POSTGRES_DB: nutritrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:nutritrack_dev@localhost:5432/nutritrack
+      JWT_SECRET: ci_test_secret_not_for_production
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Load schema
+        run: PGPASSWORD=nutritrack_dev psql -h localhost -U postgres -d nutritrack -f backend/schema.sql
+      - name: Install backend deps
+        run: npm --prefix backend ci
+      - name: Test (supertest)
+        run: npm --prefix backend test
