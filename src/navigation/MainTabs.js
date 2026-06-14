@@ -43,7 +43,7 @@ function MainTabBar({ state, navigation, position }) {
   const inputRange = state.routes.map((_, i) => i);
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={styles.bottomNav} accessibilityRole="tablist">
       {state.routes.map((route, index) => {
         const isActive = state.index === index;
         const icons = NAV_ICONS[route.name];
@@ -77,6 +77,9 @@ function MainTabBar({ state, navigation, position }) {
             style={styles.navItem}
             onPress={onPress}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={icons.label}
           >
             {/* İki ikon üst üste — kaydırırken yumuşak crossfade */}
             <View style={styles.iconStack}>

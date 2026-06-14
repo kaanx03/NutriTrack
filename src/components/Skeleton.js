@@ -40,6 +40,9 @@ export const SkeletonBlock = ({
 
   return (
     <Animated.View
+      // Dekoratif yer tutucu — ekran okuyucudan gizle.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={[
         { width, height, borderRadius: radius, backgroundColor: COLORS.border, opacity },
         style,

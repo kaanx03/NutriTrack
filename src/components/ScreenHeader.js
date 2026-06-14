@@ -17,6 +17,7 @@ const ScreenHeader = ({
   rightIcon,
   onRightPress,
   rightContent, // birden fazla sağ aksiyon gerekiyorsa özel node
+  rightLabel, // sağ ikon butonu için erişilebilirlik etiketi
   transparent = false,
 }) => {
   const insets = useSafeAreaInsets();
@@ -31,7 +32,7 @@ const ScreenHeader = ({
     >
       {/* Başlık: buton sayısından bağımsız, her zaman tam merkezde */}
       <View style={styles.titleWrap} pointerEvents="none">
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
           {title}
         </Text>
       </View>
@@ -42,6 +43,8 @@ const ScreenHeader = ({
           style={styles.iconButton}
           onPress={onBack}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
@@ -57,6 +60,8 @@ const ScreenHeader = ({
           style={styles.iconButton}
           onPress={onRightPress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={rightLabel || "Action"}
         >
           <Ionicons name={rightIcon} size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
