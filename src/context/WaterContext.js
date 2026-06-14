@@ -1,11 +1,25 @@
-// src/context/WaterContext.js - BACKEND COMPATIBLE VERSION
+// src/context/WaterContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { Alert } from "react-native";
+import { API_URL } from "../config";
+import NotificationService, {
+  WATER_SETTINGS_KEY,
+} from "../services/NotificationService";
 
 const WaterContext = createContext();
+const TOKEN_KEY = "authToken";
 
-const API_URL = "http://10.0.2.2:3001/api"; // Sizin backend URL'iniz
+function getUserIdFromToken(token) {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return decoded.userId || "anon";
+  } catch {
+    return "anon";
+  }
+}
 
 export const WaterProvider = ({ children }) => {
   const [waterIntake, setWaterIntake] = useState(0);
@@ -16,14 +30,11 @@ export const WaterProvider = ({ children }) => {
     new Date().toISOString().split("T")[0]
   );
 
-  // AUTH TOKEN'I AL
   const getAuthToken = async () => {
     try {
-      const token = await AsyncStorage.getItem("authToken");
-      console.log("WaterContext - Got auth token:", !!token);
-      return token;
+      return await SecureStore.getItemAsync(TOKEN_KEY);
     } catch (error) {
-      console.error("Token alma hatası:", error);
+      console.error("WaterContext - Token alma hatası:", error);
       return null;
     }
   };
@@ -33,7 +44,6 @@ export const WaterProvider = ({ children }) => {
     const checkDate = () => {
       const currentDate = new Date().toISOString().split("T")[0];
       if (currentDate !== todayDate) {
-        console.log("WaterContext - Date changed, resetting data");
         setTodayDate(currentDate);
         setWaterIntake(0);
         setWaterLogs([]);
@@ -55,11 +65,9 @@ export const WaterProvider = ({ children }) => {
   const loadTodayWaterData = async (date = todayDate) => {
     try {
       setLoading(true);
-      console.log("WaterContext - Loading water data for date:", date);
 
       const token = await getAuthToken();
       if (!token) {
-        console.log("WaterContext - No auth token available");
         await loadFromLocalCache();
         return;
       }
@@ -73,9 +81,7 @@ export const WaterProvider = ({ children }) => {
         },
       });
 
-      console.log("WaterContext - API Response status:", response.status);
       const data = await response.json();
-      console.log("WaterContext - API Response data:", data);
 
       if (data.success) {
         const totalConsumed = data.data.summary.totalConsumed || 0;
@@ -88,14 +94,8 @@ export const WaterProvider = ({ children }) => {
 
         // Local cache'e kaydet
         await saveToLocalCache(totalConsumed, logs);
-
-        console.log("WaterContext - Data loaded:", {
-          totalConsumed,
-          dailyGoal,
-          logsCount: logs.length,
-        });
       } else {
-        throw new Error(data.error || "Su verileri yüklenemedi");
+        throw new Error(data.error || "Failed to load water data");
       }
     } catch (error) {
       console.error("WaterContext - Su verileri yükleme hatası:", error);
@@ -126,32 +126,18 @@ export const WaterProvider = ({ children }) => {
     const token = await getAuthToken();
 
     if (!token || amount <= 0) {
-      console.log("WaterContext - Cannot increase water:", {
-        hasToken: !!token,
-        amount,
-      });
-      Alert.alert("Hata", "Su eklemek için giriş yapmalısınız.");
+      Alert.alert("Error", "You must be logged in to add water.");
       return;
     }
 
-    // Mevcut değerleri al
     const currentIntake = waterIntake;
     const currentLogs = [...waterLogs];
-
-    console.log("WaterContext - Increasing water:", { amount, currentIntake });
 
     // OPTIMISTIC UPDATE: Önce local state'i güncelle
     const optimisticIntake = currentIntake + amount;
     setWaterIntake(optimisticIntake);
 
     try {
-      console.log("WaterContext - Sending to backend:", {
-        amount, // YOUR BACKEND EXPECTS amount
-        date: todayDate,
-        time: new Date().toISOString(),
-      });
-
-      // YOUR BACKEND ENDPOINT: POST /tracker/water
       const response = await fetch(`${API_URL}/tracker/water`, {
         method: "POST",
         headers: {
@@ -165,29 +151,30 @@ export const WaterProvider = ({ children }) => {
         }),
       });
 
-      console.log("WaterContext - Backend response status:", response.status);
       const data = await response.json();
-      console.log("WaterContext - Backend response data:", data);
 
       if (data.success) {
-        // Backend'den dönen yeni log'u ekle
         const newLog = data.data;
         const newLogs = [...currentLogs, newLog];
         setWaterLogs(newLogs);
-
-        // Local cache'e kaydet
         await saveToLocalCache(optimisticIntake, newLogs);
 
-        console.log("WaterContext - Su kaydı başarıyla eklendi");
-        console.log("WaterContext - New logs count:", newLogs.length);
+        // "Stop When 100%": hedefe ulaşıldıysa ve ayar açıksa
+        // su hatırlatıcı bildirimlerini durdur
+        if (optimisticIntake >= waterGoal) {
+          try {
+            const raw = await AsyncStorage.getItem(WATER_SETTINGS_KEY);
+            const prefs = raw ? JSON.parse(raw) : {};
+            if (prefs.stopWhenComplete) {
+              await NotificationService.cancelWaterReminders();
+            }
+          } catch (e) {
+            // ayar okunamadı — hatırlatıcılara dokunma
+          }
+        }
       } else {
-        // Backend başarısız olursa state'i geri al
-        console.log(
-          "WaterContext - Backend error, reverting to:",
-          currentIntake
-        );
         setWaterIntake(currentIntake);
-        throw new Error(data.error || data.details || "Su kaydı eklenemedi");
+        throw new Error(data.error || data.details || "Failed to add water log");
       }
     } catch (error) {
       console.error("WaterContext - Su ekleme hatası:", error);
@@ -195,8 +182,8 @@ export const WaterProvider = ({ children }) => {
       // Hata durumunda state'i geri al
       setWaterIntake(currentIntake);
       Alert.alert(
-        "Hata",
-        "Su kaydı eklenirken bir hata oluştu. İnternet bağlantınızı kontrol edin."
+        "Error",
+        "Failed to add water log. Please check your internet connection."
       );
     }
   };
@@ -206,24 +193,15 @@ export const WaterProvider = ({ children }) => {
     const token = await getAuthToken();
 
     if (!token || amount <= 0 || waterIntake <= 0) {
-      console.log("WaterContext - Cannot decrease water:", {
-        hasToken: !!token,
-        amount,
-        currentIntake: waterIntake,
-      });
-
       if (!token) {
-        Alert.alert("Hata", "Su azaltmak için giriş yapmalısınız.");
+        Alert.alert("Error", "You must be logged in to remove water.");
       } else if (waterIntake <= 0) {
-        Alert.alert("Uyarı", "Su miktarı zaten 0. Azaltılacak bir şey yok.");
+        Alert.alert("Warning", "Water intake is already 0. Nothing to remove.");
       }
       return;
     }
 
     try {
-      console.log("WaterContext - Fetching fresh data before decrease");
-
-      // FRESH DATA: YOUR BACKEND ENDPOINT
       const response = await fetch(
         `${API_URL}/tracker/water/daily/${todayDate}`,
         {
@@ -242,37 +220,27 @@ export const WaterProvider = ({ children }) => {
       }
 
       const freshLogs = freshData.data.logs || [];
-      console.log("WaterContext - Fresh logs count:", freshLogs.length);
 
       // Bugünün loglarını filtrele ve sırala (fresh data'da zaten bugünün verileri var)
       const todayLogs = freshLogs
         .filter((log) => log && log.id) // Valid logs only
         .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
 
-      console.log("WaterContext - Today's fresh logs found:", todayLogs.length);
-
       if (todayLogs.length === 0) {
-        console.warn("WaterContext - No logs found for today");
         Alert.alert(
-          "Uyarı",
-          "Bugün için silinecek su kaydı bulunamadı. Önce su ekleyin."
+          "Warning",
+          "No water logs found for today. Add some water first."
         );
         return;
       }
 
-      // En son log'u al
       const lastLog = todayLogs[0];
-      console.log("WaterContext - Last log to delete:", {
-        id: lastLog.id,
-        amount: lastLog.amount_ml,
-        logged_at: lastLog.logged_at,
-      });
-
-      // Mevcut değerleri sakla
       const currentIntake = waterIntake;
 
       // OPTIMISTIC UPDATE: Local state'i hemen güncelle
-      const newIntake = Math.max(0, currentIntake - lastLog.amount_ml);
+      // amount_ml her zaman sayıya çevrilir (NaN'a karşı koruma)
+      const lastAmount = parseInt(lastLog.amount_ml, 10) || 0;
+      const newIntake = Math.max(0, currentIntake - lastAmount);
       setWaterIntake(newIntake);
 
       // YOUR BACKEND ENDPOINT: DELETE /tracker/water/:logId
@@ -287,40 +255,24 @@ export const WaterProvider = ({ children }) => {
         }
       );
 
-      console.log(
-        "WaterContext - Delete response status:",
-        deleteResponse.status
-      );
       const deleteData = await deleteResponse.json();
-      console.log("WaterContext - Delete response data:", deleteData);
 
       if (deleteData.success) {
-        // Log'u listeden çıkar
         const newLogs = freshLogs.filter((log) => log.id !== lastLog.id);
         setWaterLogs(newLogs);
-
-        // Local cache'e kaydet
         await saveToLocalCache(newIntake, newLogs);
-
-        console.log("WaterContext - Su kaydı başarıyla silindi");
       } else {
-        // Backend hatası durumunda state'i geri al
-        console.error(
-          "WaterContext - Backend delete failed:",
-          deleteData.error || deleteData.details
-        );
         setWaterIntake(currentIntake);
         throw new Error(
-          deleteData.error || deleteData.details || "Su kaydı silinemedi"
+          deleteData.error || deleteData.details || "Failed to delete water log"
         );
       }
     } catch (error) {
-      console.error("WaterContext - Su azaltma hatası:", error);
+      console.error("WaterContext - decrease water error:", error);
 
-      // Kullanıcıya hata mesajı göster
       Alert.alert(
-        "Hata",
-        `Su kaydı silinirken bir hata oluştu: ${error.message}`
+        "Error",
+        `Failed to delete water log: ${error.message}`
       );
     }
   };
@@ -328,10 +280,11 @@ export const WaterProvider = ({ children }) => {
   // Su sıfırlama
   const resetWater = async () => {
     try {
-      console.log("WaterContext - Resetting water data");
+      const token = await getAuthToken();
+      const uid = token ? getUserIdFromToken(token) : "anon";
       setWaterIntake(0);
       setWaterLogs([]);
-      await AsyncStorage.removeItem(`waterCache_user_${todayDate}`);
+      await AsyncStorage.removeItem(`waterCache_${uid}_${todayDate}`);
     } catch (error) {
       console.error("WaterContext - Su sıfırlama hatası:", error);
     }
@@ -340,7 +293,7 @@ export const WaterProvider = ({ children }) => {
   // Su hedefini güncelle — backend'e de kaydet
   const updateWaterGoal = async (newGoal) => {
     if (newGoal <= 0 || newGoal > 10000) {
-      Alert.alert("Hata", "Su hedefi 500-5000 ml arasında olmalıdır.");
+      Alert.alert("Error", "Water goal must be between 500 and 5000 ml.");
       return;
     }
 
@@ -361,8 +314,6 @@ export const WaterProvider = ({ children }) => {
       if (!data.success) {
         setWaterGoal(previousGoal);
         console.error("WaterContext - Su hedefi backend'e kaydedilemedi:", data.error);
-      } else {
-        console.log("WaterContext - Su hedefi backend'e kaydedildi:", newGoal);
       }
     } catch (error) {
       console.error("WaterContext - Su hedefi güncelleme hatası:", error);
@@ -370,23 +321,23 @@ export const WaterProvider = ({ children }) => {
     }
   };
 
+  const getCacheKey = async () => {
+    const token = await getAuthToken();
+    const uid = token ? getUserIdFromToken(token) : "anon";
+    return `waterCache_${uid}_${todayDate}`;
+  };
+
   // Local cache'e kaydet
   const saveToLocalCache = async (intake, logs) => {
     try {
-      const cacheData = {
+      const key = await getCacheKey();
+      await AsyncStorage.setItem(key, JSON.stringify({
         waterIntake: intake,
         waterLogs: logs,
-        waterGoal: waterGoal,
+        waterGoal,
         lastUpdated: new Date().toISOString(),
         date: todayDate,
-      };
-
-      await AsyncStorage.setItem(
-        `waterCache_user_${todayDate}`,
-        JSON.stringify(cacheData)
-      );
-
-      console.log("WaterContext - Data saved to cache");
+      }));
     } catch (error) {
       console.error("WaterContext - Local cache kaydetme hatası:", error);
     }
@@ -395,23 +346,16 @@ export const WaterProvider = ({ children }) => {
   // Local cache'den yükle
   const loadFromLocalCache = async () => {
     try {
-      const cacheKey = `waterCache_user_${todayDate}`;
-      const cachedData = await AsyncStorage.getItem(cacheKey);
-
+      const key = await getCacheKey();
+      const cachedData = await AsyncStorage.getItem(key);
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
-
-        // Cache verilerinin bugünün tarihi ile uyumlu olup olmadığını kontrol et
         if (parsed.date === todayDate) {
           setWaterIntake(parsed.waterIntake || 0);
           setWaterLogs(parsed.waterLogs || []);
           setWaterGoal(parsed.waterGoal || 2500);
-          console.log("WaterContext - Su verileri local cache'den yüklendi");
         } else {
-          console.log(
-            "WaterContext - Cache verileri eski tarihli, temizleniyor"
-          );
-          await AsyncStorage.removeItem(cacheKey);
+          await AsyncStorage.removeItem(key);
         }
       }
     } catch (error) {
@@ -421,7 +365,6 @@ export const WaterProvider = ({ children }) => {
 
   // Manual refresh
   const refreshData = async () => {
-    console.log("WaterContext - Manual refresh requested");
     await loadTodayWaterData();
   };
 
