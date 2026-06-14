@@ -1,9 +1,9 @@
-// src/context/InsightsContext.js - Direct Fix
+// src/context/InsightsContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { API_URL } from "../config";
 
 const InsightsContext = createContext();
-const API_URL = "http://10.0.2.2:3001/api";
 
 export const InsightsProvider = ({ children }) => {
   const { user, getToken, isAuthenticated, isLoading: authLoading } = useAuth();

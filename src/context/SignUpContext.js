@@ -47,11 +47,20 @@ export const SignUpProvider = ({ children }) => {
       const savedData = await AsyncStorage.getItem("signupFormData");
       if (savedData) {
         const parsedData = JSON.parse(savedData);
+
+        // Eski sürümlerde şifre diske yazılmıştı — varsa temizle
+        if (parsedData.password) {
+          delete parsedData.password;
+          await AsyncStorage.setItem(
+            "signupFormData",
+            JSON.stringify(parsedData)
+          );
+        }
+
         setFormData((prevData) => ({
           ...prevData,
           ...parsedData,
         }));
-        console.log("Loaded form data from storage:", parsedData);
       }
     } catch (error) {
       console.error("Error loading form data:", error);
@@ -62,7 +71,10 @@ export const SignUpProvider = ({ children }) => {
 
   const saveFormData = async (newData) => {
     try {
-      await AsyncStorage.setItem("signupFormData", JSON.stringify(newData));
+      // GÜVENLİK: Şifre asla diske yazılmaz, yalnızca bellekte tutulur
+      // (password anahtarı safeData'dan dışlanır; _password kasıtlı kullanılmaz)
+      const { password: _password, ...safeData } = newData;
+      await AsyncStorage.setItem("signupFormData", JSON.stringify(safeData));
     } catch (error) {
       console.error("Error saving form data:", error);
     }
@@ -200,7 +212,6 @@ export const SignUpProvider = ({ children }) => {
         goals: [],
         preferences: {},
       });
-      console.log("Form data cleared");
     } catch (error) {
       console.error("Error clearing form data:", error);
     }

@@ -1,6 +1,6 @@
 // src/context/ActivityContext.js - Complete Backend Integration
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { useSignUp } from "./SignUpContext";
+import { useAuth } from "./AuthContext";
 import NutritionService from "../services/NutritionService";
 
 // Başlangıç değerleri
@@ -18,26 +18,30 @@ const initialState = {
 const ActivityContext = createContext(initialState);
 
 export const ActivityProvider = ({ children }) => {
-  const { formData } = useSignUp();
+  const { isAuthenticated } = useAuth();
   const [state, setState] = useState(initialState);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Tarih değiştiğinde backend'den veri çek
+  // Tarih değiştiğinde backend'den veri çek — yalnızca giriş yapıldıysa
+  // (login öncesi token yok → gereksiz 401 hatalarını önler)
   useEffect(() => {
+    if (!isAuthenticated) return;
     const dateString = NutritionService.formatDate(currentDate);
     if (state.lastSyncDate !== dateString) {
-      console.log(
-        "ActivityContext - Date changed, loading data for:",
-        dateString
-      );
       loadDailyActivities(currentDate);
     }
-  }, [currentDate]);
+  }, [currentDate, isAuthenticated]);
 
-  // Component mount olduğunda veri yükle
+  // Liste verilerini yükle — yalnızca giriş yapıldıktan sonra.
+  // Günlük aktiviteler [currentDate] effect'i tarafından zaten yüklenir.
   useEffect(() => {
-    initializeData();
-  }, []);
+    if (!isAuthenticated) return;
+    Promise.all([
+      loadFavoriteActivities(),
+      loadPersonalActivities(),
+      loadRecentActivities(),
+    ]).catch(() => {});
+  }, [isAuthenticated]);
 
   // Tüm verileri yükle
   const initializeData = async () => {
@@ -64,7 +68,6 @@ export const ActivityProvider = ({ children }) => {
 
   // External date change handler (MealsContext'ten date değişimi geldiğinde)
   const syncWithDate = (newDate) => {
-    console.log("ActivityContext - Syncing with new date:", newDate);
     setCurrentDate(newDate);
   };
 
@@ -72,11 +75,6 @@ export const ActivityProvider = ({ children }) => {
   const loadDailyActivities = async (date) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
-
-      console.log(
-        "Loading daily activities for date:",
-        NutritionService.formatDate(date)
-      );
 
       // İki yoldan veri al: 1) daily nutrition (genel), 2) activity logs (detaylı)
       const [dailyData, activityLogs] = await Promise.all([
@@ -107,10 +105,6 @@ export const ActivityProvider = ({ children }) => {
         return total + (activity.calories || 0);
       }, 0);
 
-      console.log(
-        `ActivityContext - Loaded ${activities.length} activities, total calories: ${totalBurnedCalories}`
-      );
-
       setState((prevState) => ({
         ...prevState,
         activities,
@@ -134,7 +128,6 @@ export const ActivityProvider = ({ children }) => {
   // Favori aktiviteleri yükle
   const loadFavoriteActivities = async () => {
     try {
-      console.log("Loading favorite activities...");
       const favorites = await NutritionService.getFavoriteActivities();
 
       const transformedFavorites = favorites.map((fav) =>
@@ -145,8 +138,6 @@ export const ActivityProvider = ({ children }) => {
         ...prevState,
         favoriteActivities: transformedFavorites,
       }));
-
-      console.log(`Loaded ${transformedFavorites.length} favorite activities`);
     } catch (error) {
       console.error("Error loading favorite activities:", error);
     }
@@ -155,7 +146,6 @@ export const ActivityProvider = ({ children }) => {
   // Kişisel aktiviteleri yükle
   const loadPersonalActivities = async () => {
     try {
-      console.log("Loading personal activities...");
       const customActivities = await NutritionService.getCustomActivities();
 
       const transformedCustom = customActivities.map((custom) =>
@@ -166,8 +156,6 @@ export const ActivityProvider = ({ children }) => {
         ...prevState,
         personalActivities: transformedCustom,
       }));
-
-      console.log(`Loaded ${transformedCustom.length} personal activities`);
     } catch (error) {
       console.error("Error loading personal activities:", error);
     }
@@ -176,17 +164,19 @@ export const ActivityProvider = ({ children }) => {
   // Yakın zamanda kullanılan aktiviteleri yükle
   const loadRecentActivities = async () => {
     try {
-      console.log("Loading recent activities...");
       const recentActivities = await NutritionService.getRecentActivities(10);
 
       const transformedRecent = recentActivities.map((recent) => {
-        // Use stored average duration if available, otherwise default to 30
-        const avgDuration = recent.avg_duration_minutes || 30;
+        // Postgres AVG() string döndürür ("30.0000000000000000") — sayıya çevirip yuvarla
+        const avgDuration =
+          Math.round(parseFloat(recent.avg_duration_minutes)) || 30;
+        const caloriesPerMinute =
+          parseFloat(recent.avg_calories_per_minute) || 0;
         return {
           id: recent.activity_id || Date.now().toString(),
           name: recent.activity_name || "Unknown Activity",
-          caloriesPerMinute: recent.avg_calories_per_minute || 0,
-          calories: Math.round((recent.avg_calories_per_minute || 0) * avgDuration),
+          caloriesPerMinute,
+          calories: Math.round(caloriesPerMinute * avgDuration),
           mins: avgDuration,
           duration: avgDuration,
           type: "Cardio",
@@ -199,8 +189,6 @@ export const ActivityProvider = ({ children }) => {
         ...prevState,
         recentActivities: transformedRecent,
       }));
-
-      console.log(`Loaded ${transformedRecent.length} recent activities`);
     } catch (error) {
       console.error("Error loading recent activities:", error);
     }
@@ -208,12 +196,6 @@ export const ActivityProvider = ({ children }) => {
 
   // Tarih değiştirme fonksiyonu
   const changeDate = (newDate) => {
-    console.log(
-      "ActivityContext - Changing date from",
-      currentDate,
-      "to",
-      newDate
-    );
     setCurrentDate(newDate);
   };
 
@@ -241,15 +223,6 @@ export const ActivityProvider = ({ children }) => {
         intensity = "Moderate",
       } = activity;
 
-      console.log("ActivityContext - Adding activity:", {
-        id,
-        name,
-        calories,
-        duration,
-        type,
-        intensity,
-      });
-
       // Validasyon
       if (!name || !calories || calories <= 0) {
         throw new Error("Activity name and valid calories are required");
@@ -269,16 +242,10 @@ export const ActivityProvider = ({ children }) => {
         date: currentDate,
       };
 
-      console.log(
-        "ActivityContext - Formatted data for backend:",
-        backendActivityData
-      );
-
       // Backend'e gönder
       const savedActivity = await NutritionService.addActivity(
         backendActivityData
       );
-      console.log("Activity added to backend:", savedActivity);
 
       // Benzersiz ID kullan
       const activityId = savedActivity.id || id || Date.now().toString();
@@ -357,18 +324,11 @@ export const ActivityProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
 
-      console.log(
-        "ActivityContext - Updating activity:",
-        activityId,
-        updateData
-      );
-
       // Backend'e güncelleme gönder
-      const updatedActivity = await NutritionService.updateActivity(
+      await NutritionService.updateActivity(
         activityId,
         updateData
       );
-      console.log("Activity updated in backend:", updatedActivity);
 
       setState((prevState) => {
         const activityIndex = prevState.activities.findIndex(
@@ -429,11 +389,8 @@ export const ActivityProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
 
-      console.log("ActivityContext - Deleting activity:", activityId);
-
       // Backend'den sil
       await NutritionService.deleteActivity(activityId);
-      console.log("Activity deleted from backend");
 
       setState((prevState) => {
         // Silinecek aktiviteyi bul
@@ -480,15 +437,7 @@ export const ActivityProvider = ({ children }) => {
         (item) => item.id === activity.id
       );
 
-      console.log(
-        "Toggling favorite activity:",
-        activity.name,
-        "Currently favorite:",
-        isFavorite
-      );
-
       if (isFavorite) {
-        // Favorilerden çıkar
         await NutritionService.removeActivityFromFavorites(activity.id);
         setState((prevState) => ({
           ...prevState,
@@ -496,9 +445,7 @@ export const ActivityProvider = ({ children }) => {
             (item) => item.id !== activity.id
           ),
         }));
-        console.log("Removed from favorites");
       } else {
-        // Favorilere ekle
         const favoriteData =
           NutritionService.formatFavoriteActivityForBackend(activity);
         await NutritionService.addActivityToFavorites(favoriteData);
@@ -506,7 +453,6 @@ export const ActivityProvider = ({ children }) => {
           ...prevState,
           favoriteActivities: [...prevState.favoriteActivities, activity],
         }));
-        console.log("Added to favorites");
       }
     } catch (error) {
       console.error("Error toggling favorite activity:", error);
@@ -535,8 +481,6 @@ export const ActivityProvider = ({ children }) => {
   const addPersonalActivity = async (activity) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
-
-      console.log("Adding personal activity:", activity);
 
       const customActivityData =
         NutritionService.formatCustomActivityForBackend(activity);
@@ -571,7 +515,6 @@ export const ActivityProvider = ({ children }) => {
         };
       });
 
-      console.log("Personal activity added successfully");
     } catch (error) {
       console.error("Error adding personal activity:", error);
       setState((prevState) => ({
@@ -588,9 +531,7 @@ export const ActivityProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
 
-      console.log("Updating personal activity:", activityId, updateData);
-
-      const updatedActivity = await NutritionService.updateCustomActivity(
+      await NutritionService.updateCustomActivity(
         activityId,
         updateData
       );
@@ -617,7 +558,6 @@ export const ActivityProvider = ({ children }) => {
         };
       });
 
-      console.log("Personal activity updated successfully");
     } catch (error) {
       console.error("Error updating personal activity:", error);
       setState((prevState) => ({
@@ -634,8 +574,6 @@ export const ActivityProvider = ({ children }) => {
     try {
       setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
 
-      console.log("Deleting personal activity:", activityId);
-
       await NutritionService.deleteCustomActivity(activityId);
 
       setState((prevState) => ({
@@ -647,7 +585,6 @@ export const ActivityProvider = ({ children }) => {
         isLoading: false,
       }));
 
-      console.log("Personal activity deleted successfully");
     } catch (error) {
       console.error("Error deleting personal activity:", error);
       setState((prevState) => ({
@@ -661,7 +598,6 @@ export const ActivityProvider = ({ children }) => {
 
   // Manual refresh function
   const refreshData = async () => {
-    console.log("Refreshing all activity data...");
     await initializeData();
   };
 
