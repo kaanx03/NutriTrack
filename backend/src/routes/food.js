@@ -672,4 +672,89 @@ router.get("/details/:source/:foodId", authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================
+// SAVED MEALS (meal templates)
+// ============================================
+
+// Kayıtlı öğün şablonlarını listele
+router.get("/meals", authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      "SELECT * FROM saved_meals WHERE user_id = $1 ORDER BY created_at DESC",
+      [req.userId]
+    );
+    res.json({ success: true, data: result.rows, count: result.rows.length });
+  } catch (err) {
+    console.error("Get saved meals error:", err);
+    res.status(500).json({
+      error: "Server error",
+      details: "Failed to fetch saved meals",
+    });
+  }
+});
+
+// Öğün şablonu kaydet
+router.post("/meals", authenticateToken, async (req, res) => {
+  try {
+    const { name, mealType, items } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        error: "Invalid name",
+        details: "Meal name is required",
+      });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        error: "Invalid items",
+        details: "Meal must contain at least one food item",
+      });
+    }
+
+    const result = await db.query(
+      `INSERT INTO saved_meals (user_id, name, meal_type, items)
+       VALUES ($1, $2, $3, $4::jsonb) RETURNING *`,
+      [
+        req.userId,
+        name.trim(),
+        (mealType || "breakfast").toLowerCase(),
+        JSON.stringify(items),
+      ]
+    );
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error("Save meal error:", err);
+    res.status(500).json({
+      error: "Server error",
+      details: "Failed to save meal",
+    });
+  }
+});
+
+// Öğün şablonunu sil
+router.delete("/meals/:id", authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query(
+      "DELETE FROM saved_meals WHERE id = $1 AND user_id = $2 RETURNING *",
+      [req.params.id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Not found",
+        details: "Saved meal not found",
+      });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error("Delete saved meal error:", err);
+    res.status(500).json({
+      error: "Server error",
+      details: "Failed to delete saved meal",
+    });
+  }
+});
+
 module.exports = router;
