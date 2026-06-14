@@ -3,7 +3,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+# --omit=dev: production deps only (devDeps like jest are not needed at runtime).
+# (--only=production is deprecated in npm 10+.)
+RUN npm ci --omit=dev
 
 COPY src/ ./src/
 
