@@ -1,7 +1,32 @@
 // backend/src/routes/tracker.js - Water & Weight detailed tracking
 const express = require("express");
-const db = require("../db"); // Assuming db.js provides beginTransaction, commitTransaction, rollbackTransaction, and query
+const db = require("../db");
 const { authenticateToken } = require("../middleware/auth");
+
+function calculateNutritionTargets(weight, height, age, gender, activityLevel) {
+  let bmr;
+  if (gender === "male") {
+    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+  } else {
+    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+  }
+  const multipliers = { 1: 1.2, 2: 1.375, 3: 1.55, 4: 1.725, 5: 1.9 };
+  const dailyCalories = Math.round(bmr * (multipliers[activityLevel] || 1.55));
+  return {
+    dailyCalories,
+    protein: Math.round((dailyCalories * 0.25) / 4),
+    carbs:   Math.round((dailyCalories * 0.50) / 4),
+    fat:     Math.round((dailyCalories * 0.25) / 9),
+  };
+}
+
+function calculateAge(birthDate) {
+  const birth = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate())) age--;
+  return age;
+}
 
 const router = express.Router();
 
@@ -237,6 +262,8 @@ router.get("/water/stats", authenticateToken, async (req, res) => {
 
     const periodDays = Math.min(Math.max(parseInt(period), 1), 365);
 
+    const hourlyDays = Math.min(periodDays, 30);
+
     // Genel istatistikler
     const generalStats = await db.query(
       `SELECT
@@ -247,8 +274,8 @@ router.get("/water/stats", authenticateToken, async (req, res) => {
           MIN(entry_date) as first_log_date,
           MAX(entry_date) as last_log_date
         FROM water_logs
-        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - INTERVAL '${periodDays} days'`,
-      [userId]
+        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')`,
+      [userId, periodDays]
     );
 
     // Günlük ortalamalar
@@ -258,10 +285,10 @@ router.get("/water/stats", authenticateToken, async (req, res) => {
           SUM(amount_ml) as daily_total,
           COUNT(*) as daily_log_count
         FROM water_logs
-        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - INTERVAL '${periodDays} days'
+        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
         GROUP BY entry_date
         ORDER BY entry_date DESC`,
-      [userId]
+      [userId, periodDays]
     );
 
     // Saatlik dağılım
@@ -271,13 +298,10 @@ router.get("/water/stats", authenticateToken, async (req, res) => {
           COUNT(*) as log_count,
           SUM(amount_ml) as total_amount
         FROM water_logs
-        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - INTERVAL '${Math.min(
-          periodDays,
-          30
-        )} days'
+        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
         GROUP BY EXTRACT(HOUR FROM logged_at)
         ORDER BY hour`,
-      [userId]
+      [userId, hourlyDays]
     );
 
     const stats = generalStats.rows[0];
@@ -436,6 +460,33 @@ router.post("/weight", authenticateToken, async (req, res) => {
     console.log(`✅ user_daily_data updated:`, upsertResult.rows[0]);
 
     await db.commitTransaction(client);
+
+    // Recalculate nutrition targets with updated weight
+    try {
+      const userInfo = await db.query(
+        "SELECT height, birth_date, gender, activity_level FROM users WHERE id = $1",
+        [userId]
+      );
+      if (userInfo.rows.length > 0) {
+        const u = userInfo.rows[0];
+        const age = u.birth_date ? calculateAge(u.birth_date) : 25;
+        const newTargets = calculateNutritionTargets(
+          weight, u.height || 170, age, u.gender || "male", u.activity_level || 3
+        );
+        await db.query(
+          `UPDATE user_daily_targets
+           SET daily_calories = $2, daily_protein = $3, daily_carbs = $4, daily_fat = $5, updated_at = NOW()
+           WHERE user_id = $1`,
+          [userId, newTargets.dailyCalories, newTargets.protein, newTargets.carbs, newTargets.fat]
+        );
+        await db.query(
+          "UPDATE user_settings SET calorie_intake_goal = $2, updated_at = NOW() WHERE user_id = $1",
+          [userId, newTargets.dailyCalories]
+        );
+      }
+    } catch (recalcErr) {
+      console.error("⚠️ Target recalculation failed (non-fatal):", recalcErr.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -694,9 +745,9 @@ router.get("/weight/stats", authenticateToken, async (req, res) => {
     const weightLogs = await db.query(
       `SELECT weight_kg, bmi, logged_date
        FROM weight_logs
-       WHERE user_id = $1 AND logged_date >= CURRENT_DATE - INTERVAL '${periodDays} days'
+       WHERE user_id = $1 AND logged_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
        ORDER BY logged_date ASC`,
-      [userId]
+      [userId, periodDays]
     );
 
     if (weightLogs.rows.length === 0) {
@@ -1146,6 +1197,9 @@ router.get("/insights", authenticateToken, async (req, res) => {
 
     const periodDays = Math.min(Math.max(parseInt(period), 7), 365);
 
+    const trendDays = Math.min(periodDays, 84);
+    const dowDays = Math.min(periodDays, 30);
+
     // Genel istatistikler
     const generalStats = await db.query(
       `SELECT
@@ -1156,8 +1210,8 @@ router.get("/insights", authenticateToken, async (req, res) => {
         FROM user_daily_data udd
         LEFT JOIN weight_logs wl ON udd.user_id = wl.user_id AND udd.date = wl.logged_date
         LEFT JOIN water_logs wtl ON udd.user_id = wtl.user_id AND udd.date = wtl.entry_date
-        WHERE udd.user_id = $1 AND udd.date >= CURRENT_DATE - INTERVAL '${periodDays} days'`,
-      [userId]
+        WHERE udd.user_id = $1 AND udd.date >= CURRENT_DATE - ($2 * INTERVAL '1 day')`,
+      [userId, periodDays]
     );
 
     // Hedef başarı oranları
@@ -1166,9 +1220,9 @@ router.get("/insights", authenticateToken, async (req, res) => {
           COUNT(*) as total_days,
           COUNT(CASE WHEN udd.water_consumed >= udd.daily_water_goal THEN 1 END) as water_goal_days
         FROM user_daily_data udd
-        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${periodDays} days'
+        WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
         AND daily_water_goal IS NOT NULL`,
-      [userId]
+      [userId, periodDays]
     );
 
     // Haftalık trendler
@@ -1179,14 +1233,11 @@ router.get("/insights", authenticateToken, async (req, res) => {
           COUNT(CASE WHEN water_consumed >= daily_water_goal THEN 1 END) as water_goal_success,
           COUNT(*) as total_days
         FROM user_daily_data
-        WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '${Math.min(
-          periodDays,
-          84
-        )} days'
-        GROUP BY DATE_TRUNC('week', date) -- Corrected GROUP BY
+        WHERE user_id = $1 AND date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
+        GROUP BY DATE_TRUNC('week', date)
         ORDER BY week DESC
         LIMIT 12`,
-      [userId]
+      [userId, trendDays]
     );
 
     // En aktif günler (haftanın günleri)
@@ -1196,13 +1247,10 @@ router.get("/insights", authenticateToken, async (req, res) => {
           COUNT(*) as log_count,
           AVG(wtl.amount_ml) as avg_amount
         FROM water_logs wtl
-        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - INTERVAL '${Math.min(
-          periodDays,
-          30
-        )} days'
+        WHERE user_id = $1 AND entry_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')
         GROUP BY EXTRACT(DOW FROM wtl.entry_date)
         ORDER BY log_count DESC`,
-      [userId]
+      [userId, dowDays]
     );
 
     const stats = generalStats.rows[0];
@@ -1278,7 +1326,7 @@ router.get("/insights", authenticateToken, async (req, res) => {
 });
 
 // Öneriler oluşturma fonksiyonu
-function generateRecommendations(waterSuccessRate, avgDailyWater, periodDays) {
+function generateRecommendations(waterSuccessRate, avgDailyWater, _periodDays) {
   const recommendations = [];
 
   if (waterSuccessRate < 50) {

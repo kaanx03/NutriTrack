@@ -457,13 +457,14 @@ router.get("/recent", authenticateToken, async (req, res) => {
     const { limit = 10 } = req.query;
 
     const recentActivities = await db.query(
-      `SELECT DISTINCT activity_id, activity_name, calories_burned, duration_minutes, 
+      `SELECT DISTINCT activity_id, activity_name, calories_burned, duration_minutes,
               is_custom_activity, MAX(created_at) as last_used,
-              ROUND(AVG(calories_burned::decimal / duration_minutes), 2) as avg_calories_per_minute
-       FROM activity_logs 
-       WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+              ROUND(AVG(calories_burned::decimal / NULLIF(duration_minutes, 0)), 2) as avg_calories_per_minute,
+              AVG(duration_minutes) as avg_duration_minutes
+       FROM activity_logs
+       WHERE user_id = $1 AND created_at >= CURRENT_DATE - (30 * INTERVAL '1 day')
        GROUP BY activity_id, activity_name, calories_burned, duration_minutes, is_custom_activity
-       ORDER BY last_used DESC 
+       ORDER BY last_used DESC
        LIMIT $2`,
       [userId, limit]
     );
@@ -548,49 +549,48 @@ router.get("/stats", authenticateToken, async (req, res) => {
 
     const periodDays = Math.min(Math.max(parseInt(period), 1), 365);
 
+    const trendDays = Math.min(periodDays, 84);
+
     // Genel istatistikler
     const generalStats = await db.query(
-      `SELECT 
+      `SELECT
          COUNT(*) as total_activities,
          SUM(duration_minutes) as total_minutes,
          SUM(calories_burned) as total_calories_burned,
          AVG(calories_burned) as avg_calories_per_session,
          AVG(duration_minutes) as avg_duration_per_session,
          COUNT(DISTINCT DATE(created_at)) as active_days
-       FROM activity_logs 
-       WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '${periodDays} days'`,
-      [userId]
+       FROM activity_logs
+       WHERE user_id = $1 AND created_at >= CURRENT_DATE - ($2 * INTERVAL '1 day')`,
+      [userId, periodDays]
     );
 
     // En popüler aktiviteler
     const popularActivities = await db.query(
-      `SELECT activity_name, COUNT(*) as frequency, 
+      `SELECT activity_name, COUNT(*) as frequency,
               SUM(duration_minutes) as total_minutes,
               SUM(calories_burned) as total_calories
-       FROM activity_logs 
-       WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '${periodDays} days'
+       FROM activity_logs
+       WHERE user_id = $1 AND created_at >= CURRENT_DATE - ($2 * INTERVAL '1 day')
        GROUP BY activity_name
        ORDER BY frequency DESC
        LIMIT 5`,
-      [userId]
+      [userId, periodDays]
     );
 
     // Haftalık trend
     const weeklyTrend = await db.query(
-      `SELECT 
+      `SELECT
          DATE_TRUNC('week', created_at) as week,
          COUNT(*) as activities_count,
          SUM(duration_minutes) as total_minutes,
          SUM(calories_burned) as total_calories
-       FROM activity_logs 
-       WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '${Math.min(
-         periodDays,
-         84
-       )} days'
+       FROM activity_logs
+       WHERE user_id = $1 AND created_at >= CURRENT_DATE - ($2 * INTERVAL '1 day')
        GROUP BY week
        ORDER BY week DESC
        LIMIT 12`,
-      [userId]
+      [userId, trendDays]
     );
 
     res.json({
