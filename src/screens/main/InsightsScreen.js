@@ -218,7 +218,12 @@ const InsightsScreen = () => {
       <View style={styles.chartContainer}>
         {/* Svg ile dokunma alanlarını aynı koordinat sistemine sabitle */}
         <View style={{ width: chartWidth, height: 220 }}>
-        <Svg width={chartWidth} height={220}>
+        <Svg
+          width={chartWidth}
+          height={220}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           {/* Goal line */}
           {goal > 0 && (
             <Rect
@@ -389,6 +394,13 @@ const InsightsScreen = () => {
                 { left: 30 + index * barWidth, width: barWidth },
               ]}
               onPress={() => hasData && onDaySelect(index)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: index === selectedDay }}
+              accessibilityLabel={
+                hasData
+                  ? `${days[index]}: ${Math.round(value)} ${unit}`
+                  : `${days[index]}: no data`
+              }
             />
           );
         })}

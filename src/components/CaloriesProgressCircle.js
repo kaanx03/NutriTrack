@@ -18,6 +18,7 @@ const CaloriesProgressCircle = ({
   color = "#A1CE50",
   overflowColor = "#4E7A1E",
   children,
+  accessibilityLabel, // ekran okuyucu için metin alternatifi (ör. "Calories: ...")
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -54,6 +55,9 @@ const CaloriesProgressCircle = ({
 
   return (
     <View
+      // SVG halkası sessiz — tek bir anlamlı etiketle oku, parçaları gruplaştır.
+      accessible={!!accessibilityLabel}
+      accessibilityLabel={accessibilityLabel}
       style={{
         width: size,
         height: size,

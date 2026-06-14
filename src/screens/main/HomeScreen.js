@@ -378,6 +378,13 @@ const HomeScreen = () => {
                 progress={getCaloriesProgressPercentage()}
                 color={COLORS.success}
                 overflowColor={COLORS.successDark}
+                accessibilityLabel={`Calories: ${Math.round(
+                  consumedCalories
+                )} of ${calorieData.calories} kcal goal${
+                  overCalories > 0
+                    ? `, ${overCalories} over`
+                    : `, ${Math.round(caloriesLeft)} left`
+                }`}
               >
                 {overCalories > 0 ? (
                   <>
