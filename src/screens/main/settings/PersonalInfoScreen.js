@@ -1,5 +1,5 @@
 // src/screens/main/settings/PersonalInfoScreen.js - Fixed Dropdowns
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   TextInput,
   Alert,
-  Animated,
   Image
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";

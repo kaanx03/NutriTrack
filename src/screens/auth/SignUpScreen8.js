@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
 import { COLORS } from "../../theme";
 
-const { width } = Dimensions.get("window");
 
 const SignUpScreen8 = () => {
   const navigation = useNavigation();

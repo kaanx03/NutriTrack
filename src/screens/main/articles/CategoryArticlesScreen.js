@@ -5,8 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Dimensions
+  ScrollView
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +14,6 @@ import { getArticlesByCategory } from "../../../data/articlesData";
 import BottomNavigation from "../../../components/BottomNavigation";
 import { COLORS } from "../../../theme";
 
-const { width } = Dimensions.get("window");
 
 const CategoryArticlesScreen = () => {
   const navigation = useNavigation();

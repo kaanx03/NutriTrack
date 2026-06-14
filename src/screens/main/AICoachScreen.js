@@ -16,7 +16,6 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -33,7 +32,6 @@ const WELCOME = {
 };
 
 const AICoachScreen = () => {
-  const navigation = useNavigation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const storageKey = `aiCoach:${user?.id || "anon"}`;

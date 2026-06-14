@@ -1,5 +1,5 @@
 // src/screens/main/CreateFoodScreen.js - Backend Integration
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,11 @@ import {
   Modal,
   ScrollView,
   FlatList,
-  Image,
-  Alert,
-  ActivityIndicator
+  Alert
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useMeals } from "../../../context/MealsContext";
 import { showToast } from "../../../components/AppToast";
 import Button from "../../../components/Button";
@@ -24,8 +22,7 @@ import { COLORS } from "../../../theme";
 
 const CreateFoodScreen = () => {
   const navigation = useNavigation();
-  const route = useRoute();
-  const { addPersonalFood, refreshData } = useMeals();
+  const { refreshData } = useMeals();
 
   // Form state
   const [foodName, setFoodName] = useState("");
@@ -135,26 +132,8 @@ const CreateFoodScreen = () => {
 
 
       // Save to backend - SADECE BU İSTEK YAPILACAK
-      const savedFood = await NutritionService.addCustomFood(customFoodData);
+      await NutritionService.addCustomFood(customFoodData);
 
-      // Backend'den gelen veriyi frontend formatına çevir
-      const newFood = {
-        id: savedFood.id?.toString() || Date.now().toString(),
-        name: savedFood.food_name || foodName.trim(),
-        calories:
-          parseFloat(savedFood.calories_per_100g) || parseFloat(calories),
-        carbs: parseFloat(savedFood.carbs_per_100g) || parseFloat(carbs) || 0,
-        protein:
-          parseFloat(savedFood.protein_per_100g) || parseFloat(protein) || 0,
-        fat: parseFloat(savedFood.fat_per_100g) || parseFloat(fat) || 0,
-        weight: parseFloat(savedFood.serving_size) || parseFloat(serving),
-        portionSize: parseFloat(savedFood.serving_size) || parseFloat(serving),
-        portionUnit: unit,
-        icon: selectedIcon?.emoji || "🍽️",
-        isPersonal: true,
-        isCustomFood: true,
-        backendId: savedFood.id,
-      };
 
       // SADECE CONTEXT'E EKLE - Backend'e tekrar istek GÖNDERME
       // addPersonalFood yerine sadece context'i güncelle

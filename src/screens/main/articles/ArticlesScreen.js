@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { articlesData, getAllArticles } from "../../../data/articlesData";
-import BottomNavigation from "../../../components/BottomNavigation";
 import ScreenHeader from "../../../components/ScreenHeader";
 import { COLORS } from "../../../theme";
 

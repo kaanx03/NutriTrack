@@ -19,7 +19,6 @@ const SignUpScreen3 = () => {
   const navigation = useNavigation();
   const { formData, updateFormData } = useSignUp(); // global state erişimi
 
-  const progress = new Animated.Value(0.2857); // 2/7 ≈ 28.57%
 
   const handleContinue = () => {
     if (formData.lastName.trim()) {

@@ -4,14 +4,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
   Alert,
-  Modal,
-  FlatList,
   ActivityIndicator
 } from "react-native";
 import {

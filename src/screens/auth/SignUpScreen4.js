@@ -18,7 +18,6 @@ const SignUpScreen4 = () => {
   const navigation = useNavigation();
   const { formData, updateFormData } = useSignUp(); // context erişimi
 
-  const progress = new Animated.Value(0.4285); // 3/7 ≈ 42.85%
 
   const handleContinue = () => {
     if (formData.gender) {

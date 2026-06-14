@@ -12,7 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
 import { COLORS } from "../../theme";
 
-const { width, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const SignUpScreen6 = () => {
   const navigation = useNavigation();

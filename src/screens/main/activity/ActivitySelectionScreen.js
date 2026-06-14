@@ -37,8 +37,6 @@ const ActivitySelectionScreen = () => {
     recentActivities,
     personalActivities,
     addToRecentActivity,
-    toggleFavoriteActivity,
-    addPersonalActivity,
     isLoading,
     error,
     clearError,
@@ -60,7 +58,7 @@ const ActivitySelectionScreen = () => {
   const [quickLogDuration, setQuickLogDuration] = useState("30");
 
   // Sample activity items
-  const [activityItems, setActivityItems] = useState(sampleActivities);
+  const [activityItems] = useState(sampleActivities);
 
   // Loading state for operations
   const [operationLoading, setOperationLoading] = useState(false);

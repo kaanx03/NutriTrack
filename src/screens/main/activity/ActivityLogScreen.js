@@ -9,14 +9,13 @@ import {
   Alert} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
 import ScreenHeader from "../../../components/ScreenHeader";
 import { COLORS } from "../../../theme";
 
 const ActivityLogScreen = () => {
   const navigation = useNavigation();
-  const route = useRoute();
   const insets = useSafeAreaInsets();
 
   // Context'ten state ve fonksiyonları alın

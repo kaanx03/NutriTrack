@@ -38,7 +38,7 @@ const SignUpScreen1 = () => {
       /[A-Za-z]/.test(value) &&
       /[A-Z]/.test(value) &&
       /[0-9]/.test(value) &&
-      /[!@#$%^&*(),.?\":{}|<>]/.test(value);
+      /[!@#$%^&*(),.?":{}|<>]/.test(value);
 
     setPasswordError(
       isValid

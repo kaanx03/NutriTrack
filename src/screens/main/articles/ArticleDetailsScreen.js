@@ -1,5 +1,5 @@
 // src/screens/main/articles/ArticleDetailsScreen.js
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Share,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";

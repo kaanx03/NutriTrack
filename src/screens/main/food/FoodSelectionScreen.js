@@ -50,7 +50,6 @@ const FoodSelectionScreen = () => {
     recentFoods,
     personalFoods,
     mealFoods,
-    updateFoodPortion,
     loadFavoriteFoods,
     loadPersonalFoods,
     loadRecentFoods,

@@ -1,5 +1,5 @@
 // src/screens/main/InsightsScreen.js - Fixed based on your current working code
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
-import BottomNavigation from "../../components/BottomNavigation";
 import ScreenHeader from "../../components/ScreenHeader";
 import { useInsights } from "../../context/InsightsContext";
 import { useAuth } from "../../context/AuthContext";
@@ -26,10 +25,8 @@ const chartWidth = width - 72;
 const InsightsScreen = () => {
   const navigation = useNavigation();
   const {
-    user,
     isAuthenticated,
     isLoading: authLoading,
-    refreshAuthState,
   } = useAuth();
   const {
     loading,
@@ -38,8 +35,6 @@ const InsightsScreen = () => {
     calorieData,
     weightData,
     waterData,
-    nutritionData,
-    bmiData,
     changePeriod,
     changeDate,
     refreshData,
@@ -64,8 +59,6 @@ const InsightsScreen = () => {
   const [selectedWeightDay, setSelectedWeightDay] = useState(
     todayIndex >= 0 ? todayIndex : 0
   );
-  const [selectedNutritionDay, setSelectedNutritionDay] = useState(null);
-
   // Chart data - KEEPING ORIGINAL LOGIC FOR CALORIES AND WATER
   const calorieChartData = React.useMemo(() => {
     if (!calorieData?.chart) return [];
@@ -94,20 +87,9 @@ const InsightsScreen = () => {
     });
   }, [weightData]);
 
-  const nutritionChartData = React.useMemo(() => {
-    if (!nutritionData?.chart) return [];
-    return nutritionData.chart.map((item) => ({
-      carbs: parseFloat(item.carbs) || 0,
-      protein: parseFloat(item.protein) || 0,
-      fat: parseFloat(item.fat) || 0,
-    }));
-  }, [nutritionData]);
-
   const calorieGoal = getSafeValue("calories.stats.average_goal", 2500);
   const waterGoal = getSafeValue("water.stats.average_goal", 2500);
   const goalWeight = getSafeValue("weight.goalWeight", 70);
-  const bmiValue = getSafeValue("bmi.current.bmi", 22.9);
-  const bmiCategory = getSafeValue("bmi.current.category", "Normal");
 
   const onRefresh = async () => {
     setRefreshing(true);

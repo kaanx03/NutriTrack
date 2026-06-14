@@ -76,10 +76,6 @@ router.post("/saved", authenticateToken, async (req, res) => {
       articleId,
       articleTitle,
       articleCategory,
-      articleUrl,
-      articleSummary,
-      articleAuthor,
-      articlePublishDate,
     } = req.body;
 
     // Validasyon

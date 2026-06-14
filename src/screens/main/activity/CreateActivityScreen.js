@@ -7,11 +7,9 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  ActivityIndicator
+  Alert
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useActivity } from "../../../context/ActivityContext";
 import { showToast } from "../../../components/AppToast";
@@ -24,7 +22,7 @@ const CreateActivityScreen = () => {
   const insets = useSafeAreaInsets();
 
   // ActivityContext'ten fonksiyonları al
-  const { addPersonalActivity, isLoading, error, clearError } = useActivity();
+  const { addPersonalActivity, error, clearError } = useActivity();
 
   // Form state
   const [activityName, setActivityName] = useState("");

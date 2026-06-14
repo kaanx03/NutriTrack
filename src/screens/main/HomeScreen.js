@@ -17,19 +17,16 @@ import {
   useRoute,
   useFocusEffect,
 } from "@react-navigation/native";
-import { useSignUp } from "../../context/SignUpContext";
 import { useMeals } from "../../context/MealsContext";
 import { useActivity } from "../../context/ActivityContext";
 import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
-import BottomNavigation from "../../components/BottomNavigation";
 import Svg, { Circle } from "react-native-svg";
 import { COLORS, CHART } from "../../theme";
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { formData } = useSignUp();
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 

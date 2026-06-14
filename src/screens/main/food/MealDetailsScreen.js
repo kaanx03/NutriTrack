@@ -43,7 +43,6 @@ const MealDetailsScreen = () => {
     fat: 0,
   });
   const [foods, setFoods] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // "Save as meal" modalı
   const [saveMealVisible, setSaveMealVisible] = useState(false);

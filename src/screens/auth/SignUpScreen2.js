@@ -19,7 +19,6 @@ const SignUpScreen2 = () => {
   const navigation = useNavigation();
   const { formData, updateFormData } = useSignUp();
 
-  const progress = new Animated.Value(0.1428); // 1/7 = ~14.28%
 
   // Devam butonu fonksiyonu
   const handleContinue = () => {

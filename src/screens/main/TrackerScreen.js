@@ -14,17 +14,14 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
 import { useWater } from "../../context/WaterContext";
 import { useWeight } from "../../context/WeightContext";
-import BottomNavigation from "../../components/BottomNavigation";
 import ScreenHeader from "../../components/ScreenHeader";
 import { showToast } from "../../components/AppToast";
 import { hapticLight } from "../../utils/haptics";
 import { COLORS, CHART } from "../../theme";
 
 const TrackerScreen = () => {
-  const navigation = useNavigation();
 
   // Water context - UPDATED WITH refreshData
   const {

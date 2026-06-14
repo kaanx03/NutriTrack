@@ -31,7 +31,6 @@ const ActivityDetailsScreen = () => {
     updateActivity,
     favoriteActivities,
     addToRecentActivity,
-    isLoading,
     error,
     clearError,
   } = useActivity();
@@ -114,8 +113,6 @@ const ActivityDetailsScreen = () => {
         mins: durationMins,
       };
 
-      let result;
-
       if (isEditing) {
         // Güncelleme işlemi
         const updateData = {
@@ -128,13 +125,13 @@ const ActivityDetailsScreen = () => {
           intensity: activity.intensity || "moderate",
         };
 
-        result = await updateActivity(
+        await updateActivity(
           activity.id || activity.backendId,
           updateData
         );
       } else {
         // Yeni ekleme işlemi
-        result = await addActivity(activityData);
+        await addActivity(activityData);
       }
 
       const actionText = isEditing ? "updated" : "added";
