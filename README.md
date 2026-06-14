@@ -13,8 +13,8 @@ A full-stack mobile nutrition & fitness tracker. **React Native (Expo)** fronten
 | <img src="assets/screenshots/login.jpg" width="240" alt="Login screen" /> | <img src="assets/screenshots/homepage.jpg" width="240" alt="Home dashboard with calorie ring and macros" /> | <img src="assets/screenshots/tracker.jpg" width="240" alt="Water and weight tracker" /> |
 | **Insights** | **AI Coach** | **Articles** |
 | <img src="assets/screenshots/insights.jpg" width="240" alt="Insights charts" /> | <img src="assets/screenshots/ai-coach.jpg" width="240" alt="AI nutrition coach chat" /> | <img src="assets/screenshots/articles.jpg" width="240" alt="Articles knowledge base" /> |
-| **Account** | | |
-| <img src="assets/screenshots/acc-details.jpg" width="240" alt="Account details" /> | | |
+| **Account** | **Add Activity** | **Quick Log** |
+| <img src="assets/screenshots/acc-details.jpg" width="240" alt="Account details" /> | <img src="assets/screenshots/add-activity.jpg" width="240" alt="Add activity screen" /> | <img src="assets/screenshots/quick-log.jpg" width="240" alt="Quick log food entry" /> |
 
 ---
 
