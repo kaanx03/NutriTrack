@@ -1,9 +1,10 @@
-// src/context/AuthContext.js - Direct Fix
+// src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const AuthContext = createContext();
-const API_URL = "http://10.0.2.2:3001/api";
+const TOKEN_KEY = "authToken";
+import { API_URL } from "../config";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -17,7 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem("authToken");
+      const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
 
       if (storedToken) {
         // Token varsa direkt backend'den user bilgisini al
@@ -34,10 +35,6 @@ export const AuthProvider = ({ children }) => {
             setToken(storedToken);
             setUser(data.user);
             setIsAuthenticated(true);
-
-            // Fresh user data'yı storage'a kaydet
-            await AsyncStorage.setItem("userData", JSON.stringify(data.user));
-            console.log("✅ Auth restored successfully");
           } else {
             await clearAuth();
           }
@@ -59,7 +56,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    await AsyncStorage.multiRemove(["authToken", "userData"]);
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
   };
 
   const login = async (email, password) => {
@@ -78,8 +75,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setIsAuthenticated(true);
 
-        await AsyncStorage.setItem("authToken", data.token);
-        await AsyncStorage.setItem("userData", JSON.stringify(data.user));
+        await SecureStore.setItemAsync(TOKEN_KEY, data.token);
 
         return { success: true, user: data.user };
       } else {
@@ -98,7 +94,14 @@ export const AuthProvider = ({ children }) => {
 
   const getToken = async () => {
     if (token) return token;
-    return await AsyncStorage.getItem("authToken");
+    return await SecureStore.getItemAsync(TOKEN_KEY);
+  };
+
+  const signIn = async (newToken, userData) => {
+    await SecureStore.setItemAsync(TOKEN_KEY, newToken);
+    setToken(newToken);
+    setUser(userData);
+    setIsAuthenticated(true);
   };
 
   const refreshAuthState = async () => {
@@ -112,6 +115,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     login,
     logout,
+    signIn,
     getToken,
     refreshAuthState,
   };

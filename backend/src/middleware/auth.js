@@ -1,12 +1,17 @@
-// backend/src/middleware/auth.js - Authentication Middleware
+// backend/src/middleware/auth.js
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 
-// JWT token doğrulama middleware'i
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET environment variable is not set.");
+  process.exit(1);
+}
+
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
       return res.status(401).json({
@@ -15,64 +20,38 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Token'ı doğrula
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "nutritrack_secret"
-    );
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    // Kullanıcının aktif olup olmadığını kontrol et
     const userResult = await db.query(
       "SELECT id, email, is_active FROM users WHERE id = $1",
       [decoded.userId]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({
-        error: "User not found",
-        message: "Token is valid but user does not exist",
-      });
+      return res.status(401).json({ error: "User not found" });
     }
 
     const user = userResult.rows[0];
 
     if (!user.is_active) {
-      return res.status(401).json({
-        error: "Account deactivated",
-        message: "User account has been deactivated",
-      });
+      return res.status(401).json({ error: "Account deactivated" });
     }
 
-    // Request objesine kullanıcı bilgilerini ekle
     req.userId = user.id;
     req.userEmail = user.email;
-
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
-
     if (error.name === "JsonWebTokenError") {
-      return res.status(403).json({
-        error: "Invalid token",
-        message: "The provided token is malformed or invalid",
-      });
+      return res.status(403).json({ error: "Invalid token" });
     }
-
     if (error.name === "TokenExpiredError") {
-      return res.status(403).json({
-        error: "Token expired",
-        message: "The provided token has expired",
-      });
+      return res.status(403).json({ error: "Token expired" });
     }
-
-    return res.status(500).json({
-      error: "Authentication error",
-      message: "An error occurred during authentication",
-    });
+    console.error("Auth middleware error:", error);
+    return res.status(500).json({ error: "Authentication error" });
   }
 };
 
-// Optional auth - kullanıcı giriş yapmışsa bilgilerini al, yapmamışsa devam et
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
@@ -84,10 +63,7 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "nutritrack_secret"
-    );
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     const userResult = await db.query(
       "SELECT id, email, is_active FROM users WHERE id = $1 AND is_active = true",
@@ -103,15 +79,11 @@ const optionalAuth = async (req, res, next) => {
     }
 
     next();
-  } catch (error) {
-    // Hata durumunda da devam et, sadece kullanıcı bilgilerini null yap
+  } catch {
     req.userId = null;
     req.userEmail = null;
     next();
   }
 };
 
-module.exports = {
-  authenticateToken,
-  optionalAuth,
-};
+module.exports = { authenticateToken, optionalAuth };

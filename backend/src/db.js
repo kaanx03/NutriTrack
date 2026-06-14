@@ -1,10 +1,13 @@
 // backend/src/db.js - Database Connection
 const { Pool } = require("pg");
 
+if (!process.env.DATABASE_URL) {
+  console.error("FATAL: DATABASE_URL environment variable is not set.");
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ||
-    "postgresql://postgres:123qweasdzxc@localhost:5432/nutritrack",
+  connectionString: process.env.DATABASE_URL,
   ssl:
     process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }
@@ -15,13 +18,13 @@ const pool = new Pool({
 });
 
 // Test database connection
-pool.on("connect", (client) => {
+pool.on("connect", () => {
   console.log("✅ Connected to PostgreSQL database");
 });
 
-pool.on("error", (err, client) => {
-  console.error("❌ Database connection error:", err);
-  process.exit(-1);
+pool.on("error", (err) => {
+  console.error("❌ Unexpected database pool error:", err);
+  // Do not exit — pg will reconnect automatically.
 });
 
 // Database query wrapper with error handling
@@ -82,10 +85,16 @@ const testConnection = async () => {
 // Initialize connection test
 testConnection();
 
+const shutdown = async () => {
+  console.log("🔌 Closing database pool...");
+  await pool.end();
+};
+
 module.exports = {
   query,
   pool,
   beginTransaction,
   commitTransaction,
   rollbackTransaction,
+  shutdown,
 };
