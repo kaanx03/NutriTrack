@@ -15,6 +15,7 @@ A full-stack mobile nutrition & fitness tracker. **React Native (Expo)** fronten
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Screens & Navigation](#screens--navigation)
+- [Screenshots](#screenshots)
 - [Getting Started](#getting-started)
 - [Running on a Device](#running-on-a-device)
 - [Environment Variables](#environment-variables)
@@ -121,6 +122,18 @@ Everything else (food/activity detail, settings sub-pages, barcode scanner, prog
 
 ---
 
+## Screenshots
+
+| Login | Home | Tracker |
+|:---:|:---:|:---:|
+| <img src="assets/screenshots/login.jpg" width="240" alt="Login screen" /> | <img src="assets/screenshots/homepage.jpg" width="240" alt="Home dashboard with calorie ring and macros" /> | <img src="assets/screenshots/tracker.jpg" width="240" alt="Water and weight tracker" /> |
+| **Insights** | **AI Coach** | **Articles** |
+| <img src="assets/screenshots/insights.jpg" width="240" alt="Insights charts" /> | <img src="assets/screenshots/ai-coach.jpg" width="240" alt="AI nutrition coach chat" /> | <img src="assets/screenshots/articles.jpg" width="240" alt="Articles knowledge base" /> |
+| **Account** | | |
+| <img src="assets/screenshots/acc-details.jpg" width="240" alt="Account details" /> | | |
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -154,19 +167,12 @@ npm run dev
 ## Running on a Device
 
 ### Android emulator
-`npx expo start` then press **a**. Expo CLI auto-installs the matching Expo Go. Backend is reached via `adb reverse tcp:3001 tcp:3001` + `EXPO_PUBLIC_API_URL=http://localhost:3001/api`.
+`npx expo start`, then press **a**. Expo CLI installs the matching Expo Go automatically.
 
-### Physical phone (Expo Go, same Wi-Fi)
-1. The Play Store Expo Go must match the project SDK. If it shows "incompatible", install the SDK-56 build from <https://expo.dev/go?sdkVersion=56&platform=android&device=true>.
-2. Set `EXPO_PUBLIC_API_URL=http://<YOUR_PC_LAN_IP>:3001/api` in `.env` (find it with `ipconfig`).
-3. Allow inbound TCP 3001 through Windows Firewall (admin):
-   ```powershell
-   New-NetFirewallRule -DisplayName "NutriTrack Backend 3001" -Direction Inbound -LocalPort 3001 -Protocol TCP -Action Allow -Profile Private,Public
-   ```
-4. Start Metro in LAN mode: `npx expo start --lan` and scan the QR.
-5. Phone + PC must stay on the same Wi-Fi with the backend running.
-
-> **Note:** Custom notification sounds, reliable notifications, and `react-native-keyboard-controller`-style features need a **development build** (`npx expo run:android` or EAS Build). In Expo Go they degrade gracefully (e.g. system default sound).
+### Physical phone (Expo Go)
+1. Set `EXPO_PUBLIC_API_URL=http://<YOUR_PC_LAN_IP>:3001/api` in `.env` (find the IP with `ipconfig`).
+2. Run `npx expo start` and scan the QR code with Expo Go.
+3. Keep the phone and PC on the same Wi-Fi, with the backend running.
 
 ---
 
