@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS user_daily_data (
   daily_carbs_goal          NUMERIC(6,2) DEFAULT 250,
   daily_fat_goal            NUMERIC(6,2) DEFAULT 65,
   daily_water_goal          INTEGER DEFAULT 2500,
+  weight_kg                 NUMERIC(5,2),
   created_at                TIMESTAMP DEFAULT NOW(),
   updated_at                TIMESTAMP DEFAULT NOW(),
   UNIQUE (user_id, date)
@@ -122,9 +123,23 @@ CREATE TABLE IF NOT EXISTS weight_logs (
   user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   logged_date DATE NOT NULL DEFAULT CURRENT_DATE,
   weight_kg   NUMERIC(5,2) NOT NULL,
+  bmi         NUMERIC(4,1),
   notes       TEXT,
   created_at  TIMESTAMP DEFAULT NOW()
 );
+
+-- ──────────────────────────────────────────────
+-- Saved meal templates (log again with one tap)
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS saved_meals (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  meal_type   TEXT NOT NULL,
+  items       JSONB NOT NULL DEFAULT '[]',
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_saved_meals_user ON saved_meals (user_id);
 
 -- ──────────────────────────────────────────────
 -- Recently used foods (per user)
@@ -246,6 +261,20 @@ CREATE TABLE IF NOT EXISTS user_settings (
   updated_at                  TIMESTAMP DEFAULT NOW(),
   UNIQUE (user_id)
 );
+
+-- ──────────────────────────────────────────────
+-- Password Reset Tokens (for forgot-password flow)
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL,
+  expires_at  TIMESTAMP NOT NULL,
+  used        BOOLEAN DEFAULT FALSE,
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens (user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens (token_hash);
 
 -- ──────────────────────────────────────────────
 -- Indexes for common query patterns
