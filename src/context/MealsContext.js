@@ -38,6 +38,7 @@ const initialState = {
   personalFoods: [],
   isLoading: false,
   lastSyncDate: null,
+  error: null, // son veri yükleme hatası (offline/sunucu) — null = sorun yok
 };
 
 const MealsContext = createContext(initialState);
@@ -114,7 +115,7 @@ export const MealsProvider = ({ children }) => {
   // Backend'den günlük veriyi yükle
   const loadDailyData = async (date) => {
     try {
-      setState((prevState) => ({ ...prevState, isLoading: true }));
+      setState((prevState) => ({ ...prevState, isLoading: true, error: null }));
 
       const dailyData = await NutritionService.getDailyNutrition(date);
 
@@ -125,12 +126,17 @@ export const MealsProvider = ({ children }) => {
         ...prevState,
         ...transformedData,
         isLoading: false,
+        error: null,
         lastSyncDate: NutritionService.formatDate(date),
       }));
 
     } catch (error) {
       console.error("Error loading daily data:", error);
-      setState((prevState) => ({ ...prevState, isLoading: false }));
+      setState((prevState) => ({
+        ...prevState,
+        isLoading: false,
+        error: error.message || "load_failed",
+      }));
     }
   };
 

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react-native";
 import EmptyState from "../EmptyState";
 import ErrorState from "../ErrorState";
 import SkeletonBlock from "../Skeleton";
+import OfflineBanner from "../OfflineBanner";
 
 describe("EmptyState", () => {
   it("renders title + message", () => {
@@ -37,5 +38,15 @@ describe("ErrorState", () => {
 describe("SkeletonBlock", () => {
   it("renders without crashing", () => {
     render(<SkeletonBlock width={100} height={20} />);
+  });
+});
+
+describe("OfflineBanner", () => {
+  it("renders default message and fires retry", () => {
+    const onRetry = jest.fn();
+    render(<OfflineBanner onRetry={onRetry} />);
+    expect(screen.getByText(/showing saved data/i)).toBeTruthy();
+    fireEvent.press(screen.getByText("Retry"));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

@@ -22,6 +22,8 @@ import { useActivity } from "../../context/ActivityContext";
 import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
 import Svg, { Circle } from "react-native-svg";
+import ErrorState from "../../components/ErrorState";
+import { isNetworkError } from "../../utils/validation";
 import { COLORS, CHART } from "../../theme";
 
 const HomeScreen = () => {
@@ -44,6 +46,8 @@ const HomeScreen = () => {
     refreshData: refreshMealsData,
     isLoading: mealsLoading,
     registerActivitySync,
+    error: mealsError,
+    lastSyncDate,
   } = useMeals();
 
   // ActivityContext'ten burnedCalories değerini al
@@ -268,6 +272,34 @@ const HomeScreen = () => {
           <ActivityIndicator size="large" color={COLORS.success} />
           <Text style={styles.loadingText}>Loading your nutrition data...</Text>
         </View>
+      </View>
+    );
+  }
+
+  // İlk yükleme hatası (offline / sunucu erişilemez) — boş ekran/donma yerine
+  // tekrar-dene gösterimi. Veri bir kez yüklendiyse (lastSyncDate) blanklamayız.
+  if (mealsError && !lastSyncDate) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerPlaceholder}></View>
+          <Text style={styles.title}>NutriTrack</Text>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <ErrorState
+          offline={isNetworkError(mealsError)}
+          message={
+            isNetworkError(mealsError)
+              ? undefined
+              : "Couldn't load your nutrition data."
+          }
+          onRetry={handleRefresh}
+        />
       </View>
     );
   }

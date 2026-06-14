@@ -22,6 +22,7 @@ export const WeightProvider = ({ children }) => {
   const [bmiCategory, setBmiCategory] = useState("");
   const [initialWeight, setInitialWeight] = useState(80.0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // backend erişilemedi (cache gösterilir)
 
   // Kullanıcı değiştiğinde weight verilerini yükle
   useEffect(() => {
@@ -66,6 +67,7 @@ export const WeightProvider = ({ children }) => {
 
     try {
       setLoading(true);
+      setError(null);
       const token = await getToken();
 
       // User bilgilerini al
@@ -111,6 +113,7 @@ export const WeightProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("Weight verileri yüklenirken hata:", error);
+      setError(error.message || "load_failed");
       // Local cache'den yükle
       await loadFromLocalCache();
     } finally {
@@ -478,6 +481,7 @@ export const WeightProvider = ({ children }) => {
     initialWeight,
     weightHistory,
     loading,
+    error,
 
     // Fonksiyonlar
     updateWeight,

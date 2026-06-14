@@ -26,6 +26,7 @@ export const WaterProvider = ({ children }) => {
   const [waterGoal, setWaterGoal] = useState(2500);
   const [waterLogs, setWaterLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null); // backend erişilemedi (cache gösterilir)
   const [todayDate, setTodayDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -65,6 +66,7 @@ export const WaterProvider = ({ children }) => {
   const loadTodayWaterData = async (date = todayDate) => {
     try {
       setLoading(true);
+      setError(null);
 
       const token = await getAuthToken();
       if (!token) {
@@ -99,6 +101,7 @@ export const WaterProvider = ({ children }) => {
       }
     } catch (error) {
       console.error("WaterContext - Su verileri yükleme hatası:", error);
+      setError(error.message || "load_failed");
       await loadFromLocalCache();
     } finally {
       setLoading(false);
@@ -394,6 +397,7 @@ export const WaterProvider = ({ children }) => {
     waterGoal,
     waterLogs,
     loading,
+    error,
     todayDate,
 
     // Ana fonksiyonlar

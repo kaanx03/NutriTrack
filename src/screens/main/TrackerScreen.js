@@ -17,6 +17,7 @@ import {
 import { useWater } from "../../context/WaterContext";
 import { useWeight } from "../../context/WeightContext";
 import ScreenHeader from "../../components/ScreenHeader";
+import OfflineBanner from "../../components/OfflineBanner";
 import { showToast } from "../../components/AppToast";
 import { hapticLight } from "../../utils/haptics";
 import { numberInRange } from "../../utils/validation";
@@ -36,6 +37,7 @@ const TrackerScreen = () => {
     isGoalReached,
     getTodayLogCount,
     refreshData, // ADDED THIS
+    error: waterError,
   } = useWater();
 
   // Weight context
@@ -51,6 +53,7 @@ const TrackerScreen = () => {
     getWeightChange,
     getGoalProgress,
     loading: weightLoading,
+    error: weightLoadError,
   } = useWeight();
 
   const [waterIncrement, setWaterIncrement] = useState(100);
@@ -288,6 +291,9 @@ const TrackerScreen = () => {
       <StatusBar backgroundColor={COLORS.background} barStyle="dark-content" />
 
       <ScreenHeader title="Tracker" />
+      {waterError || weightLoadError ? (
+        <OfflineBanner onRetry={handleRefresh} />
+      ) : null}
 
       <ScrollView
         style={styles.scrollView}

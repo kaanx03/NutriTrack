@@ -23,6 +23,7 @@ import {
 import { useActivity } from "../../../context/ActivityContext";
 import sampleActivities from "../../../data/sampleActivities";
 import ScreenHeader from "../../../components/ScreenHeader";
+import OfflineBanner from "../../../components/OfflineBanner";
 import { COLORS } from "../../../theme";
 
 const ActivitySelectionScreen = () => {
@@ -327,16 +328,10 @@ const ActivitySelectionScreen = () => {
     </View>
   );
 
-  // Error display component
+  // Çevrimdışı / sunucu hatası şeridi (tekrar dene ile). Veri yerel örneklerden
+  // gelmeye devam ettiği için içeriği gizlemez.
   const ErrorComponent = () =>
-    error && (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={clearError} style={styles.errorCloseButton}>
-          <Ionicons name="close" size={16} color={COLORS.surface} />
-        </TouchableOpacity>
-      </View>
-    );
+    error ? <OfflineBanner onRetry={refreshData} /> : null;
 
   return (
     <View style={styles.safeArea}>
