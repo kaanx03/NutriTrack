@@ -3,10 +3,11 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSignUp } from "./SignUpContext";
 import { useAuth } from "./AuthContext";
+import { calculateBMI, getBMICategory } from "../utils/nutritionMath";
 
 const WeightContext = createContext();
 
-const API_URL = "http://10.0.2.2:3001/api"; // Backend URL'inizi buraya yazın
+import { API_URL } from "../config";
 
 export const WeightProvider = ({ children }) => {
   const { formData, updateFormData } = useSignUp();
@@ -81,12 +82,16 @@ export const WeightProvider = ({ children }) => {
       if (userData.success) {
         const user = userData.data;
 
-        setCurrentWeight(user.weight || 80.0);
-        setHeight(user.height || 175.0);
+        // Backend NUMERIC kolonları string döndürür — sayıya çevir
+        const weightNum = parseFloat(user.weight) || 80.0;
+        const heightNum = parseFloat(user.height) || 175.0;
+
+        setCurrentWeight(weightNum);
+        setHeight(heightNum);
 
         // İlk kez yükleniyorsa initial weight'i ayarla
         if (initialWeight === 80.0) {
-          setInitialWeight(user.weight || 80.0);
+          setInitialWeight(weightNum);
         }
       }
 
@@ -102,7 +107,7 @@ export const WeightProvider = ({ children }) => {
       const targetData = await targetResponse.json();
 
       if (targetData.success && targetData.data.goal_weight) {
-        setGoalWeight(targetData.data.goal_weight);
+        setGoalWeight(parseFloat(targetData.data.goal_weight) || 75.0);
       }
     } catch (error) {
       console.error("Weight verileri yüklenirken hata:", error);
@@ -154,23 +159,7 @@ export const WeightProvider = ({ children }) => {
     }
   };
 
-  // BMI hesaplama fonksiyonu
-  const calculateBMI = (weight, heightInCm) => {
-    const heightInMeters = heightInCm / 100;
-    return weight / (heightInMeters * heightInMeters);
-  };
-
-  // BMI kategorisi belirleme fonksiyonu
-  const getBMICategory = (bmiValue) => {
-    if (bmiValue < 16.0) return "Very Severely Underweight";
-    if (bmiValue >= 16.0 && bmiValue < 17.0) return "Severely Underweight";
-    if (bmiValue >= 17.0 && bmiValue < 18.5) return "Underweight";
-    if (bmiValue >= 18.5 && bmiValue < 25.0) return "Normal";
-    if (bmiValue >= 25.0 && bmiValue < 30.0) return "Overweight";
-    if (bmiValue >= 30.0 && bmiValue < 35.0) return "Obese Class I";
-    if (bmiValue >= 35.0 && bmiValue < 40.0) return "Obese Class II";
-    return "Obese Class III";
-  };
+  // BMI hesaplama + kategori artık tek kaynaktan (src/utils/nutritionMath).
 
   // BMI renk kodları
   const getBMIColor = (bmiValue) => {
@@ -188,7 +177,7 @@ export const WeightProvider = ({ children }) => {
   const updateWeight = async (newWeight, notes = "") => {
     const weight = parseFloat(newWeight);
     if (!weight || isNaN(weight) || weight <= 0 || weight > 500) {
-      throw new Error("Geçerli bir kilo değeri giriniz (1-500 kg arası)");
+      throw new Error("Please enter a valid weight (1-500 kg)");
     }
 
     try {
@@ -229,11 +218,10 @@ export const WeightProvider = ({ children }) => {
           // Local cache'e kaydet
           await saveToLocalCache();
 
-          console.log("Kilo başarıyla kaydedildi");
         } else {
           // Hata durumunda geri al
           setCurrentWeight(previousWeight);
-          throw new Error(data.error || "Kilo kaydedilemedi");
+          throw new Error(data.error || "Failed to save weight");
         }
       } else {
         // FormData'yı da güncelle (signup sırasında)
@@ -256,7 +244,7 @@ export const WeightProvider = ({ children }) => {
       heightValue <= 0 ||
       heightValue > 300
     ) {
-      throw new Error("Geçerli bir boy değeri giriniz (1-300 cm arası)");
+      throw new Error("Please enter a valid height (1-300 cm)");
     }
 
     try {
@@ -284,7 +272,7 @@ export const WeightProvider = ({ children }) => {
         if (!data.success) {
           // Hata durumunda geri al
           setHeight(previousHeight);
-          throw new Error(data.error || "Boy güncellenemedi");
+          throw new Error(data.error || "Failed to update height");
         }
       } else {
         // FormData'yı da güncelle (signup sırasında)
@@ -302,7 +290,7 @@ export const WeightProvider = ({ children }) => {
   const updateGoalWeight = async (newGoalWeight) => {
     const goal = parseFloat(newGoalWeight);
     if (!goal || isNaN(goal) || goal <= 0 || goal > 500) {
-      throw new Error("Geçerli bir hedef kilo değeri giriniz (1-500 kg arası)");
+      throw new Error("Please enter a valid goal weight (1-500 kg)");
     }
 
     try {
@@ -330,7 +318,7 @@ export const WeightProvider = ({ children }) => {
         if (!data.success) {
           // Hata durumunda geri al
           setGoalWeight(previousGoal);
-          throw new Error(data.error || "Hedef kilo güncellenemedi");
+          throw new Error(data.error || "Failed to update goal weight");
         }
       }
     } catch (error) {
@@ -474,7 +462,6 @@ export const WeightProvider = ({ children }) => {
         setHeight(parsed.height || 175.0);
         setInitialWeight(parsed.initialWeight || 80.0);
         setWeightHistory(parsed.weightHistory || []);
-        console.log("Weight verileri local cache'den yüklendi");
       }
     } catch (error) {
       console.error("Weight cache yükleme hatası:", error);
