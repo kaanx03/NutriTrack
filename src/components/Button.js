@@ -12,8 +12,17 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, TOUCH_TARGET } from "../theme";
 import { hapticLight } from "../utils/haptics";
+import { useReducedMotion } from "../utils/motion";
+
+// TouchableOpacity'yi animasyonlu yap — sarmalayıcı eklemeden, layout aynı kalır.
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const Button = ({
   title,
@@ -53,12 +62,29 @@ const Button = ({
     onPress && onPress();
   };
 
+  // Basışta hafif küçülme (worklet, native thread). Reduce motion'da yok.
+  const reduced = useReducedMotion();
+  const scale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const onPressIn = () => {
+    if (!reduced && !disabled && !loading) {
+      scale.value = withTiming(0.96, { duration: 90 });
+    }
+  };
+  const onPressOut = () => {
+    if (!reduced) scale.value = withTiming(1, { duration: 130 });
+  };
+
   return (
-    <TouchableOpacity
-      style={containerStyle}
+    <AnimatedTouchable
+      style={[containerStyle, pressStyle]}
       onPress={handlePress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       disabled={disabled || loading}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
       accessibilityLabel={title}
@@ -80,7 +106,7 @@ const Button = ({
           </Text>
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 };
 
