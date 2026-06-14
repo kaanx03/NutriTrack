@@ -344,6 +344,8 @@ const TrackerScreen = () => {
                   waterIncrement === 100 && styles.activeIncrementButton,
                 ]}
                 onPress={() => setWaterIncrement(100)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: waterIncrement === 100 }}
               >
                 <Text
                   style={[
@@ -360,6 +362,8 @@ const TrackerScreen = () => {
                   waterIncrement === 250 && styles.activeIncrementButton,
                 ]}
                 onPress={() => setWaterIncrement(250)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: waterIncrement === 250 }}
               >
                 <Text
                   style={[
@@ -381,6 +385,8 @@ const TrackerScreen = () => {
               ]}
               onPress={decreaseWater}
               disabled={waterLoading || waterIntake === 0}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${waterIncrement} milliliters of water`}
             >
               {waterLoading ? (
                 <ActivityIndicator size="small" color={COLORS.info} />
@@ -489,6 +495,8 @@ const TrackerScreen = () => {
               ]}
               onPress={increaseWater}
               disabled={waterLoading}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${waterIncrement} milliliters of water`}
             >
               {waterLoading ? (
                 <ActivityIndicator size="small" color={COLORS.info} />
