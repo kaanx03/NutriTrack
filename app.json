@@ -13,7 +13,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.kaanx0.NutriTrack"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -27,6 +28,19 @@
           "image": "./assets/images/splash_logo.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/harmony.wav",
+            "./assets/sounds/droplet.wav",
+            "./assets/sounds/ocean.wav",
+            "./assets/sounds/rain.wav",
+            "./assets/sounds/classic.wav"
+          ]
         }
       ]
     ]
