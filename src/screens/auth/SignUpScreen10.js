@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/AuthService";
 import { showToast } from "../../components/AppToast";
 import { COLORS, CHART } from "../../theme";
+import { calculateCaloriesAndMacros as computeMacros } from "../../utils/nutritionMath";
 
 const size = 240;
 const strokeWidth = 25;
@@ -48,29 +49,8 @@ const SignUpScreen10 = () => {
         return null;
       }
 
-      // BMR hesaplama (Mifflin-St Jeor Equation)
-      const bmr =
-        gender.toLowerCase() === "male"
-          ? 10 * weight + 6.25 * height - 5 * age + 5
-          : 10 * weight + 6.25 * height - 5 * age - 161;
-
-      const activityMultipliers = {
-        1: 1.2, // Sedentary
-        2: 1.375, // Light activity
-        3: 1.55, // Moderate activity
-        4: 1.725, // Very active
-        5: 1.9, // Extra active
-      };
-
-      const multiplier = activityMultipliers[activityLevel] || 1.55;
-      const calories = Math.round(bmr * multiplier);
-
-      // Makro besin dağılımı (%50 carbs, %30 protein, %20 fat)
-      const carbs = Math.round((calories * 0.5) / 4);
-      const protein = Math.round((calories * 0.3) / 4);
-      const fat = Math.round((calories * 0.2) / 9);
-
-      return { calories, carbs, protein, fat };
+      // Matematik tek kaynakta (src/utils/nutritionMath). Guard yukarıda kaldı.
+      return computeMacros(weight, height, age, gender, activityLevel);
     };
 
     const getAgeFromBirthdate = (birthDateObj) => {

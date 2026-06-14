@@ -19,6 +19,10 @@ import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/AuthService";
 import { showToast } from "../../components/AppToast";
 import { COLORS } from "../../theme";
+import {
+  calculateCaloriesAndMacros,
+  calculateAge,
+} from "../../utils/nutritionMath";
 
 const LoginScreen = () => {
   const navigation = useNavigation();
@@ -68,61 +72,8 @@ const LoginScreen = () => {
     }
   };
 
-  const calculateCaloriesAndMacros = (
-    gender,
-    birthDate,
-    height,
-    weight,
-    activityLevel
-  ) => {
-    try {
-      // Yaş hesaplama
-      const today = new Date();
-      const birth = new Date(birthDate);
-      let age = today.getFullYear() - birth.getFullYear();
-      const monthDiff = today.getMonth() - birth.getMonth();
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birth.getDate())
-      ) {
-        age--;
-      }
-
-      // BMR hesaplama (Mifflin-St Jeor Equation)
-      const bmr =
-        gender && gender.toLowerCase() === "male"
-          ? 10 * weight + 6.25 * height - 5 * age + 5
-          : 10 * weight + 6.25 * height - 5 * age - 161;
-
-      // Aktivite çarpanları
-      const activityMultipliers = {
-        1: 1.2, // Sedentary
-        2: 1.375, // Light activity
-        3: 1.55, // Moderate activity
-        4: 1.725, // Very active
-        5: 1.9, // Extra active
-      };
-
-      const multiplier = activityMultipliers[activityLevel] || 1.55;
-      const calories = Math.round(bmr * multiplier);
-
-      // Makro besin dağılımı (%50 carbs, %30 protein, %20 fat)
-      const carbs = Math.round((calories * 0.5) / 4);
-      const protein = Math.round((calories * 0.3) / 4);
-      const fat = Math.round((calories * 0.2) / 9);
-
-      return { calories, carbs, protein, fat };
-    } catch (error) {
-      console.error("Calorie calculation error:", error);
-      // Default değerler döndür
-      return {
-        calories: 2000,
-        carbs: 250,
-        protein: 150,
-        fat: 55,
-      };
-    }
-  };
+  // Kalori/makro matematiği artık tek kaynakta: src/utils/nutritionMath
+  // (calculateCaloriesAndMacros + calculateAge). Çağrı yeri aşağıda.
 
   // Login sonrası ortak akış: profili çek, context'leri doldur, Home'a git.
   // Hem şifreli login hem biyometrik unlock bu yoldan geçer.
@@ -170,11 +121,12 @@ const LoginScreen = () => {
         userData.weight &&
         userData.activityLevel
       ) {
+        const age = calculateAge(userData.birthDate);
         const calculatedPlan = calculateCaloriesAndMacros(
-          userData.gender,
-          userData.birthDate,
-          userData.height,
           userData.weight,
+          userData.height,
+          age,
+          userData.gender,
           userData.activityLevel
         );
 
