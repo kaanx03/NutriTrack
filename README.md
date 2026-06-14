@@ -236,22 +236,28 @@ NutriTrack/
 
 ## Design System
 
-All visual constants in [`src/theme.js`](src/theme.js):
+Two-layer tokens in [`src/theme.js`](src/theme.js): **core** primitive ramps → **semantic** tokens the screens use. Every text/background pairing meets **WCAG AA** (computed, not eyeballed).
 
 | Token group | Values |
 |---|---|
-| Brand colors | primary `#63A4F4` · success `#A1CE50` · water `#1A96F0` · warning `#FDCD55` · danger `#E74C3C` · weight `#FF5726` |
-| Spacing | 4 / 8 / 12 / 16 / 20 / 24 |
-| Radius | sm 8 · md 12 · lg 16 · pill |
-| Shadows | `card`, `header` presets |
-| Typography | headerTitle 18/600 · sectionTitle 16/600 · body 14 · caption 12 |
+| Brand / action | primary `#2C66DC` (white-text AA 5.2) · primaryDark `#1E51BE` · primarySoft `#ECF2FE` |
+| Semantic | success `#3C9A45` · warning `#F2A413` (always dark text) · danger `#D63A2D` · info = primary |
+| Domain accents | water `#0E98D8` (cyan, distinct from action) · weight `#F2511E` · activity = warning · food = success |
+| Data-viz | `CHART.carbs` `#F54336` · `CHART.fat` `#FF9800` (pinned macro palette, brand-independent) |
+| Neutrals | 11-step gray ramp → text / border / surface / shadow |
+| Spacing / Radius | 4–24 · sm 8 / md 12 / lg 16 / pill · `TOUCH_TARGET` 48 |
+| Typography | h1 / h2 / headerTitle / sectionTitle / body / button / caption |
+| Brand exception | `brandGoogle #4285F4` — isolated, explicitly *not* part of the palette |
+
+Shared primitives: `Button` (variants + loading/disabled + press-scale + a11y), `Card`, `ListRow`, `SectionHeader`, `EmptyState`, `ErrorState`, `OfflineBanner`, `Skeleton`, `ScreenHeader`, `OptionPicker`.
 
 Enforced conventions:
-- Every page header is `ScreenHeader` (or aligned to its 8px top metric).
-- Success feedback uses `showToast(...)`, never blocking `Alert` popups.
-- Selection lists use the centered `OptionPicker` modal.
-- Bottom buttons respect `useSafeAreaInsets().bottom` so they never sit under system nav.
-- `console.log` is banned in `src/` (only `console.error` in catch blocks).
+- All color / spacing / radius via `theme.js` tokens — **no hardcoded hex** in screens.
+- Page headers use `ScreenHeader`; success feedback via `showToast(...)`, never blocking `Alert`.
+- Selection via centered `OptionPicker`; bottom buttons respect `useSafeAreaInsets().bottom`.
+- `console.log` banned in `src/`; ESLint (flat config) gates real errors on every PR.
+- **Motion** — reanimated worklets, 150–300 ms, interruptible, **all honoring OS "reduce motion"** (`useReducedMotion`).
+- **Accessibility** — roles + labels on interactive elements, text alternatives for the ring/charts, 44 pt+ targets, font scaling never disabled.
 
 ---
 
@@ -273,38 +279,45 @@ Every protected route uses the `authenticateToken` middleware and parameterized 
 
 ---
 
-## Security
 - Passwords hashed with bcrypt (cost 12); **plaintext password is never written to disk** on the client.
-- JWT secret comes only from the environment — server refuses to start without it.
-- All SQL is parameterized.
+- JWT secret comes only from the environment — server refuses to start without it; **no insecure fallback**.
+- All SQL is parameterized (no injection); queries are **owner-scoped** (no IDOR/BOLA).
 - Rate limiting: 10 logins / 15 min, 5 signups / hour, 10 AI calls / min, 200 req/min general.
-- helmet headers; CORS open in dev, restricted via `CORS_ORIGIN` in production.
-- Groq API key stays server-side; never bundled into the app.
-- Request logging never includes bodies.
+- helmet headers; CORS open in dev, locked via `CORS_ORIGIN` in production.
+- Groq API key stays server-side; never bundled into the app; not present in git history.
+- Request logging excludes bodies; error responses return **generic messages** (no stack/detail leak).
+- **OWASP pass** — verified clean on exposed secrets, SQL injection, broken auth, and IDOR. Fixed an `insights` error-detail leak and removed a debug endpoint that dumped user data. `npm audit`: **0 on the backend** (11 moderate transitive in the Expo build chain, none runtime-exploitable). The supertest suite asserts 401/400/429 as regression tests.
 
 ---
 
-## Testing
-No automated suite yet. Current practice:
-- **Backend smoke tests** — PowerShell/curl scripts exercising every endpoint (auth, food, activity, water, weight, insights, settings, ai) + a full new-user journey. Last full run: all PASS.
-- **Static checks** — every `src/` file is Babel parse-checked and the full Android bundle is compiled after refactors.
+**63 automated tests, green.**
+- **Backend** — Jest + supertest, **18 tests** against the dockerized Postgres: auth-required (401), validation (400), rate-limit (429), and the full new-user journey (signup → login → protected routes). Run: `cd backend && npm test`.
+- **Frontend** — Jest (`jest-expo`) + React Native Testing Library, **45 tests**: calorie/macro/BMI math (incl. a parity test proving the extracted util matches the old inline calc), formatters, validation helpers, context state, and the shared primitives. Run: `npm test`.
+- **Lint** — ESLint flat config (no TypeScript dep) over `src` + `backend/src`: `npm run lint` (errors fail; style noise warns).
+- **CI** — [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs **lint + both suites** (backend with a Postgres service container) on every PR and push to `main`.
 
 ---
 
 ## Known Limitations
+- **Auth tokens** — 30-day JWT with **no refresh/rotation** yet; logout clears client state only (see Roadmap).
 - **Notifications** — Custom ringtones and reliable Android notifications require a development build; Expo Go falls back to the system sound.
 - **Photos** — Profile and progress photos are stored **locally** (lost on reinstall / not synced across devices).
 - **Home-only backend** — On a physical phone the backend lives on your PC, reachable only on the same Wi-Fi. For anywhere-access, deploy the backend to the cloud.
 - **AI** — Requires a `GROQ_API_KEY`; without it the AI endpoints return 503 and the UI shows a friendly message.
+- **Chart tints** — Secondary/series chart colors aren't yet tokenized into a `CHART.*` set (brand + macro colors are).
+- **Accessibility (device-only)** — Remaining checks need a real device: dynamic-type layout at 200 %+ and a full screen-reader focus-order pass. Per-input explicit labels are a polish follow-up (inputs already announce via placeholder/value).
+- **List animations** — Add/remove **exit** animations on `FlatList`s are intentionally omitted (Fabric unmounts rows instantly → would flicker); a flickering list is worse than none.
 
 ---
 
-## Roadmap
-- [ ] Automated tests (Jest + supertest)
+- [x] Automated tests (Jest + supertest + RNTL) and CI
+- [x] Design-system token SSOT (WCAG AA), motion + accessibility pass, OWASP hardening
+- [ ] **Refresh-token rotation + revocation** (currently a 30-day JWT)
+- [ ] **`CHART.*` secondary/series token set** for chart tints
 - [ ] Deploy backend to the cloud (Render/Railway) for off-Wi-Fi use
 - [ ] EAS Build / OTA updates
 - [ ] Apple Sign-In & Google OAuth (deps installed)
-- [ ] Dark mode (theme tokens are ready)
+- [ ] Dark mode (two-layer tokens make it straightforward)
 - [ ] Micronutrient tracking, recipe builder, pedometer (`expo-sensors`)
 - [ ] i18n (TR/EN)
 
