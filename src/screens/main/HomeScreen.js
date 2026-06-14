@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  ActivityIndicator,
   RefreshControl,
   Alert,
 } from "react-native";
@@ -23,6 +22,7 @@ import CaloriesProgressCircle from "../../components/CaloriesProgressCircle";
 import DatePickerModal from "../../components/DatePickerModal";
 import Svg, { Circle } from "react-native-svg";
 import ErrorState from "../../components/ErrorState";
+import SkeletonBlock from "../../components/Skeleton";
 import { isNetworkError } from "../../utils/validation";
 import { COLORS, CHART } from "../../theme";
 
@@ -269,8 +269,10 @@ const HomeScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color={COLORS.success} />
-          <Text style={styles.loadingText}>Loading your nutrition data...</Text>
+          <SkeletonBlock width={140} height={140} radius={70} style={{ marginBottom: 28 }} />
+          <SkeletonBlock width="70%" height={16} style={{ marginBottom: 12 }} />
+          <SkeletonBlock width="50%" height={16} style={{ marginBottom: 24 }} />
+          <SkeletonBlock width="90%" height={48} radius={12} />
         </View>
       </View>
     );

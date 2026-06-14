@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +14,7 @@ import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
 import ScreenHeader from "../../components/ScreenHeader";
 import ErrorState from "../../components/ErrorState";
+import SkeletonBlock from "../../components/Skeleton";
 import { isNetworkError } from "../../utils/validation";
 import { useInsights } from "../../context/InsightsContext";
 import { useAuth } from "../../context/AuthContext";
@@ -106,8 +106,9 @@ const InsightsScreen = () => {
   if (authLoading || (isAuthenticated && loading)) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading insights...</Text>
+        <SkeletonBlock width="55%" height={22} style={{ marginBottom: 24 }} />
+        <SkeletonBlock width="88%" height={170} radius={16} style={{ marginBottom: 16 }} />
+        <SkeletonBlock width="88%" height={48} radius={12} />
       </View>
     );
   }
