@@ -1,5 +1,5 @@
 // src/screens/main/InsightsScreen.js - Fixed based on your current working code
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+} from "react-native-reanimated";
+import { useReducedMotion, DURATION } from "../../utils/motion";
 import ScreenHeader from "../../components/ScreenHeader";
 import ErrorState from "../../components/ErrorState";
 import SkeletonBlock from "../../components/Skeleton";
@@ -23,6 +29,25 @@ import { COLORS } from "../../theme";
 const { width } = Dimensions.get("window");
 // Kart içi net genişlik: ekran - 2*20 margin - 2*16 padding
 const chartWidth = width - 72;
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Tek bar — mount'ta tabandan (170) yukarı büyür (worklet, native thread).
+// progress paylaşılan değer; tüm barlar birlikte akar. Reduce motion'da anında dolu.
+function AnimatedBar({ x, barWidthActual, barHeight, fill, progress }) {
+  const animatedProps = useAnimatedProps(() => {
+    const h = barHeight * progress.value;
+    const top = 170 - h;
+    const r = Math.min(barWidthActual / 2, h / 2);
+    const right = x + barWidthActual;
+    return {
+      d: `M ${x} 170 L ${x} ${top + r} Q ${x} ${top} ${x + r} ${top} L ${
+        right - r
+      } ${top} Q ${right} ${top} ${right} ${top + r} L ${right} 170 Z`,
+    };
+  });
+  return <AnimatedPath fill={fill} animatedProps={animatedProps} />;
+}
 
 const InsightsScreen = () => {
   const navigation = useNavigation();
@@ -46,6 +71,19 @@ const InsightsScreen = () => {
   } = useInsights();
 
   const [refreshing, setRefreshing] = useState(false);
+
+  // Bar mount animasyonu (paylaşılan değer sabit parent'ta; bar seçince yeniden
+  // tetiklenmez). Hook'lar erken return'lerden ÖNCE — sabit sıra.
+  const reducedMotion = useReducedMotion();
+  const barProgress = useSharedValue(0);
+  useEffect(() => {
+    if (reducedMotion) {
+      barProgress.value = 1;
+      return;
+    }
+    barProgress.value = 0;
+    barProgress.value = withTiming(1, { duration: DURATION.slow });
+  }, [selectedPeriod, reducedMotion]);
 
   // Bugünün indeksini hesapla (sadece weekly görünümde anlamlı)
   const today = new Date().getDate();
@@ -157,6 +195,7 @@ const InsightsScreen = () => {
     unit,
     selectedDay,
     onDaySelect,
+    progress,
   }) => {
     if (!data || data.length === 0) {
       return (
@@ -228,17 +267,12 @@ const InsightsScreen = () => {
               <React.Fragment key={index}>
                 {/* Sadece veri varsa bar çiz — üst köşeler yuvarlak, alt köşeler düz */}
                 {hasData ? (
-                  <Path
-                    d={(() => {
-                      const r = Math.min(barWidthActual / 2, barHeight / 2);
-                      const right = x + barWidthActual;
-                      return `M ${x} 170 L ${x} ${y + r} Q ${x} ${y} ${
-                        x + r
-                      } ${y} L ${right - r} ${y} Q ${right} ${y} ${right} ${
-                        y + r
-                      } L ${right} 170 Z`;
-                    })()}
+                  <AnimatedBar
+                    x={x}
+                    barWidthActual={barWidthActual}
+                    barHeight={barHeight}
                     fill={barColor}
+                    progress={progress}
                   />
                 ) : (
                   // Veri yoksa sadece küçük bir placeholder göster
@@ -487,6 +521,7 @@ const InsightsScreen = () => {
             unit="kcal"
             selectedDay={selectedCalorieDay}
             onDaySelect={setSelectedCalorieDay}
+            progress={barProgress}
           />
         </View>
 
@@ -506,6 +541,7 @@ const InsightsScreen = () => {
             unit="ml"
             selectedDay={selectedWaterDay}
             onDaySelect={setSelectedWaterDay}
+            progress={barProgress}
           />
         </View>
 
@@ -525,6 +561,7 @@ const InsightsScreen = () => {
             unit="kg"
             selectedDay={selectedWeightDay}
             onDaySelect={setSelectedWeightDay}
+            progress={barProgress}
           />
         </View>
       </ScrollView>
