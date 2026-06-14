@@ -1,5 +1,8 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+// Ana sekmeler (kaydırılabilir tab navigator)
+import MainTabs from "./MainTabs";
+
 // Onboarding
 import Onboarding1Screen from "../screens/onboarding/Onboarding1Screen";
 import Onboarding2Screen from "../screens/onboarding/Onboarding2Screen";
@@ -21,13 +24,13 @@ import ForgotPasswordScreen1 from "../screens/auth/forgotPassword/ForgotPassword
 import ForgotPasswordScreen2 from "../screens/auth/forgotPassword/ForgotPasswordScreen2";
 import ForgotPasswordScreen3 from "../screens/auth/forgotPassword/ForgotPasswordScreen3";
 
-// Main
-import HomeScreen from "../screens/main/HomeScreen";
 // Food
 import FoodSelectionScreen from "../screens/main/food/FoodSelectionScreen";
 import MealDetailsScreen from "../screens/main/food/MealDetailsScreen";
 import FoodDetailsScreen from "../screens/main/food/FoodDetailsScreen";
 import CreateFoodScreen from "../screens/main/food/CreateFoodScreen";
+import BarcodeScannerScreen from "../screens/main/food/BarcodeScannerScreen";
+import ProgressPhotosScreen from "../screens/main/settings/ProgressPhotosScreen";
 
 // Activity
 import ActivitySelectionScreen from "../screens/main/activity/ActivitySelectionScreen";
@@ -38,20 +41,12 @@ import ActivityLogScreen from "../screens/main/activity/ActivityLogScreen";
 // Notifications
 import NotificationsScreen from "../screens/main/NotificationsScreen";
 
-// Tracker
-import TrackerScreen from "../screens/main/TrackerScreen";
-
-// Insights
-import InsightsScreen from "../screens/main/InsightsScreen";
-
 // Articles
-import ArticlesScreen from "../screens/main/articles/ArticlesScreen";
 import ArticleDetailsScreen from "../screens/main/articles/ArticleDetailsScreen";
 import CategoryArticlesScreen from "../screens/main/articles/CategoryArticlesScreen";
 import SavedArticlesScreen from "../screens/main/articles/SavedArticlesScreen";
 
 // Settings/Profile
-import ProfileScreen from "../screens/main/settings/ProfileScreen";
 import ContactSupportScreen from "../screens/main/settings/ContactSupportScreen";
 import PersonalInfoScreen from "../screens/main/settings/PersonalInfoScreen";
 import CalorieCounterScreen from "../screens/main/settings/CalorieCounterScreen";
@@ -68,7 +63,12 @@ const Stack = createNativeStackNavigator();
 const AppNavigator = () => (
   <Stack.Navigator
     initialRouteName="Onboarding1"
-    screenOptions={{ headerShown: false }}
+    screenOptions={{
+      headerShown: false,
+      // iOS tarzı sağdan kayan geçiş — "yeni sayfa yükleniyor" hissi yerine akıcı
+      animation: "slide_from_right",
+      animationDuration: 220,
+    }}
   >
     {/* Onboarding */}
     <Stack.Screen name="Onboarding1" component={Onboarding1Screen} />
@@ -89,19 +89,15 @@ const AppNavigator = () => (
     <Stack.Screen name="ForgotPassword1" component={ForgotPasswordScreen1} />
     <Stack.Screen name="ForgotPassword2" component={ForgotPasswordScreen2} />
     <Stack.Screen name="ForgotPassword3" component={ForgotPasswordScreen3} />
-    {/* Main */}
-    <Stack.Screen name="Home" component={HomeScreen} />
-    <Stack.Screen name="Tracker" component={TrackerScreen} />
-    <Stack.Screen name="Insights" component={InsightsScreen} />
+    {/* Main — 5 sekme kaydırılabilir tab navigator içinde */}
+    <Stack.Screen name="MainTabs" component={MainTabs} />
 
-    {/* Articles - Tüm article sayfaları */}
-    <Stack.Screen name="Articles" component={ArticlesScreen} />
+    {/* Articles - alt sayfalar (sekmeler MainTabs içinde) */}
     <Stack.Screen name="ArticleDetails" component={ArticleDetailsScreen} />
     <Stack.Screen name="CategoryArticles" component={CategoryArticlesScreen} />
     <Stack.Screen name="SavedArticles" component={SavedArticlesScreen} />
 
-    {/* Settings/Profile - Tüm settings sayfaları */}
-    <Stack.Screen name="Profile" component={ProfileScreen} />
+    {/* Settings/Profile - alt sayfalar */}
     <Stack.Screen name="ContactSupport" component={ContactSupportScreen} />
     <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
     <Stack.Screen name="CalorieCounter" component={CalorieCounterScreen} />
@@ -118,6 +114,8 @@ const AppNavigator = () => (
     <Stack.Screen name="MealDetails" component={MealDetailsScreen} />
     <Stack.Screen name="FoodDetails" component={FoodDetailsScreen} />
     <Stack.Screen name="CreateFood" component={CreateFoodScreen} />
+    <Stack.Screen name="BarcodeScanner" component={BarcodeScannerScreen} />
+    <Stack.Screen name="ProgressPhotos" component={ProgressPhotosScreen} />
 
     {/* Activity */}
     <Stack.Screen

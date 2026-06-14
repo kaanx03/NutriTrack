@@ -9,7 +9,7 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
 } from "react-native";
-import Ionicons from "react-native-vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 
 const DatePickerModal = ({ visible, onClose, selectedDate, onDateSelect }) => {
   // Initial state uses the passed selectedDate or defaults to current date
@@ -67,12 +67,6 @@ const DatePickerModal = ({ visible, onClose, selectedDate, onDateSelect }) => {
       years.push(year);
     }
     return years;
-  };
-
-  // Format month and year
-  const formatMonthYear = () => {
-    const options = { month: "long", year: "numeric" };
-    return currentMonth.toLocaleDateString(undefined, options);
   };
 
   // Handle date selection
