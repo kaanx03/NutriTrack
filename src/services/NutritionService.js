@@ -1,14 +1,12 @@
-// src/services/NutritionService.js - Complete Enhanced Version with Database Recent Foods
+// src/services/NutritionService.js
 import AuthService from "./AuthService";
-
-const API_URL = "http://10.0.2.2:3001/api";
+import { API_URL } from "../config";
 
 class NutritionService {
   // Genel API çağrı helper'ı
   async request(path, options = {}) {
     try {
       const url = `${API_URL}${path}`;
-      console.log(`NutritionService - Making request to: ${url}`);
 
       const config = {
         method: options.method || "GET",
@@ -27,31 +25,25 @@ class NutritionService {
 
       if (options.body && typeof options.body === "object") {
         config.body = JSON.stringify(options.body);
-        console.log("Request body:", config.body);
       }
 
       const response = await fetch(url, config);
-      console.log(`NutritionService - Response status: ${response.status}`);
 
       let result;
       try {
         result = await response.json();
-        console.log("Response data:", result);
       } catch (parseError) {
-        console.error("JSON parse error:", parseError);
         throw new Error("Invalid response from server");
       }
 
       if (!response.ok) {
         const message =
           result.error || result.details || `HTTP Error: ${response.status}`;
-        console.error("API Error:", message, "Details:", result);
         throw new Error(message);
       }
 
       return result;
     } catch (error) {
-      console.error("NutritionService request error:", error);
       throw error;
     }
   }
@@ -107,20 +99,10 @@ class NutritionService {
   // Yemek silme - ID TYPE FIXED VERSION
   async deleteFood(entryId) {
     try {
-      console.log("=== NutritionService DELETE FOOD START ===");
-      console.log(
-        "Delete food with entry ID:",
-        entryId,
-        "Type:",
-        typeof entryId
-      );
-
-      // Entry ID validation
       if (!entryId || entryId === "undefined" || entryId === "null") {
         throw new Error("Invalid entry ID provided for deletion");
       }
 
-      // ID'yi integer'a çevir ve validate et
       let cleanEntryId;
       if (typeof entryId === "number") {
         cleanEntryId = entryId;
@@ -134,29 +116,13 @@ class NutritionService {
         );
       }
 
-      console.log(
-        "Sending delete request with ID:",
-        cleanEntryId,
-        "Type:",
-        typeof cleanEntryId
-      );
-
       const result = await this.request(`/nutrition/food/${cleanEntryId}`, {
         method: "DELETE",
       });
 
-      console.log("=== NutritionService DELETE FOOD SUCCESS ===");
-      console.log("Delete result:", result);
-
       return result;
     } catch (error) {
-      console.error("=== NutritionService DELETE FOOD ERROR ===");
-      console.error("Error details:", {
-        entryId,
-        entryIdType: typeof entryId,
-        error: error.message,
-        stack: error.stack,
-      });
+      console.error("Delete food error:", error.message);
       throw error;
     }
   }
@@ -242,9 +208,7 @@ class NutritionService {
   // Recent foods al - DATABASE'DEN
   async getRecentFoods() {
     try {
-      console.log("Fetching recent foods from database...");
       const result = await this.request("/food/recent");
-      console.log("Recent foods fetched successfully:", result.data);
       return result.data || [];
     } catch (error) {
       console.error("Get recent foods error:", error);
@@ -255,8 +219,6 @@ class NutritionService {
   // Recent foods'a ekle - DATABASE'E KAYDET
   async addToRecentFoods(foodData) {
     try {
-      console.log("Adding food to recent foods database:", foodData);
-
       const result = await this.request("/food/recent", {
         method: "POST",
         body: {
@@ -270,11 +232,8 @@ class NutritionService {
         },
       });
 
-      console.log("Food added to recent foods successfully:", result.data);
       return result.data;
     } catch (error) {
-      console.error("Add to recent foods error:", error);
-      // Hata olsa bile devam et - recent foods kritik değil
       return null;
     }
   }
@@ -282,13 +241,10 @@ class NutritionService {
   // Recent foods'u temizle - DATABASE'DEN GÜVENLİ OLARAK
   async clearRecentFoods() {
     try {
-      console.log("Clearing recent foods from database (safe version)");
-
       const result = await this.request("/food/recent", {
         method: "DELETE",
       });
 
-      console.log("Backend recent foods cleared successfully:", result);
       return result;
     } catch (error) {
       console.error("Error clearing recent foods from database:", error);
@@ -305,13 +261,10 @@ class NutritionService {
   // Belirli recent food'u sil - DATABASE'DEN
   async removeFromRecentFoods(foodId) {
     try {
-      console.log("Removing food from recent foods database:", foodId);
-
       const result = await this.request(`/food/recent/${foodId}`, {
         method: "DELETE",
       });
 
-      console.log("Food removed from recent foods successfully:", result);
       return result;
     } catch (error) {
       console.error("Remove from recent foods error:", error);
@@ -319,14 +272,56 @@ class NutritionService {
     }
   }
 
+  // ====== SAVED MEALS (öğün şablonları) ======
+
+  async getSavedMeals() {
+    try {
+      const result = await this.request("/food/meals");
+      return result.data || [];
+    } catch (error) {
+      console.error("Get saved meals error:", error);
+      return [];
+    }
+  }
+
+  async saveMealTemplate({ name, mealType, items }) {
+    const result = await this.request("/food/meals", {
+      method: "POST",
+      body: { name, mealType, items },
+    });
+    return result.data;
+  }
+
+  async deleteSavedMeal(id) {
+    const result = await this.request(`/food/meals/${id}`, {
+      method: "DELETE",
+    });
+    return result;
+  }
+
+  // ====== AI (Groq proxy — key backend'de) ======
+
+  async analyzeFoodPhoto(imageBase64, mimeType = "image/jpeg") {
+    const result = await this.request("/ai/food-photo", {
+      method: "POST",
+      body: { imageBase64, mimeType },
+    });
+    return result.data;
+  }
+
+  async aiCoach(messages) {
+    const result = await this.request("/ai/coach", {
+      method: "POST",
+      body: { messages },
+    });
+    return result.reply;
+  }
+
   // ====== ACTIVITY API'S - ENHANCED ======
 
   // Aktivite ekleme - ENHANCED
   async addActivity(activityData) {
     try {
-      console.log("Adding activity with data:", activityData);
-
-      // Veri validasyonu
       if (
         !activityData.activityName ||
         !activityData.durationMinutes ||
@@ -337,7 +332,6 @@ class NutritionService {
         );
       }
 
-      // Backend'in beklediği format
       const backendData = {
         activityName: String(activityData.activityName).trim(),
         activityId: activityData.activityId || `activity_${Date.now()}`,
@@ -346,8 +340,6 @@ class NutritionService {
         intensity: activityData.intensity?.toLowerCase() || "moderate",
         date: this.formatDate(activityData.date || new Date()),
       };
-
-      console.log("Formatted activity data for backend:", backendData);
 
       const result = await this.request("/nutrition/activity", {
         method: "POST",
@@ -363,8 +355,6 @@ class NutritionService {
   // Aktivite güncelleme - NEW
   async updateActivity(activityId, updateData) {
     try {
-      console.log("Updating activity:", activityId, updateData);
-
       const backendData = {
         activityName: updateData.activityName || updateData.name,
         durationMinutes: parseInt(
@@ -390,7 +380,6 @@ class NutritionService {
   // Aktivite silme - NEW
   async deleteActivity(activityId) {
     try {
-      console.log("Deleting activity:", activityId);
       const result = await this.request(`/nutrition/activity/${activityId}`, {
         method: "DELETE",
       });
@@ -405,8 +394,6 @@ class NutritionService {
   async getDailyActivities(date) {
     try {
       const formattedDate = this.formatDate(date);
-      console.log("Getting daily activities for date:", formattedDate);
-
       const result = await this.request(`/activity-logs?date=${formattedDate}`);
       return result.data;
     } catch (error) {
