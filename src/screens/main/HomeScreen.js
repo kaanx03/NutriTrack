@@ -264,6 +264,8 @@ const HomeScreen = () => {
           <TouchableOpacity
             style={styles.notificationButton}
             onPress={() => navigation.navigate("Notifications")}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
           >
             <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
@@ -289,6 +291,8 @@ const HomeScreen = () => {
           <TouchableOpacity
             style={styles.notificationButton}
             onPress={() => navigation.navigate("Notifications")}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
           >
             <Ionicons name="notifications-outline" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
@@ -335,23 +339,35 @@ const HomeScreen = () => {
         <View style={styles.mainCard}>
           {/* Date Navigation */}
           <View style={styles.dateNav}>
-            <TouchableOpacity onPress={goToPreviousDay}>
+            <TouchableOpacity
+              onPress={goToPreviousDay}
+              accessibilityRole="button"
+              accessibilityLabel="Previous day"
+            >
               <Text style={styles.navArrow}>‹</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.dateContainer}
               onPress={() => setDatePickerVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Selected date ${formatDate()}. Change date`}
             >
               <Text style={styles.dateText}>{formatDate()}</Text>
               <Image
                 source={require("../../../assets/icons/calendar.png")}
                 style={styles.calendarIcon}
                 resizeMode="contain"
+                accessibilityElementsHidden
+                importantForAccessibility="no"
               />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={goToNextDay}>
+            <TouchableOpacity
+              onPress={goToNextDay}
+              accessibilityRole="button"
+              accessibilityLabel="Next day"
+            >
               <Text style={styles.navArrow}>›</Text>
             </TouchableOpacity>
           </View>
