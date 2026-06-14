@@ -130,6 +130,16 @@ const SignUpScreen5 = () => {
     navigation.navigate("SignUp6");
   };
 
+  // Inline: geçersiz tarih (örn. 31 Şubat) seçilirse buton pasif + uyarı
+  const _y = formData.year || "2000";
+  const _m = formData.month || "01";
+  const _dn = formData.day || "01";
+  const _date = new Date(`${_y}-${_m}-${_dn}T00:00:00`);
+  const dateValid =
+    _date.getFullYear() === parseInt(_y) &&
+    _date.getMonth() + 1 === parseInt(_m) &&
+    _date.getDate() === parseInt(_dn);
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -153,8 +163,15 @@ const SignUpScreen5 = () => {
         {renderPicker(months, monthRef, formData.month, "month")}
         {renderPicker(years, yearRef, formData.year, "year")}
       </View>
+      {!dateValid ? (
+        <Text style={styles.errorText}>Please select a valid date</Text>
+      ) : null}
 
-      <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
+      <TouchableOpacity
+        style={[styles.continueButton, !dateValid && styles.continueButtonDisabled]}
+        onPress={handleContinue}
+        disabled={!dateValid}
+      >
         <Text style={styles.continueButtonText}>Continue</Text>
       </TouchableOpacity>
     </View>
@@ -241,6 +258,15 @@ const styles = StyleSheet.create({
   unselectedText: {
     color: COLORS.borderStrong,
     opacity: 0.6,
+  },
+  continueButtonDisabled: {
+    opacity: 0.5,
+  },
+  errorText: {
+    fontSize: 13,
+    color: COLORS.danger,
+    textAlign: "center",
+    marginBottom: 12,
   },
   continueButton: {
     backgroundColor: COLORS.textSecondary,

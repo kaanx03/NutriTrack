@@ -29,6 +29,7 @@ const SignUpScreen10 = () => {
   const [calorieData, setCalorieData] = useState(null);
   const [calculationError, setCalculationError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     const calculateCaloriesAndMacros = (
@@ -123,6 +124,7 @@ const SignUpScreen10 = () => {
   }, [formData]);
 
   const validateFormData = () => {
+    setSubmitError(null);
     const requiredFields = [
       "email",
       "password",
@@ -141,23 +143,17 @@ const SignUpScreen10 = () => {
     });
 
     if (missingFields.length > 0) {
-      Alert.alert(
-        "Missing Information",
-        `Please fill in the following fields: ${missingFields.join(", ")}`
-      );
+      setSubmitError(`Please fill in: ${missingFields.join(", ")}`);
       return false;
     }
 
     if (!formData.email.includes("@")) {
-      Alert.alert("Invalid Email", "Please enter a valid email address");
+      setSubmitError("Please enter a valid email address");
       return false;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert(
-        "Invalid Password",
-        "Password must be at least 6 characters long"
-      );
+      setSubmitError("Password must be at least 6 characters long");
       return false;
     }
 
@@ -480,6 +476,9 @@ const SignUpScreen10 = () => {
         </View>
       </View>
 
+      {submitError ? (
+        <Text style={styles.submitError}>{submitError}</Text>
+      ) : null}
       <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
         <Text style={styles.continueButtonText}>Start Your Plan Now</Text>
       </TouchableOpacity>
@@ -586,6 +585,12 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginRight: 5,
+  },
+  submitError: {
+    fontSize: 13,
+    color: COLORS.danger,
+    textAlign: "center",
+    marginBottom: 10,
   },
   continueButton: {
     backgroundColor: COLORS.textSecondary,

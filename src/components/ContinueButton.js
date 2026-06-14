@@ -1,9 +1,13 @@
 import React from "react";
 import { TouchableOpacity, Text, StyleSheet } from "react-native";
 
-const ContinueButton = ({ onPress, title = "Continue" }) => {
+const ContinueButton = ({ onPress, title = "Continue", disabled = false }) => {
   return (
-    <TouchableOpacity style={styles.button} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.button, disabled && styles.disabled]}
+      onPress={onPress}
+      disabled={disabled}
+    >
       <Text style={styles.buttonText}>{title}</Text>
     </TouchableOpacity>
   );
@@ -19,6 +23,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: "auto",
     marginBottom: 40,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   buttonText: {
     fontFamily: "Roboto-Regular",

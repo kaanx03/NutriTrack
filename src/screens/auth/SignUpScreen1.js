@@ -74,6 +74,14 @@ const SignUpScreen1 = () => {
     navigation.navigate("SignUp2");
   };
 
+  // Inline: tüm alanlar geçerli ve sözleşme kabul edilene kadar buton pasif
+  const canContinue =
+    !!formData.email?.trim() &&
+    !!formData.password?.trim() &&
+    !emailError &&
+    !passwordError &&
+    isChecked;
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Create Account</Text>
@@ -153,7 +161,11 @@ const SignUpScreen1 = () => {
       </View>
 
       {/* Devam butonu */}
-      <TouchableOpacity style={styles.signupButton} onPress={handleContinue}>
+      <TouchableOpacity
+        style={[styles.signupButton, !canContinue && styles.signupButtonDisabled]}
+        onPress={handleContinue}
+        disabled={!canContinue}
+      >
         <Text style={styles.signupButtonText}>Continue</Text>
       </TouchableOpacity>
 
@@ -244,6 +256,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 6,
     marginBottom: 20,
+  },
+  signupButtonDisabled: {
+    opacity: 0.5,
   },
   signupButtonText: {
     fontSize: 16,

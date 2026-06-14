@@ -10,6 +10,7 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSignUp } from "../../context/SignUpContext";
+import { numberInRange } from "../../utils/validation";
 import { COLORS } from "../../theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -44,6 +45,12 @@ const SignUpScreen7 = () => {
       navigation.navigate("SignUp8");
     }
   };
+
+  // Inline doğrulama: makul aralık (kg: 20-300, lb: 44-660)
+  const weightError = weight.trim()
+    ? numberInRange(weight.replace(",", "."), unit === "kg" ? 20 : 44, unit === "kg" ? 300 : 660, "Weight")
+    : null;
+  const valid = !!weight.trim() && !weightError;
 
   return (
     <View style={styles.container}>
@@ -100,12 +107,16 @@ const SignUpScreen7 = () => {
           />
           <Text style={styles.unitDisplay}>{unit}</Text>
         </View>
+        {weightError ? (
+          <Text style={styles.errorText}>{weightError}</Text>
+        ) : null}
       </View>
 
       <View style={styles.buttonWrapper}>
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[styles.continueButton, !valid && styles.continueButtonDisabled]}
           onPress={handleContinue}
+          disabled={!valid}
         >
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>
@@ -221,6 +232,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+  },
+  continueButtonDisabled: {
+    opacity: 0.5,
+  },
+  errorText: {
+    fontSize: 13,
+    color: COLORS.danger,
+    marginTop: 12,
+    textAlign: "center",
   },
   continueButtonText: {
     color: COLORS.surface,

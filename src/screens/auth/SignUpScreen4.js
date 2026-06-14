@@ -25,6 +25,8 @@ const SignUpScreen4 = () => {
     }
   };
 
+  const valid = !!formData.gender;
+
   return (
     <View style={styles.container}>
       {/* Geri Butonu */}
@@ -91,7 +93,7 @@ const SignUpScreen4 = () => {
       </TouchableOpacity>
 
       {/* Devam Et Butonu */}
-      <ContinueButton onPress={handleContinue} />
+      <ContinueButton onPress={handleContinue} disabled={!valid} />
     </View>
   );
 };

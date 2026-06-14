@@ -26,6 +26,8 @@ const SignUpScreen3 = () => {
     }
   };
 
+  const valid = !!formData.lastName?.trim();
+
   return (
     <View style={styles.container}>
       {/* Geri Butonu */}
@@ -60,7 +62,7 @@ const SignUpScreen3 = () => {
       />
 
       {/* Devam Et Butonu */}
-      <ContinueButton onPress={handleContinue} />
+      <ContinueButton onPress={handleContinue} disabled={!valid} />
     </View>
   );
 };
