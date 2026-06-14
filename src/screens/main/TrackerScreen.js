@@ -21,6 +21,7 @@ import OfflineBanner from "../../components/OfflineBanner";
 import { showToast } from "../../components/AppToast";
 import { hapticLight } from "../../utils/haptics";
 import { numberInRange } from "../../utils/validation";
+import { useReducedMotion } from "../../utils/motion";
 import { COLORS, CHART } from "../../theme";
 
 const TrackerScreen = () => {
@@ -93,17 +94,24 @@ const TrackerScreen = () => {
     setNewWeight(currentWeight.toString());
   }, [currentWeight]);
 
-  // Su seviyesi animasyonu
+  const reduced = useReducedMotion();
+
+  // Su seviyesi animasyonu (reduce motion: anlık ayarla)
   useEffect(() => {
+    if (reduced) {
+      waterLevelAnimation.setValue(getWaterPercentage());
+      return;
+    }
     Animated.timing(waterLevelAnimation, {
       toValue: getWaterPercentage(),
       duration: 1000,
       useNativeDriver: false,
     }).start();
-  }, [waterIntake, waterGoal]);
+  }, [waterIntake, waterGoal, reduced]);
 
-  // Bubble animasyonları
+  // Bubble animasyonları (reduce motion: ortam baloncukları kapalı)
   useEffect(() => {
+    if (reduced) return;
     const createBubbleAnimation = (animatedValue, delay) => {
       return Animated.loop(
         Animated.sequence([
@@ -129,7 +137,7 @@ const TrackerScreen = () => {
     bubbleLoops.forEach((loop) => loop.start());
 
     return () => bubbleLoops.forEach((loop) => loop.stop());
-  }, []);
+  }, [reduced]);
 
   // Su içme fonksiyonları - UPDATED
   const decreaseWater = async () => {
@@ -152,7 +160,8 @@ const TrackerScreen = () => {
       if (!wasGoalReached && isGoalReached()) {
         setShowCelebration(true);
 
-        // Kutlama baloncuklarını başlat
+        // Kutlama baloncuklarını başlat (reduce motion: yalnızca toast, hareket yok)
+        if (!reduced)
         celebrationBubbles.forEach((anim, index) => {
           Animated.sequence([
             Animated.delay(index * 100),
