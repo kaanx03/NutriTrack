@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { COLORS, RADIUS } from "../theme";
+import { useReducedMotion } from "../utils/motion";
 
 export const SkeletonBlock = ({
   width = "100%",
@@ -10,9 +11,15 @@ export const SkeletonBlock = ({
   radius = RADIUS.sm,
   style,
 }) => {
+  const reduced = useReducedMotion();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
+    // Reduce motion açıksa nabız yok — sabit, dingin bir gri.
+    if (reduced) {
+      opacity.setValue(0.7);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -29,7 +36,7 @@ export const SkeletonBlock = ({
     );
     loop.start();
     return () => loop.stop();
-  }, [opacity]);
+  }, [opacity, reduced]);
 
   return (
     <Animated.View

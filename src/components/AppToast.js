@@ -6,6 +6,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Animated, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { hapticSuccess, hapticError, hapticLight } from "../utils/haptics";
+import { useReducedMotion } from "../utils/motion";
 
 let showToastRef = null;
 
@@ -38,6 +39,7 @@ const ToastHost = () => {
   const [toast, setToast] = useState(null);
   const translateY = useRef(new Animated.Value(-120)).current;
   const hideTimer = useRef(null);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     showToastRef = (message, type) => setToast({ message, type, key: Date.now() });
@@ -55,22 +57,32 @@ const ToastHost = () => {
     else if (toast.type === "info") hapticLight();
     else hapticSuccess();
 
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 80,
-      friction: 10,
-    }).start();
+    // Reduce motion: kayma animasyonu yok — anlık göster/gizle.
+    if (reduced) {
+      translateY.setValue(0);
+    } else {
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }).start();
+    }
 
     clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => {
-      Animated.timing(translateY, {
-        toValue: -120,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => setToast(null));
+      if (reduced) {
+        translateY.setValue(-120);
+        setToast(null);
+      } else {
+        Animated.timing(translateY, {
+          toValue: -120,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => setToast(null));
+      }
     }, 2200);
-  }, [toast]);
+  }, [toast, reduced]);
 
   if (!toast) return null;
   const v = VARIANTS[toast.type] || VARIANTS.success;
