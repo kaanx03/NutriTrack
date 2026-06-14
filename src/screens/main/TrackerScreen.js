@@ -19,6 +19,7 @@ import { useWeight } from "../../context/WeightContext";
 import ScreenHeader from "../../components/ScreenHeader";
 import { showToast } from "../../components/AppToast";
 import { hapticLight } from "../../utils/haptics";
+import { numberInRange } from "../../utils/validation";
 import { COLORS, CHART } from "../../theme";
 
 const TrackerScreen = () => {
@@ -58,6 +59,12 @@ const TrackerScreen = () => {
   const [newWeightNotes, setNewWeightNotes] = useState("");
   const [showCelebration, setShowCelebration] = useState(false);
   const [isUpdatingWeight, setIsUpdatingWeight] = useState(false);
+
+  // Inline doğrulama: kilo 1-500 kg aralığında olmalı (boşken hata gösterme)
+  const weightError = newWeight.trim()
+    ? numberInRange(newWeight, 1, 500, "Weight")
+    : null;
+  const weightInvalid = !newWeight.trim() || !!weightError;
 
   // Su animasyon referansları
   const waterLevelAnimation = useRef(new Animated.Value(0)).current;
@@ -630,6 +637,9 @@ const TrackerScreen = () => {
               />
               <Text style={styles.inputUnit}>kg</Text>
             </View>
+            {weightError ? (
+              <Text style={styles.modalError}>{weightError}</Text>
+            ) : null}
 
             <View style={styles.inputContainer}>
               <TextInput
@@ -654,10 +664,10 @@ const TrackerScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  isUpdatingWeight && styles.disabledButton,
+                  (isUpdatingWeight || weightInvalid) && styles.disabledButton,
                 ]}
                 onPress={saveWeight}
-                disabled={isUpdatingWeight}
+                disabled={isUpdatingWeight || weightInvalid}
               >
                 {isUpdatingWeight ? (
                   <ActivityIndicator size="small" color={COLORS.surface} />
@@ -1023,6 +1033,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     marginBottom: 24,
+  },
+  modalError: {
+    fontSize: 12,
+    color: COLORS.danger,
+    alignSelf: "flex-start",
+    marginTop: -16,
+    marginBottom: 12,
   },
   inputContainer: {
     flexDirection: "row",

@@ -19,6 +19,7 @@ import { useWeight } from "../../../context/WeightContext";
 import { showToast } from "../../../components/AppToast";
 import OptionPicker from "../../../components/OptionPicker";
 import Button from "../../../components/Button";
+import { numberInRange } from "../../../utils/validation";
 import { COLORS } from "../../../theme";
 
 const WeightTrackerScreen = () => {
@@ -254,8 +255,15 @@ const WeightTrackerScreen = () => {
     value,
     setValue,
     onSave,
-    unit
-  ) => (
+    unit,
+    max = 500
+  ) => {
+    // Inline doğrulama: değer 1..max aralığında olmalı (boşken hata gösterme)
+    const err = String(value || "").trim()
+      ? numberInRange(value, 1, max, title)
+      : null;
+    const invalid = !String(value || "").trim() || !!err;
+    return (
     <Modal
       animationType="slide"
       transparent={true}
@@ -284,6 +292,7 @@ const WeightTrackerScreen = () => {
               />
               <Text style={styles.inputUnit}>{unit}</Text>
             </View>
+            {err ? <Text style={styles.modalError}>{err}</Text> : null}
           </View>
 
           <View style={styles.modalButtons}>
@@ -299,12 +308,14 @@ const WeightTrackerScreen = () => {
               fullWidth={false}
               style={styles.modalBtn}
               onPress={onSave}
+              disabled={invalid}
             />
           </View>
         </View>
       </View>
     </Modal>
-  );
+    );
+  };
 
   const weightChange = getWeightChange();
   const goalProgress = getGoalProgress();
@@ -515,7 +526,8 @@ const WeightTrackerScreen = () => {
         tempHeight,
         setTempHeight,
         saveHeight,
-        "cm"
+        "cm",
+        300
       )}
 
       {/* Ortalanmış seçim modalı */}
@@ -744,6 +756,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     marginLeft: 10,
+  },
+  modalError: {
+    fontSize: 12,
+    color: COLORS.danger,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
   modalButtons: {
     flexDirection: "row",
