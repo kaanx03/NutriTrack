@@ -8,6 +8,14 @@
 
 A full-stack mobile nutrition & fitness tracker. **React Native (Expo)** frontend, **Node.js + Express + PostgreSQL** backend, **Groq AI** for food-photo recognition and a nutrition coach.
 
+| Login | Home | Tracker |
+|:---:|:---:|:---:|
+| <img src="assets/screenshots/login.jpg" width="240" alt="Login screen" /> | <img src="assets/screenshots/homepage.jpg" width="240" alt="Home dashboard with calorie ring and macros" /> | <img src="assets/screenshots/tracker.jpg" width="240" alt="Water and weight tracker" /> |
+| **Insights** | **AI Coach** | **Articles** |
+| <img src="assets/screenshots/insights.jpg" width="240" alt="Insights charts" /> | <img src="assets/screenshots/ai-coach.jpg" width="240" alt="AI nutrition coach chat" /> | <img src="assets/screenshots/articles.jpg" width="240" alt="Articles knowledge base" /> |
+| **Account** | | |
+| <img src="assets/screenshots/acc-details.jpg" width="240" alt="Account details" /> | | |
+
 ---
 
 ## Table of Contents
@@ -15,7 +23,6 @@ A full-stack mobile nutrition & fitness tracker. **React Native (Expo)** fronten
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Screens & Navigation](#screens--navigation)
-- [Screenshots](#screenshots)
 - [Getting Started](#getting-started)
 - [Running on a Device](#running-on-a-device)
 - [Environment Variables](#environment-variables)
@@ -119,18 +126,6 @@ Home → Tracker → Insights → Articles → Coach → Profile
 ```
 
 Everything else (food/activity detail, settings sub-pages, barcode scanner, progress photos, onboarding, auth) are stack screens pushed on top with a slide-from-right animation. All headers use the shared `ScreenHeader` for consistent top spacing and safe-area handling.
-
----
-
-## Screenshots
-
-| Login | Home | Tracker |
-|:---:|:---:|:---:|
-| <img src="assets/screenshots/login.jpg" width="240" alt="Login screen" /> | <img src="assets/screenshots/homepage.jpg" width="240" alt="Home dashboard with calorie ring and macros" /> | <img src="assets/screenshots/tracker.jpg" width="240" alt="Water and weight tracker" /> |
-| **Insights** | **AI Coach** | **Articles** |
-| <img src="assets/screenshots/insights.jpg" width="240" alt="Insights charts" /> | <img src="assets/screenshots/ai-coach.jpg" width="240" alt="AI nutrition coach chat" /> | <img src="assets/screenshots/articles.jpg" width="240" alt="Articles knowledge base" /> |
-| **Account** | | |
-| <img src="assets/screenshots/acc-details.jpg" width="240" alt="Account details" /> | | |
 
 ---
 
