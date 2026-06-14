@@ -31,9 +31,6 @@ class UsdaFoodApiService {
       const cacheKey = `usda_search_${cleanedQuery}_${pageSize}_${pageNumber}`;
       const cachedData = await this.getFromCache(cacheKey);
       if (cachedData) {
-        console.log(
-          `Using cache for "${cleanedQuery}": ${cachedData.length} results`
-        );
         return cachedData;
       }
 
@@ -42,16 +39,12 @@ class UsdaFoodApiService {
 
       // Sonuç yoksa, Deneme 2: Sorguyu farklı şekilde yap
       if (foods.length === 0 && cleanedQuery.includes(" ")) {
-        console.log(
-          `No results for "${cleanedQuery}", trying alternative query`
-        );
         const mainKeyword = cleanedQuery.split(" ").pop();
         foods = await this.fetchFromApi(mainKeyword, pageSize, pageNumber);
       }
 
       // Hala sonuç yoksa, Deneme 3: Sorguyu başka bir şekilde dene
       if (foods.length === 0) {
-        console.log(`Still no results, trying broader query`);
         const firstWord = cleanedQuery.split(" ")[0];
         foods = await this.fetchFromApi(firstWord, pageSize, pageNumber);
       }
@@ -75,7 +68,6 @@ class UsdaFoodApiService {
         query
       )}&pageSize=${pageSize}&pageNumber=${pageNumber}`;
 
-      console.log(`Searching API for: "${query}"`);
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -86,11 +78,9 @@ class UsdaFoodApiService {
       const data = await response.json();
 
       if (!data.foods || data.foods.length === 0) {
-        console.log(`API returned no foods for "${query}"`);
         return [];
       }
 
-      console.log(`API found ${data.foods.length} results for "${query}"`);
       return this.transformSearchResults(data);
     } catch (error) {
       console.error(`API fetch error for "${query}": ${error.message}`);
@@ -227,9 +217,6 @@ class UsdaFoodApiService {
             },
           };
 
-          console.log(
-            `Transformed food: ${result.name} - ${result.calories} kcal per ${result.weight}g`
-          );
 
           return result;
         } catch (error) {
@@ -430,9 +417,6 @@ class UsdaFoodApiService {
         },
       };
 
-      console.log(
-        `Food details: ${result.name} - ${result.calories} kcal per ${result.weight}g (CONSISTENT)`
-      );
 
       return result;
     } catch (error) {
