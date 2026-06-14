@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from "../theme";
+import { useReducedMotion } from "../utils/motion";
 
 const OptionPicker = ({
   visible,
@@ -29,11 +30,13 @@ const OptionPicker = ({
   selected,
   onSelect,
   onClose,
-}) => (
+}) => {
+  const reduced = useReducedMotion();
+  return (
   <Modal
     visible={visible}
     transparent
-    animationType="fade"
+    animationType={reduced ? "none" : "fade"}
     onRequestClose={onClose}
   >
     <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
@@ -75,7 +78,8 @@ const OptionPicker = ({
       </TouchableOpacity>
     </TouchableOpacity>
   </Modal>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   overlay: {

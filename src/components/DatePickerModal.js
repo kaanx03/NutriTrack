@@ -10,8 +10,10 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useReducedMotion } from "../utils/motion";
 
 const DatePickerModal = ({ visible, onClose, selectedDate, onDateSelect }) => {
+  const reduced = useReducedMotion();
   // Initial state uses the passed selectedDate or defaults to current date
   const [currentMonth, setCurrentMonth] = useState(
     selectedDate ? new Date(selectedDate) : new Date()
@@ -245,7 +247,7 @@ const DatePickerModal = ({ visible, onClose, selectedDate, onDateSelect }) => {
 
   return (
     <Modal
-      animationType="fade"
+      animationType={reduced ? "none" : "fade"}
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
