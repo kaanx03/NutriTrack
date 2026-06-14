@@ -554,6 +554,117 @@ router.get("/stats", authenticateToken, async (req, res) => {
   }
 });
 
+// ── GDPR: Data Export ─────────────────────────────────────────────────────────
+
+router.get("/export", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const [user, targets, foodEntries, waterLogs, weightLogs, activityLogs, settings] =
+      await Promise.all([
+        db.query(
+          `SELECT id, email, first_name, last_name, phone_number, gender,
+                  birth_date, height, weight, activity_level, created_at
+           FROM users WHERE id = $1`,
+          [userId]
+        ),
+        db.query("SELECT * FROM user_daily_targets WHERE user_id = $1", [userId]),
+        db.query(
+          "SELECT food_name, meal_type, calories, protein, carbs, fat, serving_size, logged_date FROM food_entries WHERE user_id = $1 ORDER BY logged_date DESC",
+          [userId]
+        ),
+        db.query(
+          "SELECT amount_ml, entry_date, logged_at FROM water_logs WHERE user_id = $1 ORDER BY entry_date DESC",
+          [userId]
+        ),
+        db.query(
+          "SELECT weight_kg, bmi, logged_date, notes FROM weight_logs WHERE user_id = $1 ORDER BY logged_date DESC",
+          [userId]
+        ),
+        db.query(
+          "SELECT activity_name, duration_minutes, calories_burned, logged_date FROM activity_logs WHERE user_id = $1 ORDER BY logged_date DESC",
+          [userId]
+        ),
+        db.query(
+          "SELECT calorie_intake_goal, water_intake_goal, weight_units, height_units FROM user_settings WHERE user_id = $1",
+          [userId]
+        ),
+      ]);
+
+    res.json({
+      success: true,
+      exportDate: new Date().toISOString(),
+      data: {
+        profile:      user.rows[0],
+        targets:      targets.rows[0] || null,
+        settings:     settings.rows[0] || null,
+        foodEntries:  foodEntries.rows,
+        waterLogs:    waterLogs.rows,
+        weightLogs:   weightLogs.rows,
+        activityLogs: activityLogs.rows,
+      },
+    });
+  } catch (err) {
+    console.error("Data export error:", err);
+    res.status(500).json({ error: "Server error", details: "Failed to export data" });
+  }
+});
+
+// ── GDPR: Account Deletion ────────────────────────────────────────────────────
+
+router.delete("/account", authenticateToken, async (req, res) => {
+  const client = await db.beginTransaction();
+  try {
+    const userId = req.userId;
+    const { password } = req.body;
+
+    if (!password) {
+      await db.rollbackTransaction(client);
+      return res.status(400).json({ error: "Password confirmation required" });
+    }
+
+    const user = await client.query(
+      "SELECT password_hash FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (user.rows.length === 0) {
+      await db.rollbackTransaction(client);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const valid = await require("bcryptjs").compare(password, user.rows[0].password_hash);
+    if (!valid) {
+      await db.rollbackTransaction(client);
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    // Delete all user data in dependency order
+    await client.query("DELETE FROM food_entries          WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM water_logs            WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM weight_logs           WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM activity_logs         WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM user_daily_data       WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM user_daily_targets    WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM user_settings         WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM favorite_foods        WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM favorite_activities   WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM custom_foods          WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM custom_activities     WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM recent_foods          WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM password_reset_tokens WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users                 WHERE id      = $1", [userId]);
+
+    await db.commitTransaction(client);
+
+    res.json({ success: true, message: "Account and all associated data permanently deleted." });
+  } catch (err) {
+    await db.rollbackTransaction(client);
+    console.error("Account deletion error:", err);
+    res.status(500).json({ error: "Server error", details: "Failed to delete account" });
+  }
+});
+
 // BMR ve günlük kalori hesaplama fonksiyonu (auth.js'den kopyalanmış)
 function calculateNutritionTargets(weight, height, age, gender, activityLevel) {
   let bmr;
