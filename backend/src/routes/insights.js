@@ -243,34 +243,9 @@ router.get("/dashboard", authenticateToken, async (req, res) => {
 
     res.json(response);
   } catch (err) {
+    // İç hata detayını istemciye SIZDIRMA — sunucuda logla, genel mesaj döndür.
     console.error("Insights error:", err);
-    res.status(500).json({ success: false, error: "Server error", details: err.message });
-  }
-});
-
-// Test endpoint
-router.get("/test", authenticateToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    const dailyResult = await db.query(
-      `SELECT 'daily_data' AS source, date, water_consumed, total_calories_consumed
-       FROM user_daily_data WHERE user_id = $1 ORDER BY date DESC LIMIT 10`,
-      [userId]
-    );
-
-    const weightResult = await db.query(
-      `SELECT 'weight_logs' AS source, logged_date AS date, weight_kg
-       FROM weight_logs WHERE user_id = $1 ORDER BY logged_date DESC LIMIT 10`,
-      [userId]
-    );
-
-    res.json({
-      success: true,
-      data: { daily_data: dailyResult.rows, weight_logs: weightResult.rows },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
