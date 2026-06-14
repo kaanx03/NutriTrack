@@ -39,10 +39,19 @@ const OptionPicker = ({
     animationType={reduced ? "none" : "fade"}
     onRequestClose={onClose}
   >
-    <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+    {/* accessible={false}: sarmalayıcılar çocukları gruplamasın → her seçenek
+        ekran okuyucuda ayrı ayrı erişilebilir kalsın. */}
+    <TouchableOpacity
+      style={styles.overlay}
+      activeOpacity={1}
+      onPress={onClose}
+      accessible={false}
+    >
       {/* Kartın kendisine basınca kapanmasın */}
-      <TouchableOpacity activeOpacity={1} style={styles.card}>
-        <Text style={styles.title}>{title}</Text>
+      <TouchableOpacity activeOpacity={1} style={styles.card} accessible={false}>
+        <Text style={styles.title} accessibilityRole="header">
+          {title}
+        </Text>
 
         <ScrollView style={styles.optionList} bounces={false}>
           {options.map((option) => {
@@ -55,6 +64,9 @@ const OptionPicker = ({
                   onSelect(option);
                   onClose();
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={String(option)}
               >
                 <Text
                   style={[
@@ -72,7 +84,12 @@ const OptionPicker = ({
           })}
         </ScrollView>
 
-        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </TouchableOpacity>
