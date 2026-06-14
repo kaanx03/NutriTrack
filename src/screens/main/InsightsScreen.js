@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Circle, Rect, Text as SvgText, Path } from "react-native-svg";
 import ScreenHeader from "../../components/ScreenHeader";
+import ErrorState from "../../components/ErrorState";
+import { isNetworkError } from "../../utils/validation";
 import { useInsights } from "../../context/InsightsContext";
 import { useAuth } from "../../context/AuthContext";
 import { COLORS } from "../../theme";
@@ -125,6 +127,22 @@ const InsightsScreen = () => {
         >
           <Text style={styles.retryButtonText}>Go to Login</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Error / offline state — veri çekilemedi ve gösterilecek bir şey yok
+  if (error && !loading) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader title="Insights" />
+        <ErrorState
+          offline={isNetworkError(error)}
+          message={
+            isNetworkError(error) ? undefined : "Couldn't load your insights."
+          }
+          onRetry={onRefresh}
+        />
       </View>
     );
   }
