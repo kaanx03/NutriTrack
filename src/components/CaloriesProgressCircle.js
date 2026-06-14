@@ -1,7 +1,15 @@
 // src/components/CaloriesProgressCircle.js
-import React from "react";
+import React, { useEffect } from "react";
 import Svg, { Circle } from "react-native-svg";
 import { View, StyleSheet } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+} from "react-native-reanimated";
+import { useReducedMotion, DURATION } from "../utils/motion";
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const CaloriesProgressCircle = ({
   size = 120,
@@ -23,6 +31,27 @@ const CaloriesProgressCircle = ({
   const overflowDashoffset =
     circumference - (circumference * overflowProgress) / 100;
 
+  // Halka dolumu: boştan (circumference) hedefe doğru worklet ile akar.
+  const reduced = useReducedMotion();
+  const baseOffset = useSharedValue(circumference);
+  const overflowOffset = useSharedValue(circumference);
+
+  useEffect(() => {
+    baseOffset.value = reduced
+      ? baseDashoffset
+      : withTiming(baseDashoffset, { duration: DURATION.slow });
+    overflowOffset.value = reduced
+      ? overflowDashoffset
+      : withTiming(overflowDashoffset, { duration: DURATION.slow });
+  }, [baseDashoffset, overflowDashoffset, reduced]);
+
+  const baseAnimProps = useAnimatedProps(() => ({
+    strokeDashoffset: baseOffset.value,
+  }));
+  const overflowAnimProps = useAnimatedProps(() => ({
+    strokeDashoffset: overflowOffset.value,
+  }));
+
   return (
     <View
       style={{
@@ -41,7 +70,7 @@ const CaloriesProgressCircle = ({
           r={radius}
           strokeWidth={strokeWidth}
         />
-        <Circle
+        <AnimatedCircle
           stroke={color}
           fill="none"
           cx={size / 2}
@@ -49,14 +78,14 @@ const CaloriesProgressCircle = ({
           r={radius}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
-          strokeDashoffset={baseDashoffset}
+          animatedProps={baseAnimProps}
           strokeLinecap="round"
           rotation="-90"
           originX={size / 2}
           originY={size / 2}
         />
         {isOverflow && (
-          <Circle
+          <AnimatedCircle
             stroke={overflowColor}
             fill="none"
             cx={size / 2}
@@ -64,7 +93,7 @@ const CaloriesProgressCircle = ({
             r={radius}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
-            strokeDashoffset={overflowDashoffset}
+            animatedProps={overflowAnimProps}
             strokeLinecap="round"
             rotation="-90"
             originX={size / 2}

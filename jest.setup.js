@@ -15,6 +15,7 @@ jest.mock("react-native-reanimated", () => {
     createAnimatedComponent: (C) => C,
     useSharedValue: (v) => ({ value: v }),
     useAnimatedStyle: () => ({}),
+    useAnimatedProps: () => ({}),
     useAnimatedKeyboard: () => ({ height: { value: 0 } }),
     useReducedMotion: () => false,
     withTiming: passthrough,
